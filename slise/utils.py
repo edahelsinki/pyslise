@@ -1,17 +1,8 @@
 # This script contains some utility functions
 
+from math import log
 import numpy as np
-
-
-def sigmoid(x: np.ndarray) -> np.ndarray:
-    # Computes probabilities from logits
-    return 1 / (1 + np.exp(-x))
-
-def logit(p: np.ndarray, stab : float = 0.001) -> np.ndarray:
-    # Computes logits from probabilities
-    # p is limited to [stab, 1-stab] for numerical stability
-    p = np.clip(p, stab, 1 - stab)
-    return np.log(p / (1.0 - p))
+from scipy.special import expit as sigmoid
 
 def dsigmoid(x: np.ndarray) -> np.ndarray:
     # Derivative of the sigmoid function
@@ -38,4 +29,15 @@ def sparsity(x: np.ndarray, treshold: float = 0) -> float:
 def log_sum(x: np.ndarray) -> float:
     # Computes log(sum(exp(x))) in a numerically robust way
     xmax = np.max(x)
-    return xmax + np.log(np.sum(np.exp(x - xmax)))
+    return xmax + log(np.sum(np.exp(x - xmax)))
+
+def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
+    # Computes log(sum(exp(x) * y)),
+    # or log(sum(exp(x))) if all(y == 0),
+    # in a numerically robust way
+    xmax = np.max(x)
+    xexp = np.exp(x - xmax)
+    xsum = np.sum(xexp * y)
+    if xsum == 0:
+        xsum = np.sum(xexp)
+    return xmax + log(xsum)
