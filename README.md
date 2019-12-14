@@ -1,2 +1,29 @@
-# slise-py
- The SLISE algorithm for robust regression and explanations for black box models (Python implementation) 
+# SLISE - Sparse Linear Subset Explanations
+
+Python implementation of the SLISE algorithm. The SLISE algorithm can be used for
+both robust regression and to explain outcomes from black box models.
+For more details see [the paper](https://rdcu.be/bVbda), alternatively for a more informal
+overview see [the presentation](vignettes/presentation.pdf), or [the poster](vignettes/poster.pdf).
+
+> **Björklund A., Henelius A., Oikarinen E., Kallonen K., Puolamäki K.**  
+> *Sparse Robust Regression for Explaining Classifiers.*  
+> Discovery Science (DS 2019).  
+> Lecture Notes in Computer Science, vol 11828, Springer.  
+> https://doi.org/10.1007/978-3-030-33778-0_27
+
+
+## Installation
+
+>**`TODO`**
+
+
+## Example
+
+>**`TODO`**
+
+
+## Dependencies
+
+- Python 3
+- Numpy
+- PyLBFGS
