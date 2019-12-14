@@ -3,7 +3,9 @@
 Python implementation of the SLISE algorithm. The SLISE algorithm can be used for
 both robust regression and to explain outcomes from black box models.
 For more details see [the paper](https://rdcu.be/bVbda), alternatively for a more informal
-overview see [the presentation](vignettes/presentation.pdf), or [the poster](vignettes/poster.pdf).
+overview see [the presentation](https://github.com/edahelsinki/slise/vignettes/presentation.pdf),
+or [the poster](https://github.com/edahelsinki/slise/vignettes/poster.pdf).
+The (original) R implementation can be found [here](https://github.com/edahelsinki/slise).
 
 > **Björklund A., Henelius A., Oikarinen E., Kallonen K., Puolamäki K.**  
 > *Sparse Robust Regression for Explaining Classifiers.*  
