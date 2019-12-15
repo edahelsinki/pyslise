@@ -2,7 +2,7 @@
 
 import numpy as np
 from slise.utils import sigmoid, log_sigmoid, sparsity, log_sum, log_sum_special
-from slise.optimisation import loss_smooth, loss_sharp, loss_owlqn, owlqn, graduated_optimisation
+from slise.optimisation import loss_smooth, loss_sharp, loss_numba, owlqn, graduated_optimisation
 
 def test_utils():
     print("Testing util functions")
@@ -20,19 +20,18 @@ def test_loss():
     X = np.random.normal(size=[20, 5])
     Y = np.random.normal(size=20)
     alpha = np.random.normal(size=5)
-    grad = alpha.copy()
     assert loss_smooth(alpha, X, Y) <= 0
     assert loss_sharp(alpha, X, Y) <= 0
-    assert loss_owlqn(alpha, grad, X, Y) <= 0
+    assert loss_numba(alpha, X, Y)[0] <= 0
     assert loss_sharp(alpha, X, Y) <= 0
     assert loss_smooth(alpha, X, Y, 10) < 0
     assert loss_sharp(alpha, X, Y, 10) < 0
-    assert loss_owlqn(alpha, grad, X, Y, 10) < 0
+    assert loss_numba(alpha, X, Y, 10)[0] < 0
     assert np.allclose(loss_smooth(alpha, X, Y, beta=1000000), loss_sharp(alpha, X, Y))
     assert np.allclose(loss_smooth(alpha, X, Y, lambda1 = 0.5, beta=1000000), loss_sharp(alpha, X, Y, lambda1 = 0.5))
     assert np.allclose(loss_smooth(alpha, X, Y, lambda2 = 0.5, beta=1000000), loss_sharp(alpha, X, Y, lambda2 = 0.5))
-    assert np.allclose(loss_smooth(alpha, X, Y, beta=100), loss_owlqn(alpha, grad, X, Y, beta=100))
-    assert np.allclose(loss_smooth(alpha, X, Y, beta=100, lambda2 = 0.5), loss_owlqn(alpha, grad, X, Y, beta=100, lambda2 = 0.5))
+    assert np.allclose(loss_smooth(alpha, X, Y, beta=100), loss_numba(alpha, X, Y, beta=100)[0])
+    assert np.allclose(loss_smooth(alpha, X, Y, beta=100, lambda2 = 0.5), loss_numba(alpha, X, Y, beta=100, lambda2 = 0.5)[0])
 
 def test_owlqn():
     print("Testing owlqn")
@@ -42,9 +41,9 @@ def test_owlqn():
     alpha2 = owlqn(alpha, X, Y, beta = 100)
     assert loss_smooth(alpha, X, Y, beta = 100) >= loss_smooth(alpha2, X, Y, beta = 100)
     alpha2 = owlqn(alpha, X, Y, beta = 100, lambda1 = 0.5)
-    assert loss_smooth(alpha, X, Y, beta = 100, lambda1 = 0.5) >= loss_smooth(alpha2, X, Y, beta = 100, lambda1 = 0.5)
+    assert loss_smooth(alpha, X, Y, beta = 100, lambda1 = 0.5) > loss_smooth(alpha2, X, Y, beta = 100, lambda1 = 0.5)
     alpha2 = owlqn(alpha, X, Y, beta = 100, lambda2 = 0.5)
-    assert loss_smooth(alpha, X, Y, beta = 100, lambda2 = 0.5) >= loss_smooth(alpha2, X, Y, beta = 100, lambda2 = 0.5)
+    assert loss_smooth(alpha, X, Y, beta = 100, lambda2 = 0.5) > loss_smooth(alpha2, X, Y, beta = 100, lambda2 = 0.5)
 
 def test_gradopt():
     print("Testing graduated optimisation")
@@ -54,9 +53,9 @@ def test_gradopt():
     alpha2 = graduated_optimisation(alpha, X, Y)
     assert loss_smooth(alpha, X, Y, beta = 100) >= loss_smooth(alpha2, X, Y, beta = 100)
     alpha2 = graduated_optimisation(alpha, X, Y, beta = 100, lambda1 = 0.5)
-    assert loss_smooth(alpha, X, Y, beta = 100, lambda1 = 0.5) >= loss_smooth(alpha2, X, Y, beta = 100, lambda1 = 0.5)
+    assert loss_smooth(alpha, X, Y, beta = 100, lambda1 = 0.5) > loss_smooth(alpha2, X, Y, beta = 100, lambda1 = 0.5)
     alpha2 = graduated_optimisation(alpha, X, Y, beta = 100, lambda2 = 0.5)
-    assert loss_smooth(alpha, X, Y, beta = 100, lambda2 = 0.5) >= loss_smooth(alpha2, X, Y, beta = 100, lambda2 = 0.5)
+    assert loss_smooth(alpha, X, Y, beta = 100, lambda2 = 0.5) > loss_smooth(alpha2, X, Y, beta = 100, lambda2 = 0.5)
 
 if __name__ == "__main__":
     old = np.seterr(over='ignore')
