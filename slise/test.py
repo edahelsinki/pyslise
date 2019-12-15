@@ -3,6 +3,8 @@
 import numpy as np
 from slise.utils import sigmoid, log_sigmoid, sparsity, log_sum, log_sum_special
 from slise.optimisation import loss_smooth, loss_sharp, loss_numba, owlqn, graduated_optimisation
+from slise.data import scale_normal, unscale, scale_range, scale_identity, pca_simple, pca_invert,\
+    pca_rotate, scale_model, unscale_model, pca_invert_model, pca_rotate_model, add_intercept_column
 
 def test_utils():
     print("Testing util functions")
@@ -57,10 +59,52 @@ def test_gradopt():
     alpha2 = graduated_optimisation(alpha, X, Y, beta = 100, lambda2 = 0.5)
     assert loss_smooth(alpha, X, Y, beta = 100, lambda2 = 0.5) > loss_smooth(alpha2, X, Y, beta = 100, lambda2 = 0.5)
 
+def test_scaling():
+    print("Testing scaling")
+    X = np.random.normal(size=[20, 5])
+    X2 = unscale(*scale_normal(X))
+    assert np.allclose(X, X2)
+    X3 = unscale(*scale_normal(X[:, 1]))
+    assert np.allclose(X[:, 1], X3)
+    X2 = unscale(*scale_range(X))
+    assert np.allclose(X, X2)
+    X3 = unscale(*scale_range(X[:, 1]))
+    assert np.allclose(X[:, 1], X3)
+    X2 = unscale(*scale_identity(X))
+    assert np.allclose(X, X2)
+    X3 = unscale(*scale_identity(X[:, 1]))
+    assert np.allclose(X[:, 1], X3)
+
+def test_pca():
+    print("Testing pca")
+    X = np.random.normal(size=[20, 5])
+    X2, v = pca_simple(X, 5)
+    assert np.allclose(X, pca_invert(X2, v))
+    X3 = np.concatenate((X*2, X), 1)
+    assert pca_simple(X3, 10)[1].shape == (10, 5)
+    assert np.allclose(X[0, :], pca_invert(pca_rotate(X[0, :], v), v))
+    mod = np.random.normal(size=5)
+    assert np.allclose(X @ mod, X2 @ pca_rotate_model(mod, v))
+    assert np.allclose(X @ pca_invert_model(mod, v), X2 @ mod)
+
+
+def test_scale_model():
+    print("Testing model scaling")
+    X = np.random.normal(size=[20, 5])
+    Y = np.random.normal(size=20)
+    _, mean_x, scale_x, mask = scale_normal(X)
+    _, mean_y, scale_y, _ = scale_range(Y)
+    mod = np.random.normal(size=5)
+    assert np.allclose(mod, scale_model(unscale_model(mod, mean_x, scale_x, mask, mean_y, scale_y), mean_x, scale_x, mask, mean_y, scale_y)[1:])
+    assert np.allclose(mod, unscale_model(scale_model(mod, mean_x, scale_x, mask, mean_y, scale_y), mean_x, scale_x, mask, mean_y, scale_y)[1:])
+
 if __name__ == "__main__":
     old = np.seterr(over='ignore')
     test_utils()
     test_loss()
     test_owlqn()
     test_gradopt()
+    test_scaling()
+    test_pca()
+    test_scale_model()
     np.seterr(**old)
