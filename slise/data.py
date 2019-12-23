@@ -279,24 +279,33 @@ class DataScaler():
         elif len(alpha) == len(self.scaler_x.mean) + 1: # Assuming intercept
             alpha = alpha[np.concatenate(([0], np.atleast_1d(self.scaler_x.mask + 1)))]
         else:
-            raise Exception("wrong size of alpha")
+            raise Exception("wrong size for alpha")
         alpha[0] = (alpha[0] - self.scaler_y.mean + sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask])) / self.scaler_y.stddv
         alpha[1:] = alpha[1:] * self.scaler_x.stddv / self.scaler_y.stddv
         return alpha
 
     def unscale_model(self, alpha: np.ndarray) -> np.ndarray:
-        if len(alpha) == len(self.scaler_x.mask):
-            alpha = np.concatenate(([0], np.atleast_1d(alpha)))
+        if len(np.atleast_1d(alpha)) == len(np.atleast_1d(self.scaler_x.mask)):
+            alpha = np.concatenate(([0], alpha))
+        else:
+            alpha = alpha.copy()
         alpha[0] = (alpha[0] - np.sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask] / self.scaler_x.stddv)) * self.scaler_y.stddv + self.scaler_y.mean
         alpha[1:] = alpha[1:] * self.scaler_y.stddv / self.scaler_x.stddv
         return self.extend_model(alpha)
 
     def extend_model(self, alpha: np.ndarray) -> np.ndarray:
-        if len(alpha) == len(self.scaler_x.mask):
-            alpha = np.concatenate(([0], np.atleast_1d(alpha)))
-        if len(self.scaler_x.mean) > len(self.scaler_x.stddv):
-            a2 = np.zeros(len(self.scaler_x.mean) + 1)
-            a2[np.concatenate(([0], np.atleast_1d(scaler_x.mask + 1)))] = alpha
+        mask = np.atleast_1d(self.scaler_x.mask)
+        mean = np.atleast_1d(self.scaler_x.mean)
+        if len(mask) == len(mean):
+            return alpha
+        a2 = np.atleast_1d(alpha)
+        if len(a2) == len(mask):
+            a2 = np.zeros_like(mean)
+            a2[mask] = alpha
+            return a2
+        if len(a2) == len(mask) + 1:
+            a2 = np.zeros(len(mean) + 1)
+            a2[np.concatenate(([0], mask + 1))] = alpha
             return a2
         return alpha
 
