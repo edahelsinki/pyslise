@@ -27,5 +27,6 @@ The (original) R implementation can be found [here](https://github.com/edahelsin
 ## Dependencies
 
 - Python 3
-- Numpy
+- NumPy
+- SciPy
 - PyLBFGS
