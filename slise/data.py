@@ -141,25 +141,25 @@ def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) ->
     dimensions = min(dimensions, *X.shape)
     u, s, v = np.linalg.svd(X, False, True, False)
     dimensions = np.sum(s[:min(dimensions, len(s))] > s[0] * tolerance)
-    if dimensions < v.shape[1]:
-        v = v[:, :dimensions]
-    return X @ v, v
+    if dimensions < v.shape[0]:
+        v = v[:dimensions, :]
+    return u[:, :dimensions].dot(np.diag(s[:dimensions])), v
 
 def pca_rotate(X: np.ndarray, v: np.ndarray) -> np.ndarray:
-    return X @ v
-
-def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
     return X @ v.T
 
-def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
-    if len(alpha) > v.shape[0]:
-        return np.concatenate((alpha[:1], v.T @ alpha[1:]))
-    return v.T @ alpha
+def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
+    return X @ v
 
-def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
+def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     if len(alpha) > v.shape[1]:
         return np.concatenate((alpha[:1], v @ alpha[1:]))
     return v @ alpha
+
+def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
+    if len(alpha) > v.shape[0]:
+        return np.concatenate((alpha[:1], v.T @ alpha[1:]))
+    return v.T @ alpha
 
 
 def local_scale(X: np.ndarray, x:np.ndarray) -> np.ndarray:

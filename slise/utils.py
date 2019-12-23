@@ -46,12 +46,12 @@ def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
 def random_sample_int(n: int, k: int) -> list:
     if n < k:
         raise Exception("random_sample_int: n must be equal or larger than k")
-    indices = list(range(k))
     if n == k:
-        return indices
-    for i in range(k):
-        new = randrange(0, n - k)
+        return list(range(k))
+    indices = [randrange(0, n)] * k
+    for i in range(1, k):
+        new = randrange(0, n)
         while new in indices[:k]:
-            new = randrange(0, n - k)
+            new = randrange(0, n)
         indices[i] = new
     return indices

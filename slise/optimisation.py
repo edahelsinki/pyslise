@@ -20,10 +20,12 @@ def loss_smooth(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float 
         loss += lambda2 * np.sum(alpha * alpha)
     return loss
 
+@jit(nopython=True)
 def loss_residuals(alpha: np.ndarray, residuals2: np.ndarray, epsilon2: float = 0.01,
         lambda1: float = 0, lambda2: float = 0, beta: float = 100) -> float:
     # Takes squared residuals and epsilons
-    subset = sigmoid(beta * (epsilon2 - residuals2))
+    subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))
+    # subset = sigmoid(beta * (epsilon2 - residuals2))
     residuals = np.minimum(0, residuals2 - epsilon2 * len(residuals2))
     loss = np.sum(subset * residuals) / len(residuals2)
     if lambda1 > 0:
