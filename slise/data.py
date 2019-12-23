@@ -31,19 +31,21 @@ def scale_normal(X: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarr
         X = X / scale[np.newaxis, :]
         return X, mean, scale, mask
 
-def scale_range(X: np.ndarray, quantiles: list = [0.05, 0.95]) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+def scale_range(X: np.ndarray, quantiles: list = [0.05, 0.5, 0.95]) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     if len(X.shape) == 1:
-        mean = np.mean(X)
+        qs = np.quantile(X, quantiles)
+        mean = np.mean(qs)
         X = X - mean
-        scale = np.mean(np.abs(np.quantile(X, quantiles)))
+        scale = 0.5 * np.max(qs) - 0.5 * np.min(qs)
         if scale == 0:
             scale = 1.0
         X = X / scale
         return X, mean, scale, 0
     else:
-        mean = np.mean(X, 0)
+        qs = np.quantile(X, quantiles, 0)
+        mean = np.mean(qs, 0)
         X = X - mean[np.newaxis, :]
-        scale = np.mean(np.abs(np.quantile(X, quantiles, 0)), 0)
+        scale = 0.5 * np.max(qs, 0) - 0.5 * np.min(qs, 0)
         mask = np.nonzero(scale)
         if isinstance(mask, tuple):
             mask = mask[-1]

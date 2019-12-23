@@ -108,3 +108,4 @@ if __name__ == "__main__":
     test_pca()
     test_scale_model()
     np.seterr(**old)
+    print("All tests completed")
