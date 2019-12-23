@@ -162,5 +162,19 @@ def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     return v @ alpha
 
 
+def local_scale(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+    if len(X.shape) > 1:
+        return X - x[np.newaxis, :]
+    return X - x
+
+def local_unscale(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+    if len(X.shape) > 1:
+        return X + x[np.newaxis, :]
+    return X + x
+
+def local_unscale_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
+    return np.concatenate((y - np.sum(alpha * x, keepdims=True), alpha))
+
+
 if __name__ =="__main__":
     scale_normal(np.random.normal(size=(20,5)))
