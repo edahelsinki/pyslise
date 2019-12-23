@@ -1,138 +1,304 @@
 # This script contains functions for modifying data
 
+from abc import ABC, abstractmethod
 import numpy as np
+from scipy.special import logit, expit as sigmoid
+
 
 def add_intercept_column(X: np.ndarray) -> np.ndarray:
     if len(X.shape) == 1:
         return np.concatenate(([1.0], X))
     return np.concatenate((np.ones((X.shape[0], 1)), X), 1)
 
-def scale_normal(X: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+def remove_intercept_column(X: np.ndarray) -> np.ndarray:
     if len(X.shape) == 1:
-        mean = np.mean(X)
-        X = X - mean
-        scale = np.sqrt(np.sum(np.square(X)) / (len(X) - 1))
-        if scale == 0:
-            scale = 1.0
-        X = X / scale
-        return X, mean, scale, 0
-    else:
-        mean = np.mean(X, 0)
-        X = X - mean[np.newaxis, :]
-        scale = np.sqrt(np.sum(np.square(X), 0) / (X.shape[0] - 1))
-        mask = np.nonzero(scale)
-        if isinstance(mask, tuple):
-            mask = mask[-1]
-        if len(mask) == 0:
-            mask = np.arange(len(scale))
-        elif len(mask) != len(scale):
-            scale = scale[mask]
-            X = X[:, mask]
-        X = X / scale[np.newaxis, :]
-        return X, mean, scale, mask
+        return X[1:]
+    return X[:, 1:]
 
-def scale_range(X: np.ndarray, quantiles: list = [0.05, 0.5, 0.95]) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
-    if len(X.shape) == 1:
-        qs = np.quantile(X, quantiles)
-        mean = np.mean(qs)
-        X = X - mean
-        scale = 0.5 * np.max(qs) - 0.5 * np.min(qs)
-        if scale == 0:
-            scale = 1.0
-        X = X / scale
-        return X, mean, scale, 0
-    else:
-        qs = np.quantile(X, quantiles, 0)
-        mean = np.mean(qs, 0)
-        X = X - mean[np.newaxis, :]
-        scale = 0.5 * np.max(qs, 0) - 0.5 * np.min(qs, 0)
-        mask = np.nonzero(scale)
-        if isinstance(mask, tuple):
-            mask = mask[-1]
-        if len(mask) == 0:
-            mask = np.arange(len(scale))
-        elif len(mask) != len(scale):
-            scale = scale[mask]
-            X = X[:, mask]
-        X = X / scale[np.newaxis, :]
-        return X, mean, scale, mask
 
-def scale_identity(X: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
-    if len(X.shape) == 1:
-        return X, 0.0, 1.0, 0
-    else:
-        return X, np.zeros(X.shape[1]), np.ones(X.shape[1]), np.arange(X.shape[1])
+class AScaler(ABC):
 
-def unscale(X: np.ndarray, mean: np.ndarray, scale: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    if len(X.shape) == 1:
-        if isinstance(mean, float):
-            return X * scale + mean
-        if len(mean) > len(mask):
-            X2 = mean.copy()
-            X2[mask] += X * scale
-            return X2
-        return X * scale + mean
-    else:
-        if len(mean) > len(mask):
-            X2 = np.repeat([mean], X.shape[0], axis=0)
-            X2[:, mask] += X * scale[np.newaxis, :]
-            return X2
-        return X * scale[np.newaxis, :] + mean[np.newaxis, :]
+    def __init__(self):
+        self.mean = 0.0
+        self.stddv = 1.0
+        self.mask = 0
 
-def unscale_extend(X: np.ndarray, mean: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    if isinstance(mean, float) or len(mean) == len(mask):
+    @abstractmethod
+    def fit(self, X: np.ndarray) -> np.ndarray:
+        if len(X.shape) == 1:
+            self.mean = 0.0
+            self.stddv = 1.0
+            self.mask = 0
+        else:
+            self.mean = np.zeros(X.shape[1])
+            self.stddv = np.ones(X.shape[1])
+            self.mask = np.arange(X.shape[1])
         return X
-    if len(X.shape) == 1:
-        if len(X) > len(mask):
-            out = np.zeros(len(mean) + 1)
-            out[0] = X[0]
-            out[mask + 1] = X[1:]
-            return out
+
+    def scale(self, X:np.ndarray) -> np.ndarray:
+        if isinstance(self.mean, float) or len(self.mean) == 1:
+            return (X - self.mean) / self.stddv
+        elif len(X.shape) > 1:
+            return (X[:, self.mask] - self.mean[np.newaxis, self.mask]) / self.stddv[np.newaxis, :]
+        elif len(self.mean) == len(X):
+            return (X - self.mean)[self.mask] / self.stddv
         else:
-            out = np.zeros(len(mean))
-            out[mask] = X
-            return out
-    else:
-        if X.shape[1] > len(mask):
-            out = np.zeros((X.shape[0], len(mean) + 1))
-            out[:, 0] = X[:, 0]
-            out[:, mask + 1] = X[:, 1:]
-            return out
+            raise Exception("Wrong dimensions of X (this method is for additional scaling, use 'fit' for finding the scaling parameters)")
+
+    def unscale(self, X: np.ndarray) -> np.ndarray:
+        if isinstance(self.mean, float) or len(self.mean) == 1:
+            return X * self.stddv + self.mean
+        elif len(X.shape) > 1:
+            if len(self.mean) > len(self.mask):
+                X2 = np.repeat([self.mean], X.shape[0], axis=0)
+                X2[:, self.mask] += X * self.stddv[np.newaxis, :]
+                return X2
+            return X * self.stddv[np.newaxis, :] + self.mean[np.newaxis, :]
+        elif len(self.stddv) == len(X):
+            if len(self.mean) > len(self.mask):
+                X2 = self.mean.copy()
+                X2[self.mask] += X * self.stddv
+                return X2
+            return X * self.stddv + self.mean
         else:
-            out = np.zeros((X.shape[0], len(mean)))
-            out[:, mask] = X
-            return out
+            raise Exception("Wrong dimensions of X (use fit first)")
 
 
-def scale_model(alpha: np.ndarray, mean_x: np.ndarray, scale_x: np.ndarray,
-        mask: np.ndarray, mean_y: np.ndarray, scale_y: np.ndarray) -> np.ndarray:
-    if isinstance(alpha, float):
-        alpha = np.array([0.0, alpha])
-    elif isinstance(mean_x, float):
-        mean_x = (mean_x,)
-    elif len(alpha) == len(mean_x):
-        alpha = np.concatenate(([0.0], alpha[mask]))
-    else:
-        alpha = alpha[np.concatenate(([0], mask + 1))]
-    alpha[0] = (alpha[0] - mean_y + sum(alpha[1:] * mean_x[mask])) / scale_y
-    alpha[1:] = alpha[1:] / scale_y * scale_x
-    return alpha
+class ScalerNormal(AScaler):
 
-def unscale_model(alpha: np.ndarray, mean_x: np.ndarray, scale_x: np.ndarray,
-        mask: np.ndarray, mean_y: np.ndarray, scale_y: np.ndarray) -> np.ndarray:
-    if isinstance(mean_x, float):
-        mean_x = (mean_x,)
-    out = np.zeros(len(mean_x) + 1)
-    if isinstance(alpha, float):
-        out[mask + 1] = alpha
-    elif isinstance(scale_x, float) or len(alpha) > len(scale_x):
-        out[0] = alpha[0]
-        out[mask + 1] = alpha[1:]
-    else:
-        out[mask + 1] = alpha
-    out[0] = (out[0] - sum(out[mask + 1] * mean_x[mask] / scale_x)) * scale_y + mean_y
-    out[mask + 1] = out[mask + 1] / scale_x * scale_y
-    return out
+    def fit(self, X: np.ndarray) -> np.ndarray:
+        if len(X.shape) == 1:
+            self.mean = np.mean(X)
+            X = X - self.mean
+            self.stddv = np.sqrt(np.sum(np.square(X)) / (len(X) - 1))
+            if self.stddv == 0:
+                self.stddv = 1.0
+            X = X / self.stddv
+            self.mask = 0
+        else:
+            self.mean = np.mean(X, 0)
+            X = X - self.mean[np.newaxis, :]
+            self.stddv = np.sqrt(np.sum(np.square(X), 0) / (X.shape[0] - 1))
+            self.mask = np.nonzero(self.stddv)
+            if isinstance(self.mask, tuple):
+                self.mask = self.mask[-1]
+            if len(self.mask) == 0:
+                self.mask = np.arange(len(self.stddv))
+            elif len(self.mask) != len(self.stddv):
+                self.stddv = self.stddv[self.mask]
+                X = X[:, self.mask]
+            X = X / self.stddv[np.newaxis, :]
+        return X
+
+
+class ScalerRange(AScaler):
+
+    def __init__(self, quantiles: list = [0.05, 0.5, 0.95]):
+        super().__init__()
+        self.quantiles = quantiles
+
+    def fit(self, X: np.ndarray) -> np.ndarray:
+        if len(X.shape) == 1:
+            qs = np.quantile(X, self.quantiles)
+            self.mean = np.mean(qs)
+            X = X - self.mean
+            self.stddv = 0.5 * np.max(qs) - 0.5 * np.min(qs)
+            if self.stddv == 0:
+                self.stddv = 1.0
+            X = X / self.stddv
+            self.mask = 0
+            return X
+        else:
+            qs = np.quantile(X, self.quantiles, 0)
+            self.mean = np.mean(qs, 0)
+            X = X - self.mean[np.newaxis, :]
+            self.stddv = 0.5 * np.max(qs, 0) - 0.5 * np.min(qs, 0)
+            self.mask = np.nonzero(self.stddv)
+            if isinstance(self.mask, tuple):
+                self.mask = self.mask[-1]
+            if len(self.mask) == 0:
+                self.mask = np.arange(len(self.stddv))
+            elif len(self.mask) != len(self.stddv):
+                self.stddv = self.stddv[self.mask]
+                X = X[:, self.mask]
+            X = X / self.stddv[np.newaxis, :]
+            return X
+
+
+class ScalerIdentity(AScaler):
+
+    def fit(self, X: np.ndarray) -> np.ndarray:
+        if len(X.shape) == 1:
+            self.mean = 0.0
+            self.stddv = 1.0
+            self.mask = 0
+        else:
+            self.mean = np.zeros(X.shape[1])
+            self.stddv = np.ones(X.shape[1])
+            self.mask = np.arange(X.shape[1])
+        return X
+
+    def scale(self, X):
+        return X
+
+    def unscale(self, X):
+        return X
+
+
+class ScalerRemoveConstant(AScaler):
+
+    def fit(self, X: np.ndarray) -> np.ndarray:
+        if len(X.shape) == 1:
+            self.mean = 0.0
+            self.stddv = 1.0
+            self.mask = 0
+        else:
+            self.mean = np.mean(X, 0)
+            self.stddv = np.ones(X.shape[1])
+            var = np.sum(np.square(X - self.mean[np.newaxis, :]), 0)
+            self.mask = np.nonzero(var)
+            if isinstance(self.mask, tuple):
+                self.mask = self.mask[-1]
+            if len(self.mask) == 0:
+                self.mask = np.arange(len(self.stddv))
+            elif len(self.mask) != len(self.stddv):
+                self.stddv = self.stddv[self.mask]
+                X = X[:, self.mask]
+            self.mean[self.mask] = 0.0
+        return X
+
+
+def local_into(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+    if len(X.shape) > 1:
+        return X - x[np.newaxis, :]
+    return X - x
+
+def local_from(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+    if len(X.shape) > 1:
+        return X + x[np.newaxis, :]
+    return X + x
+
+def local_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
+    if len(alpha) == len(x) + 1:
+        alpha = alpha.copy()
+        alpha[0] = y - np.sum(alpha[1:] * x)
+        return alpha
+    return np.concatenate((y - np.sum(alpha * x, keepdims=True), alpha))
+
+class ScalerLocal(AScaler):
+
+    def __init__(self, x):
+        super().__init__()
+        self.mean = x
+        self.stddv = np.ones_like(x)
+        self.mask = np.arange(len(x))
+
+    def fit(self, X):
+        return local_into(X, self.mean)
+
+    def scale(self, X):
+        return local_into(X, self.mean)
+
+    def unscale(self, X):
+        return local_from(X, self.mean)
+
+
+class ScalerNested(AScaler):
+
+    def __init__(self, outer: AScaler, inner: AScaler):
+        super().__init__()
+        self.inner = inner
+        self.outer = outer
+
+    def fit(self, X):
+        X1 = self.outer.fit(X)
+        X2 = self.inner.fit(X1)
+        self.mask = np.atleast_1d(self.outer.mask)[self.inner.mask]
+        self.stddv = np.atleast_1d(self.outer.stddv)[self.inner.mask] * self.inner.stddv
+        self.mean = np.atleast_1d(self.outer.mean)
+        self.mean[self.outer.mask] += self.outer.stddv * self.inner.mean
+        return X2
+
+
+class DataScaler():
+
+    def __init__(self, scaler_x, scaler_y, intercept: bool, logit: bool):
+        if scaler_x == True:
+            self.scaler_x = ScalerNormal()
+        elif scaler_x:
+            self.scaler_x = scaler_x
+        else:
+            self.scaler_x = ScalerRemoveConstant()
+        if scaler_y == True:
+            self.scaler_y = ScalerRange()
+        elif scaler_y:
+            self.scaler_y = scaler_y
+        else:
+            self.scaler_y = ScalerIdentity()
+        self.logit = logit
+        self.intercept = intercept
+
+    def fit(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+        if X is not None:
+            X = self.scaler_x.fit(X)
+            if self.intercept:
+                X = add_intercept_column(X)
+        if Y is not None:
+            if self.logit:
+                Y = logit(Y)
+            Y = self.scaler_y.fit(Y)
+        return X, Y
+
+    def scale(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+        if X is not None:
+            X = self.scaler_x.scale(X)
+            if self.intercept:
+                X = add_intercept_column(X)
+        if Y is not None:
+            if self.logit:
+                Y = logit(Y)
+            Y = self.scaler_y.scale(Y)
+        return X, Y
+
+    def unscale(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+        if X is not None:
+            if self.intercept:
+                X = remove_intercept_column(X)
+            X = self.scaler_x.unscale(X)
+        if Y is not None:
+            Y = self.scaler_y.unscale(Y)
+            if self.logit:
+                Y = sigmoid(Y)
+        return X, Y
+
+    def scale_model(self, alpha: np.ndarray) -> np.ndarray:
+        if isinstance(alpha, float):
+            alpha = np.array([0.0, alpha])
+        elif len(alpha) == len(self.scaler_x.mean):
+            alpha = np.concatenate(([0.0], alpha[self.scaler_x.mask]))
+        elif len(alpha) == len(self.scaler_x.mean) + 1: # Assuming intercept
+            alpha = alpha[np.concatenate(([0], np.atleast_1d(self.scaler_x.mask + 1)))]
+        else:
+            raise Exception("wrong size of alpha")
+        alpha[0] = (alpha[0] - self.scaler_y.mean + sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask])) / self.scaler_y.stddv
+        alpha[1:] = alpha[1:] * self.scaler_x.stddv / self.scaler_y.stddv
+        return alpha
+
+    def unscale_model(self, alpha: np.ndarray) -> np.ndarray:
+        if len(alpha) == len(self.scaler_x.mask):
+            alpha = np.concatenate(([0], np.atleast_1d(alpha)))
+        alpha[0] = (alpha[0] - np.sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask] / self.scaler_x.stddv)) * self.scaler_y.stddv + self.scaler_y.mean
+        alpha[1:] = alpha[1:] * self.scaler_y.stddv / self.scaler_x.stddv
+        return self.extend_model(alpha)
+
+    def extend_model(self, alpha: np.ndarray) -> np.ndarray:
+        if len(alpha) == len(self.scaler_x.mask):
+            alpha = np.concatenate(([0], np.atleast_1d(alpha)))
+        if len(self.scaler_x.mean) > len(self.scaler_x.stddv):
+            a2 = np.zeros(len(self.scaler_x.mean) + 1)
+            a2[np.concatenate(([0], np.atleast_1d(scaler_x.mask + 1)))] = alpha
+            return a2
+        return alpha
 
 
 def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) -> (np.ndarray, np.ndarray):
@@ -160,21 +326,3 @@ def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     if len(alpha) > v.shape[0]:
         return np.concatenate((alpha[:1], v.T @ alpha[1:]))
     return v.T @ alpha
-
-
-def local_scale(X: np.ndarray, x:np.ndarray) -> np.ndarray:
-    if len(X.shape) > 1:
-        return X - x[np.newaxis, :]
-    return X - x
-
-def local_unscale(X: np.ndarray, x:np.ndarray) -> np.ndarray:
-    if len(X.shape) > 1:
-        return X + x[np.newaxis, :]
-    return X + x
-
-def local_unscale_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
-    return np.concatenate((y - np.sum(alpha * x, keepdims=True), alpha))
-
-
-if __name__ =="__main__":
-    scale_normal(np.random.normal(size=(20,5)))

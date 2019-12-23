@@ -3,10 +3,11 @@
 import numpy as np
 from slise.utils import sigmoid, log_sigmoid, sparsity, log_sum, log_sum_special
 from slise.optimisation import loss_smooth, loss_sharp, loss_numba, owlqn, graduated_optimisation
-from slise.data import scale_normal, unscale, scale_range, scale_identity, pca_simple, pca_invert,\
-    pca_rotate, scale_model, unscale_model, pca_invert_model, pca_rotate_model, add_intercept_column,\
-    local_scale
+from slise.data import ScalerNormal, ScalerRange, ScalerLocal, ScalerRemoveConstant, pca_simple,\
+    pca_invert, pca_rotate, DataScaler, pca_invert_model, pca_rotate_model, add_intercept_column,\
+    ScalerNested, DataScaler, ScalerIdentity, local_into
 from slise.initialisation import initialise_candidates
+
 
 def data_create(n:int, d:int) -> (np.ndarray, np.ndarray):
     X = np.random.normal(size=[n, d]) + np.random.normal(size=d)[np.newaxis, ]
@@ -66,19 +67,28 @@ def test_gradopt():
 
 def test_scaling():
     print("Testing scaling")
-    X = np.random.normal(size=[20, 5])
-    X2 = unscale(*scale_normal(X))
-    assert np.allclose(X, X2)
-    X3 = unscale(*scale_normal(X[:, 1]))
-    assert np.allclose(X[:, 1], X3)
-    X2 = unscale(*scale_range(X))
-    assert np.allclose(X, X2)
-    X3 = unscale(*scale_range(X[:, 1]))
-    assert np.allclose(X[:, 1], X3)
-    X2 = unscale(*scale_identity(X))
-    assert np.allclose(X, X2)
-    X3 = unscale(*scale_identity(X[:, 1]))
-    assert np.allclose(X[:, 1], X3)
+    X, Y = data_create(20, 5)
+    X = add_intercept_column(X)
+    scalers = [ScalerNormal(), ScalerRange(), ScalerRemoveConstant(), ScalerIdentity(),
+        ScalerLocal(np.random.normal(size=6)), ScalerNested(ScalerNormal(), ScalerRange())]
+    for sc in scalers:
+        X2 = sc.fit(X)
+        X3 = sc.scale(X)
+        X4 = sc.unscale(X2)
+        X5 = sc.unscale(sc.scale(X[1,:]))
+        assert np.allclose(X, X4)
+        assert np.allclose(X2, X3)
+        assert np.allclose(X[1, :], X5)
+    scalers = [ScalerNormal(), ScalerRange(), ScalerRemoveConstant(), ScalerIdentity(),
+        ScalerLocal(np.random.normal(size=1)), ScalerNested(ScalerNormal(), ScalerRange())]
+    for sc in scalers:
+        X2 = sc.fit(Y)
+        X3 = sc.scale(Y)
+        X4 = sc.unscale(X2)
+        X5 = sc.unscale(sc.scale(Y[1]))
+        assert np.allclose(Y, X4)
+        assert np.allclose(X2, X3)
+        assert np.allclose(Y[1], X5)
 
 def test_pca():
     print("Testing pca")
@@ -94,14 +104,22 @@ def test_pca():
     X4, v = pca_simple(X.T, 4)
 
 
-def test_scale_model():
+def test_data_scaler():
     print("Testing model scaling")
     X, Y = data_create(20, 5)
-    _, mean_x, scale_x, mask = scale_normal(X)
-    _, mean_y, scale_y, _ = scale_range(Y)
+    Y = np.random.uniform(0, 1, 5)
+    sc = DataScaler(True, True, True, True)
+    X2, Y2 = sc.fit(X, Y)
+    X3, Y3 = sc.unscale(X2, Y2)
+    assert np.allclose(X, X3)
+    assert np.allclose(Y, Y3)
     mod = np.random.normal(size=5)
-    assert np.allclose(mod, scale_model(unscale_model(mod, mean_x, scale_x, mask, mean_y, scale_y), mean_x, scale_x, mask, mean_y, scale_y)[1:])
-    assert np.allclose(mod, unscale_model(scale_model(mod, mean_x, scale_x, mask, mean_y, scale_y), mean_x, scale_x, mask, mean_y, scale_y)[1:])
+    mod2 = sc.scale_model(mod)
+    mod3 = sc.unscale_model(mod2)
+    mod4 = sc.unscale_model(mod)
+    mod5 = sc.scale_model(mod4)
+    assert np.allclose(mod, mod3[1:])
+    assert np.allclose(mod, mod5[1:])
 
 def test_initialise():
     print("Testing initialisation")
@@ -123,7 +141,7 @@ def test_initialise():
     assert loss_smooth(alpha, X, Y, beta = beta) <= loss_smooth(zero, X, Y, beta = beta)
     X, Y = data_create(20, 12)
     x = np.random.normal(size=12)
-    X = local_scale(X, x)
+    X = local_into(X, x)
     zero = np.zeros(12)
     alpha, beta = initialise_candidates(X, Y, x)
     assert beta > 0
@@ -138,7 +156,7 @@ if __name__ == "__main__":
     test_gradopt()
     test_scaling()
     test_pca()
-    test_scale_model()
+    test_data_scaler()
     test_initialise()
     np.seterr(**old)
     print("All tests completed")

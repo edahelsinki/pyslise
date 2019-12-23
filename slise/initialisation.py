@@ -3,8 +3,8 @@
 from math import log
 import numpy as np
 from slise.utils import random_sample_int
-from slise.data import add_intercept_column, scale_normal, scale_range,\
-    pca_simple, pca_invert_model, pca_rotate, local_scale, local_unscale
+from slise.data import add_intercept_column, remove_intercept_column,\
+    pca_simple, pca_invert_model, pca_rotate, local_into, local_from
 from slise.optimisation import next_beta, loss_residuals
 
 def initialise_lasso(X: np.ndarray, Y: np.ndarray, **kwargs):
@@ -45,15 +45,15 @@ def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, ep
     elif x is not None:
         def init():
             sel = random_sample_int(X.shape[0], pca_treshold)
-            pca, v = pca_simple(local_unscale(X, x), pca_treshold)
+            pca, v = pca_simple(local_from(X, x), pca_treshold)
             xp = pca_rotate(x, v)
-            pca = local_scale(pca, xp)
+            pca = local_into(pca, xp)
             mod = np.linalg.lstsq(pca, Y[sel], rcond=None)[0]
             return pca_invert_model(mod, v)
     elif intercept:
         def init():
             sel = random_sample_int(X.shape[0], pca_treshold)
-            pca, v = pca_simple(X[sel,1:], pca_treshold-1)
+            pca, v = pca_simple(remove_intercept_column(X), pca_treshold-1)
             mod = np.linalg.lstsq(add_intercept_column(pca), Y[sel], rcond=None)[0]
             return pca_invert_model(mod, v)
     else:
