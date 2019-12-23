@@ -1,5 +1,6 @@
 # This script contains some utility functions
 
+from random import randrange
 from math import log
 import numpy as np
 from scipy.special import expit as sigmoid
@@ -41,3 +42,16 @@ def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
     if xsum == 0:
         xsum = np.sum(xexp)
     return xmax + log(xsum)
+
+def random_sample_int(n: int, k: int) -> list:
+    if n < k:
+        raise Exception("random_sample_int: n must be equal or larger than k")
+    indices = list(range(k))
+    if n == k:
+        return indices
+    for i in range(k):
+        new = randrange(0, n - k)
+        while new in indices[:k]:
+            new = randrange(0, n - k)
+        indices[i] = new
+    return indices
