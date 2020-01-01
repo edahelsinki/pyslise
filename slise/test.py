@@ -76,8 +76,8 @@ def test_scaling():
         X3 = sc.scale(X)
         X4 = sc.unscale(X2)
         X5 = sc.unscale(sc.scale(X[1,:]))
-        assert np.allclose(X, X4)
-        assert np.allclose(X2, X3)
+        assert np.allclose(X, X4), f"scale-unscale failed for {sc}"
+        assert np.allclose(X2, X3), f"unscale-scale failed for {sc}"
         assert np.allclose(X[1, :], X5)
     scalers = [ScalerNormal(), ScalerRange(), ScalerRemoveConstant(), ScalerIdentity(),
         ScalerLocal(np.random.normal(size=1)), ScalerNested(ScalerNormal(), ScalerRange())]
@@ -147,6 +147,7 @@ def test_initialise():
     assert beta > 0
     assert loss_smooth(alpha, X, Y, beta = beta) <= loss_smooth(zero, X, Y, beta = beta)
 
+#TODO: tests for slise.slise
 
 if __name__ == "__main__":
     old = np.seterr(over='ignore')
