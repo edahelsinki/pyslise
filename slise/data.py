@@ -6,16 +6,25 @@ from scipy.special import logit, expit as sigmoid
 
 
 def add_intercept_column(X: np.ndarray) -> np.ndarray:
+    """
+        Add a constant (first) column of ones to the matrix
+    """
     if len(X.shape) == 1:
         return np.concatenate(([1.0], X))
     return np.concatenate((np.ones((X.shape[0], 1)), X), 1)
 
 def remove_intercept_column(X: np.ndarray) -> np.ndarray:
+    """
+        Remove the first column
+    """
     if len(X.shape) == 1:
         return X[1:]
     return X[:, 1:]
 
 def mat_mul_with_intercept(X: np.ndarray, alpha: np.ndarray):
+    """
+        Matrix multiplication, but check and handle potential intercepts in alpha
+    """
     alpha = np.atleast_1d(alpha)
     if len(X.shape) == 1:
         X.shape += (1,)
@@ -26,14 +35,23 @@ def mat_mul_with_intercept(X: np.ndarray, alpha: np.ndarray):
 
 
 class AScaler(ABC):
+    """
+        Abstract base class for all built-in scalers
+    """
 
     def __init__(self):
+        """
+            All scalers are of the type X' = (X - mean)[mask] / stddv
+        """
         self.mean = 0.0
         self.stddv = 1.0
         self.mask = 0
 
     @abstractmethod
     def fit(self, X: np.ndarray) -> np.ndarray:
+        """
+            Fit the parameters, and return the scaled np.ndarray
+        """
         if len(X.shape) == 1:
             self.mean = 0.0
             self.stddv = 1.0
@@ -45,6 +63,9 @@ class AScaler(ABC):
         return X
 
     def scale(self, X:np.ndarray) -> np.ndarray:
+        """
+           Scale X using the fitted parameters
+        """
         if isinstance(self.mean, float) or len(self.mean) == 1:
             return (X - self.mean) / self.stddv
         elif len(X.shape) > 1:
@@ -55,6 +76,9 @@ class AScaler(ABC):
             raise Exception("Wrong dimensions of X (this method is for additional scaling, use 'fit' for finding the scaling parameters)")
 
     def unscale(self, X: np.ndarray) -> np.ndarray:
+        """
+           Unscale X using the fitted parameters
+        """
         if isinstance(self.mean, float) or len(self.mean) == 1:
             return X * self.stddv + self.mean
         elif len(X.shape) > 1:
@@ -74,8 +98,15 @@ class AScaler(ABC):
 
 
 class ScalerNormal(AScaler):
+    """
+        A "normal" scaler that subtracts the (columnwise) mean and divides by the (columnwise) deviation.
+        Additionally it removes all constant columns.
+    """
 
     def fit(self, X: np.ndarray) -> np.ndarray:
+        """
+            Fit the parameters, and return the scaled np.ndarray
+        """
         if len(X.shape) == 1:
             self.mean = np.mean(X)
             X = X - self.mean
@@ -101,12 +132,24 @@ class ScalerNormal(AScaler):
 
 
 class ScalerRange(AScaler):
+    """
+        A scaler that scales the columns to have spread of one:
+            min(quantile) - max(quantile) = 1.0
+    """
 
     def __init__(self, quantiles: list = [0.05, 0.95]):
+        """A scaler that scales the columns to have spread of one:
+        
+        Keyword Arguments:
+            quantiles {list} -- The quantiles for calculating the spread (default: {[0.05, 0.95]})
+        """
         super().__init__()
         self.quantiles = quantiles
 
     def fit(self, X: np.ndarray) -> np.ndarray:
+        """
+            Fit the parameters, and return the scaled np.ndarray
+        """
         if len(X.shape) == 1:
             qs = np.quantile(X, self.quantiles)
             self.mean = 0.0
@@ -134,8 +177,14 @@ class ScalerRange(AScaler):
             return X
 
 class ScalerIdentity(AScaler):
+    """
+        A scaler that does nothing
+    """
 
     def fit(self, X: np.ndarray) -> np.ndarray:
+        """
+            Fit the parameters, and return the scaled np.ndarray
+        """
         if len(X.shape) == 1:
             self.mean = 0.0
             self.stddv = 1.0
@@ -154,8 +203,14 @@ class ScalerIdentity(AScaler):
 
 
 class ScalerRemoveConstant(AScaler):
+    """
+        A scaler that only removes constant columns
+    """
 
     def fit(self, X: np.ndarray) -> np.ndarray:
+        """
+            Fit the parameters, and return the scaled np.ndarray
+        """
         if len(X.shape) == 1:
             self.mean = 0.0
             self.stddv = 1.0
@@ -177,16 +232,44 @@ class ScalerRemoveConstant(AScaler):
 
 
 def local_into(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+    """Center a np.ndarray on a selected point
+    
+    Arguments:
+        X {np.ndarray} -- the np.ndarray
+        x {np.ndarray} -- the point
+    
+    Returns:
+        np.ndarray -- the centered np.ndarray
+    """
     if len(X.shape) > 1:
         return X - x[np.newaxis, :]
     return X - x
 
 def local_from(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+    """Uncenter a np.ndarray on a selected point
+    
+    Arguments:
+        X {np.ndarray} -- the np.ndarray
+        x {np.ndarray} -- the point
+    
+    Returns:
+        np.ndarray -- the centered np.ndarray
+    """
     if len(X.shape) > 1:
         return X + x[np.newaxis, :]
     return X + x
 
 def local_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
+    """Make sure a linear model passes through a point
+    
+    Arguments:
+        alpha {np.ndarray} -- the linear model
+        x {np.ndarray} -- the point
+        y {np.ndarray} -- the response
+    
+    Returns:
+        np.ndarray -- the localised model
+    """
     if len(alpha) == len(x) + 1:
         alpha = alpha.copy()
         alpha[0] = y - np.sum(alpha[1:] * x)
@@ -194,8 +277,16 @@ def local_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
     return np.concatenate((y - np.sum(alpha * x, keepdims=True), alpha))
 
 class ScalerLocal(AScaler):
+    """
+        A scaler that centers the data on a selected point
+    """
 
     def __init__(self, x):
+        """A scaler that centers the data on a selected point
+        
+        Arguments:
+            x -- the point to center on
+        """
         super().__init__()
         self.mean = x
         self.stddv = np.ones_like(x)
@@ -212,13 +303,25 @@ class ScalerLocal(AScaler):
 
 
 class ScalerNested(AScaler):
+    """
+        A scaler that combines to other AScalers
+    """
 
     def __init__(self, outer: AScaler, inner: AScaler):
+        """A scaler that combines to other AScalers
+        
+        Arguments:
+            outer {AScaler} -- The scaler that operates on the data
+            inner {AScaler} -- The scaler that operates on the ouput of the outer scaler
+        """
         super().__init__()
         self.inner = inner
         self.outer = outer
 
     def fit(self, X):
+        """
+            Fit the parameters, and return the scaled np.ndarray
+        """
         X1 = self.outer.fit(X)
         X2 = self.inner.fit(X1)
         self.mask = np.atleast_1d(self.outer.mask)[self.inner.mask]
@@ -229,8 +332,19 @@ class ScalerNested(AScaler):
 
 
 class DataScaler():
+    """
+        This class holds two scalers, one for X and one for Y
+    """
 
-    def __init__(self, scaler_x, scaler_y, intercept: bool, logit: bool):
+    def __init__(self, scaler_x: AScaler = False, scaler_y: AScaler = False, intercept: bool = False, logit: bool = False):
+        """This class holds two scalers, one for X and one for Y
+        
+        Keyword Arguments:
+            scaler_x {AScaler} -- The scaler to use for X, or True for ScalerNormal and False for ScalerRemoveConstant (default: {False})
+            scaler_y {AScaler} -- The scaler to use for Y, or True for ScalerRange and False for ScalerIdentity (default: {False})
+            intercept {bool} -- Should an intercept column be added to X (default: {False})
+            logit {bool} -- Should Y be passed through a logit function (default: {False})
+        """
         if scaler_x == True:
             self.scaler_x = ScalerNormal()
         elif scaler_x:
@@ -247,6 +361,9 @@ class DataScaler():
         self.intercept = intercept
 
     def fit(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+        """
+            Fit the scalers for X and Y
+        """
         if X is not None:
             X = self.scaler_x.fit(X)
             if self.intercept:
@@ -258,6 +375,9 @@ class DataScaler():
         return X, Y
 
     def scale(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+        """
+            Scale X and Y
+        """
         if X is not None:
             X = self.scaler_x.scale(X)
             if self.intercept:
@@ -269,6 +389,9 @@ class DataScaler():
         return X, Y
 
     def unscale(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+        """
+            Unscale X and Y
+        """
         if X is not None:
             if self.intercept:
                 X = remove_intercept_column(X)
@@ -280,6 +403,9 @@ class DataScaler():
         return X, Y
 
     def scale_model(self, alpha: np.ndarray) -> np.ndarray:
+        """
+            Scale a linear model
+        """
         if isinstance(alpha, float):
             alpha = np.array([0.0, alpha])
         elif len(alpha) == len(self.scaler_x.mean):
@@ -293,6 +419,9 @@ class DataScaler():
         return alpha
 
     def unscale_model(self, alpha: np.ndarray) -> np.ndarray:
+        """
+            Unscale a linear model
+        """
         if len(np.atleast_1d(alpha)) == len(np.atleast_1d(self.scaler_x.mask)):
             alpha = np.concatenate(([0], alpha))
         else:
@@ -302,6 +431,9 @@ class DataScaler():
         return self.extend_model(alpha)
 
     def extend_model(self, alpha: np.ndarray) -> np.ndarray:
+        """
+            If constant columns where removed, readd them to a linear model, but don't unscale
+        """
         mask = np.atleast_1d(self.scaler_x.mask)
         mean = np.atleast_1d(self.scaler_x.mean)
         if len(mask) == len(mean):
@@ -319,6 +451,18 @@ class DataScaler():
 
 
 def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) -> (np.ndarray, np.ndarray):
+    """Fit and use PCA for dimensionality reduction
+    
+    Arguments:
+        X {np.ndarray} -- The matrix to reduce
+    
+    Keyword Arguments:
+        dimensions {int} -- the number of output dimensions (default: {10})
+        tolerance {float} -- relative treshold for accepted dimensions (default: {1e-10})
+    
+    Returns:
+        (np.ndarray, np.ndarray): -- The reduced matrix, and the PCA-rotation
+    """
     if len(X.shape) == 1:
         return X, 1.0
     dimensions = min(dimensions, *X.shape)
@@ -329,17 +473,53 @@ def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) ->
     return u[:, :dimensions].dot(np.diag(s[:dimensions])), v
 
 def pca_rotate(X: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Use PCA for dimensionality reduction
+    
+    Arguments:
+        X {np.ndarray} -- the np.ndarray
+        v {np.ndarray} -- the PCA-rotation
+    
+    Returns:
+        np.ndarray -- the reduced X
+    """
     return X @ v.T
 
 def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Invert PCA for dimensionality expansion
+    
+    Arguments:
+        X {np.ndarray} -- the np.ndarray
+        v {np.ndarray} -- the PCA-rotation
+    
+    Returns:
+        np.ndarray -- the expanded X
+    """
     return X @ v
 
 def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Use PCA for dimensionality reduction
+    
+    Arguments:
+        alpha {np.ndarray} -- the linear model to rotate
+        v {np.ndarray} -- the PCA-rotation
+    
+    Returns:
+        np.ndarray -- the rotated alpha
+    """
     if len(alpha) > v.shape[1]:
         return np.concatenate((alpha[:1], v @ alpha[1:]))
     return v @ alpha
 
 def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Invert PCA for dimensionality expansion
+    
+    Arguments:
+        alpha {np.ndarray} -- the linear model in reduced space
+        v {np.ndarray} -- the PCA-rotation
+    
+    Returns:
+        np.ndarray -- the expanded linear model
+    """
     if len(alpha) > v.shape[0]:
         return np.concatenate((alpha[:1], v.T @ alpha[1:]))
     return v.T @ alpha

@@ -8,9 +8,15 @@ from slise.data import add_intercept_column, remove_intercept_column,\
 from slise.optimisation import next_beta, loss_residuals
 
 def initialise_lasso(X: np.ndarray, Y: np.ndarray, **kwargs):
+    """
+        Initialise alpha and beta to be equivalent to LASSO
+    """
     return np.linalg.lstsq(X, Y, rcond=None)[0], 0
 
 def initialise_ols(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max: float = 5, max_approx: float = 1.15, **kwargs):
+    """
+        Initialise alpha to OLS and beta to "next beta"
+    """
     epsilon = epsilon**2
     beta_max = beta_max / epsilon
     max_approx = log(max_approx)
@@ -20,6 +26,9 @@ def initialise_ols(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max:
     return alpha, beta
 
 def initialise_zeros(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max: float = 5, max_approx: float = 1.15, **kwargs):
+    """
+        Initialise alpha to 0 and beta to "next beta"
+    """
     epsilon = epsilon**2
     beta_max = beta_max / epsilon
     max_approx = log(max_approx)
@@ -30,6 +39,10 @@ def initialise_zeros(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_ma
 
 def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, epsilon: float = 0.1, intercept: bool = False,
         beta_max: float = 5, max_approx: float = 1.15, pca_treshold: int = 10, inits: int = 500, **kwargs) -> np.ndarray:
+    """
+        Generate a number (inits) of candidates and select the best one to be alpha,
+        and beta to be the corresponding "next beta"
+    """
     epsilon = epsilon**2
     beta_max = beta_max / epsilon
     max_approx = log(max_approx)

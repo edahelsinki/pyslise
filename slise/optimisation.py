@@ -9,6 +9,9 @@ from slise.utils import sigmoid, log_sigmoid, dlog_sigmoid, log_sum_special
 
 def loss_smooth(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 100) -> float:
+    """
+        Smoothed (with sigmoid) version of the loss
+    """
     epsilon *= epsilon
     distances = ((X @ alpha) - Y)**2
     subset = sigmoid(beta * (epsilon - distances))
@@ -23,6 +26,9 @@ def loss_smooth(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float 
 @jit(nopython=True)
 def loss_residuals(alpha: np.ndarray, residuals2: np.ndarray, epsilon2: float = 0.01,
         lambda1: float = 0, lambda2: float = 0, beta: float = 100) -> float:
+    """
+        Smoothed (with sigmoid) version of the loss, that takes already calculated residuals
+    """
     # Takes squared residuals and epsilons
     subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))
     # subset = sigmoid(beta * (epsilon2 - residuals2))
@@ -36,6 +42,9 @@ def loss_residuals(alpha: np.ndarray, residuals2: np.ndarray, epsilon2: float = 
 
 def loss_sharp(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0) -> float:
+    """
+        Exact (combinatorial) version of the loss
+    """
     epsilon *= epsilon
     distances = ((X @ alpha) - Y)**2
     loss = np.sum(distances[distances < epsilon] - (epsilon * len(Y))) / len(Y)
@@ -47,7 +56,11 @@ def loss_sharp(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float =
 
 @jit(nopython=True)
 def loss_numba(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,
-        epsilon: float = 0.1, lambda2: float = 0, beta: float = 100) -> list:
+        epsilon: float = 0.1, lambda2: float = 0, beta: float = 100) -> (np.ndarray, np.ndarray):
+    """
+        Smoothed (with sigmoid) version of the loss, that also calculates
+        the gradient (sped up with numba)
+    """
     epsilon *= epsilon
     distances = (X @ alpha) - Y
     distances2 = distances**2
@@ -69,6 +82,9 @@ def loss_numba(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,
 
 def owlqn(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, lambda1: float = 0,
         lambda2: float = 0, beta: float = 100, max_iterations:int = 200) -> np.ndarray:
+    """
+        Optimise a smoothed loss with owlqn
+    """
     assert lambda1 >= 0, "lambda1 must be >= 0"
     line_search = "wolfe" if lambda1 > 0 else "default"
     def f(alpha: np.ndarray, gradient: np.ndarray) -> float:
@@ -80,6 +96,9 @@ def owlqn(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
     return fmin_lbfgs(f = f, x0 = alpha, progress = p, orthantwise_c = lambda1, line_search = line_search)
 
 def log_approximation_ratio(residuals2: np.ndarray, epsilon2: float, beta1: float, beta2: float) -> float:
+    """
+        Calculate log(K), where K is the approximation ratio between two smoothed losses
+    """
     if beta1 >= beta2:
         return 0                 
     log_f = lambda r, beta: log_sigmoid(beta * (epsilon2 - r))
@@ -94,6 +113,9 @@ def log_approximation_ratio(residuals2: np.ndarray, epsilon2: float, beta1: floa
     return log_K
 
 def matching_epsilon(residuals2: np.ndarray, epsilon2: float, beta: float) -> float:
+    """
+        Approximately calculate the epsilon that minimises the approximation ratio to the exact loss 
+    """
     residuals2 = np.sort(residuals2)
     loss = sigmoid(beta * (epsilon2 - residuals2))
     i = np.argmax(np.arange(len(residuals2)) * loss)
@@ -101,6 +123,9 @@ def matching_epsilon(residuals2: np.ndarray, epsilon2: float, beta: float) -> fl
 
 def next_beta(residuals2: np.ndarray, epsilon2: float = 0.01, beta: float = 0, beta_max: float = 2500,
         log_max_approx: float = 0.14, min_beta_step: float = 0.0005, **kwargs) -> float:
+    """
+        Calculate the next beta for the graduated optimisation
+    """
     if (beta >= beta_max):
         return beta
     log_approx = log_approximation_ratio(residuals2, epsilon2, beta, beta_max)
@@ -114,6 +139,25 @@ def next_beta(residuals2: np.ndarray, epsilon2: float = 0.01, beta: float = 0, b
 def graduated_optimisation(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 0, beta_max: float = 25,
         max_approx: float = 1.15, max_iterations: int = 200, **kwargs) -> np.ndarray:
+    """Optimise alpha using graduated optimisation
+    
+    Arguments:
+        alpha {np.ndarray} -- the initial alpha
+        X {np.ndarray} -- the data matrix
+        Y {np.ndarray} -- the response vector
+    
+    Keyword Arguments:
+        epsilon {float} -- the error tolerance (default: {0.1})
+        lambda1 {float} -- L1 regularisation (default: {0})
+        lambda2 {float} -- L2 regularisation (default: {0})
+        beta {float} -- the initial beta (default: {0})
+        beta_max {float} -- the stopping beta (default: {25})
+        max_approx {float} -- target approximation ratio when increasing beta (default: {1.15})
+        max_iterations {int} -- maximum number of iterations for owl-qn (default: {200})
+    
+    Returns:
+        np.ndarray -- the optimised alpha
+    """
     beta_max = beta_max / epsilon**2
     max_approx = log(max_approx)
     while beta < beta_max:
