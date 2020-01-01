@@ -76,9 +76,9 @@ def test_scaling():
         X3 = sc.scale(X)
         X4 = sc.unscale(X2)
         X5 = sc.unscale(sc.scale(X[1,:]))
-        assert np.allclose(X, X4), f"scale-unscale failed for {sc}"
-        assert np.allclose(X2, X3), f"unscale-scale failed for {sc}"
-        assert np.allclose(X[1, :], X5)
+        assert np.allclose(X, X4), f"scale-unscale X failed for {sc}"
+        assert np.allclose(X2, X3), f"unscale-scale X failed for {sc}"
+        assert np.allclose(X[1, :], X5), f"scale-unscale X vector failed for {sc}"
     scalers = [ScalerNormal(), ScalerRange(), ScalerRemoveConstant(), ScalerIdentity(),
         ScalerLocal(np.random.normal(size=1)), ScalerNested(ScalerNormal(), ScalerRange())]
     for sc in scalers:
@@ -86,9 +86,9 @@ def test_scaling():
         X3 = sc.scale(Y)
         X4 = sc.unscale(X2)
         X5 = sc.unscale(sc.scale(Y[1]))
-        assert np.allclose(Y, X4)
-        assert np.allclose(X2, X3)
-        assert np.allclose(Y[1], X5)
+        assert np.allclose(Y, X4), f"scale-unscale Y failed for {sc}"
+        assert np.allclose(X2, X3), f"unscale-scale Y failed for {sc}"
+        assert np.allclose(Y[1], X5), f"scale-unscale Y scalar failed for {sc}"
 
 def test_pca():
     print("Testing pca")

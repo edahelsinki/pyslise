@@ -60,13 +60,13 @@ class AScaler(ABC):
         elif len(X.shape) > 1:
             if len(self.mean) > len(self.mask):
                 X2 = np.repeat([self.mean], X.shape[0], axis=0)
-                X2[:, self.mask] += X * self.stddv[np.newaxis, :]
+                X2[:, self.mask] = X2[:, self.mask] + X * self.stddv[np.newaxis, :]
                 return X2
             return X * self.stddv[np.newaxis, :] + self.mean[np.newaxis, :]
         elif len(self.stddv) == len(X):
             if len(self.mean) > len(self.mask):
                 X2 = self.mean.copy()
-                X2[self.mask] += X * self.stddv
+                X2[self.mask] = X2[self.mask] + X * self.stddv
                 return X2
             return X * self.stddv + self.mean
         else:
@@ -102,14 +102,14 @@ class ScalerNormal(AScaler):
 
 class ScalerRange(AScaler):
 
-    def __init__(self, quantiles: list = [0.05, 0.5, 0.95]):
+    def __init__(self, quantiles: list = [0.05, 0.95]):
         super().__init__()
         self.quantiles = quantiles
 
     def fit(self, X: np.ndarray) -> np.ndarray:
         if len(X.shape) == 1:
             qs = np.quantile(X, self.quantiles)
-            self.mean = 0
+            self.mean = 0.0
             self.stddv = 0.5 * np.max(qs) - 0.5 * np.min(qs)
             if self.stddv == 0:
                 self.stddv = 1.0
@@ -118,7 +118,7 @@ class ScalerRange(AScaler):
             return X
         else:
             qs = np.quantile(X, self.quantiles, 0)
-            self.mean = np.mean(qs, 0)
+            self.mean = np.zeros(X.shape[1])
             self.stddv = 0.5 * np.max(qs, 0) - 0.5 * np.min(qs, 0)
             self.mask = np.nonzero(self.stddv)
             if isinstance(self.mask, tuple):
@@ -127,6 +127,7 @@ class ScalerRange(AScaler):
                 self.mask = np.arange(len(self.stddv))
             elif len(self.mask) != len(self.stddv):
                 self.stddv = self.stddv[self.mask]
+                self.mean = np.mean(qs, 0)
                 self.mean[self.mask] = 0.0
                 X = X[:, self.mask]
             X = X / self.stddv[np.newaxis, :]
@@ -223,7 +224,7 @@ class ScalerNested(AScaler):
         self.mask = np.atleast_1d(self.outer.mask)[self.inner.mask]
         self.stddv = np.atleast_1d(self.outer.stddv)[self.inner.mask] * self.inner.stddv
         self.mean = np.atleast_1d(self.outer.mean)
-        self.mean[self.outer.mask] += self.outer.stddv * self.inner.mean
+        self.mean[self.outer.mask] = self.mean[self.outer.mask] + self.outer.stddv * self.inner.mean
         return X2
 
 
