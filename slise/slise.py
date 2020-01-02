@@ -1,14 +1,31 @@
 # This script contains the main slise functions
 
 from __future__ import annotations
-from math import log
 from warnings import warn
 import numpy as np
-from scipy.special import logit, expit as sigmoid
-from slise.data import add_intercept_column, DataScaler, pca_simple,\
-    pca_invert_model, pca_rotate, local_into, local_model, mat_mul_with_intercept
+from scipy.special import expit as sigmoid
+from slise.data import DataScaler, local_into, local_model, mat_mul_with_intercept
 from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
+
+
+def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
+        epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
+        beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
+        pca_treshold: int = 10, inits: int = 500) -> np.ndarray:
+    if alpha is None:
+        alpha, beta = initialise_candidates(X, Y, x=None, epsilon=epsilon,
+            intercept=False, beta_max=beta_max * 0.2, max_approx=max_approx,
+            pca_treshold=pca_treshold, inits=inits)
+    return graduated_optimisation(alpha, X, Y, epsilon=epsilon, lambda1=lambda1,
+            lambda2=lambda2, beta=beta, beta_max=beta_max, max_approx=max_approx,
+            max_iterations=max_iterations)
+
+def regression(X: np.ndarray, Y: np.ndarray, *args, **kwargs) -> SliseRegression:
+    return SliseRegression(*args, **kwargs).fit(X, Y)
+
+def explain(X: np.ndarray, Y: np.ndarray, x: np.ndarray, y: float = None, *args, **kwargs) -> SliseExplainer:
+    return SliseExplainer(X, Y, *args, **kwargs).explain(x, y)
 
 
 class SliseWarning(RuntimeWarning):
@@ -43,7 +60,7 @@ class SliseRegression():
             intercept=self.scaler.intercept, beta_max=self.beta_max * 0.2, max_approx=self.max_approx,
             pca_treshold=self.pca_treshold, inits=self.inits)
         self.alpha = graduated_optimisation(alpha, X, Y, epsilon=self.epsilon, lambda1=self.lambda1,
-            lambda2=self.lambda2, beta=beta, beta_max=self.beta_max,  max_approx=self.max_approx,
+            lambda2=self.lambda2, beta=beta, beta_max=self.beta_max, max_approx=self.max_approx,
             max_iterations=self.max_iterations)
         self.coefficients = self.scaler.unscale_model(self.alpha)
         if not self.scaler.intercept:
@@ -131,19 +148,19 @@ class SliseExplainer():
         self.x = X[0, :] * 0
         self.y = 0
 
-    def explain(self, x, y = None) -> SliseExplainer:
+    def explain(self, x: np.ndarray, y:float = None) -> SliseExplainer:
         if y is None:
             self.y = self.Y[x]
             self.x = self.X[x, :]
         else:
             self.x, self.y = self.scaler.fit(x, y)
-        X = local_into(X, self.x)
-        Y = local_into(Y, self.y)
-        alpha, beta = initialise_candidates(X, Y, x=x, epsilon=self.epsilon,
+        X = local_into(self.X, self.x)
+        Y = local_into(self.Y, self.y)
+        alpha, beta = initialise_candidates(X, Y, x=self.x, epsilon=self.epsilon,
             intercept=self.scaler.intercept, beta_max=self.beta_max * 0.2, max_approx=self.max_approx,
             pca_treshold=self.pca_treshold, inits=self.inits)
         self.alpha = graduated_optimisation(alpha, X, Y, epsilon=self.epsilon, lambda1=self.lambda1,
-            lambda2=self.lambda2, beta=beta, beta_max=self.beta_max,  max_approx=self.max_approx,
+            lambda2=self.lambda2, beta=beta, beta_max=self.beta_max, max_approx=self.max_approx,
             max_iterations=self.max_iterations)
         self.alpha = local_model(self.alpha, self.x, self.y)
         self.coefficients = self.scaler.unscale_model(self.alpha)
@@ -164,8 +181,8 @@ class SliseExplainer():
         return Y
 
     def score(self) -> float:
-        X <- local_into(self.X, self.x)
-        Y <- local_into(self.Y, self.y)
+        X = local_into(self.X, self.x)
+        Y = local_into(self.Y, self.y)
         return loss_sharp(self.alpha[1:], X, Y, self.epsilon, self.lambda1, self.lambda2)
 
     def subset(self) -> np.ndarray:
@@ -185,7 +202,7 @@ class SliseExplainer():
         column_names = column_names[np.concatenate(([0], self.scaler.scaler_x.mask + 1))]
         alpha = np.atleast_1d(self.alpha)
         impact = alpha * np.concatenate(([1.0], np.atleast_1d(self.x)))
-        unscaled, _ = self.scaler.unscale(self.x)[self.scaler.scaler_x.mask]
+        unscaled = self.scaler.unscale(self.x, None)[0][self.scaler.scaler_x.mask]
         alpha = ["%%.%df"%decimals%a for a in alpha]
         impact = ["%%.%df"%decimals%a for a in impact]
         unscaled = [""] + ["%%.%df"%decimals%a for a in unscaled]
@@ -223,22 +240,3 @@ class SliseExplainer():
     def plot_image(self, width: int, height: int) -> SliseExplainer:
         pass
         #TODO plot image explanation
-
-
-def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
-        epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
-        beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
-        pca_treshold: int = 10, inits: int = 500) -> np.ndarray:
-    if alpha is None:
-        alpha, beta = initialise_candidates(X, Y, x=None, epsilon=epsilon,
-            intercept=False, beta_max=beta_max * 0.2, max_approx=max_approx,
-            pca_treshold=pca_treshold, inits=inits)
-    return graduated_optimisation(alpha, X, Y, epsilon=epsilon, lambda1=lambda1,
-            lambda2=lambda2, beta=beta, beta_max=beta_max,  max_approx=max_approx,
-            max_iterations=max_iterations)
-
-def regression(X: np.ndarray, Y: np.ndarray, *args, **kwargs) -> SliseRegression:
-    return SliseRegression(*args, **kwargs).fit(X, Y)
-
-def explain(X: np.ndarray, Y: np.ndarray, x: np.ndarray, y: float = None, *args, **kwargs) -> SliseExplainer:
-    return SliseExplainer(*args, **kwargs).explain(x, y)

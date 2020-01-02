@@ -360,7 +360,7 @@ class DataScaler():
         self.logit = logit
         self.intercept = intercept
 
-    def fit(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+    def fit(self, X: np.ndarray = None, Y: np.ndarray = None) -> (np.ndarray, np.ndarray):
         """
             Fit the scalers for X and Y
         """
@@ -374,7 +374,7 @@ class DataScaler():
             Y = self.scaler_y.fit(Y)
         return X, Y
 
-    def scale(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+    def scale(self, X: np.ndarray = None, Y: np.ndarray = None) -> (np.ndarray, np.ndarray):
         """
             Scale X and Y
         """
@@ -388,7 +388,7 @@ class DataScaler():
             Y = self.scaler_y.scale(Y)
         return X, Y
 
-    def unscale(self, X: np.ndarray, Y: np.ndarray) -> (np.ndarray, np.ndarray):
+    def unscale(self, X: np.ndarray = None, Y: np.ndarray = None) -> (np.ndarray, np.ndarray):
         """
             Unscale X and Y
         """

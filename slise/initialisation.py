@@ -58,7 +58,7 @@ def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, ep
     elif x is not None:
         def init():
             sel = random_sample_int(X.shape[0], pca_treshold)
-            pca, v = pca_simple(local_from(X, x), pca_treshold)
+            pca, v = pca_simple(local_from(X[sel, :], x), pca_treshold)
             xp = pca_rotate(x, v)
             pca = local_into(pca, xp)
             mod = np.linalg.lstsq(pca, Y[sel], rcond=None)[0]
