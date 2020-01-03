@@ -23,7 +23,7 @@ def loss_smooth(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float 
         loss += lambda2 * np.sum(alpha * alpha)
     return loss
 
-@jit(nopython=True)
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
 def loss_residuals(alpha: np.ndarray, residuals2: np.ndarray, epsilon2: float = 0.01,
         lambda1: float = 0, lambda2: float = 0, beta: float = 100) -> float:
     """
@@ -54,7 +54,8 @@ def loss_sharp(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float =
         loss += lambda2 * np.sum(alpha * alpha)
     return loss
 
-@jit(nopython=True)
+#TODO use a jitclass for caching data
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
 def loss_numba(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,
         epsilon: float = 0.1, lambda2: float = 0, beta: float = 100) -> (np.ndarray, np.ndarray):
     """
@@ -88,7 +89,6 @@ def owlqn(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
     assert lambda1 >= 0, "lambda1 must be >= 0"
     line_search = "wolfe" if lambda1 > 0 else "default"
     def f(alpha: np.ndarray, gradient: np.ndarray) -> float:
-        np.nan_to_num(alpha, False, 0.0)
         loss, grad = loss_numba(alpha, X, Y, epsilon, lambda2, beta)
         gradient[:] = grad
         return loss
@@ -126,7 +126,7 @@ def next_beta(residuals2: np.ndarray, epsilon2: float = 0.01, beta: float = 0, b
     """
         Calculate the next beta for the graduated optimisation
     """
-    if (beta >= beta_max):
+    if beta >= beta_max:
         return beta
     log_approx = log_approximation_ratio(residuals2, epsilon2, beta, beta_max)
     if log_approx <= log_max_approx:
@@ -136,16 +136,25 @@ def next_beta(residuals2: np.ndarray, epsilon2: float = 0.01, beta: float = 0, b
         beta_min = beta + min_beta_step * (beta_max + beta)
         return max(brentq(f, beta, beta_max), beta_min)
 
+def debug_log(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
+        lambda1: float = 0, lambda2: float = 0, beta: float = 0):
+    residuals = (X @ alpha - Y)**2
+    loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2)
+    bloss = loss_residuals(alpha, residuals, epsilon**2, lambda1, lambda2, beta)
+    epss = matching_epsilon(residuals, epsilon**2, beta)
+    beta = beta*epsilon**2
+    print(f"beta: {beta:5.2f}   epsilon*: {epss:.3f}   Loss: {loss:6.2f}   BLoss: {bloss:6.2f}")
+
 def graduated_optimisation(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 0, beta_max: float = 25,
-        max_approx: float = 1.15, max_iterations: int = 200, **kwargs) -> np.ndarray:
+        max_approx: float = 1.15, max_iterations: int = 200, debug: bool = False, **kwargs) -> np.ndarray:
     """Optimise alpha using graduated optimisation
-    
+
     Arguments:
         alpha {np.ndarray} -- the initial alpha
         X {np.ndarray} -- the data matrix
         Y {np.ndarray} -- the response vector
-    
+
     Keyword Arguments:
         epsilon {float} -- the error tolerance (default: {0.1})
         lambda1 {float} -- L1 regularisation (default: {0})
@@ -154,7 +163,8 @@ def graduated_optimisation(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsi
         beta_max {float} -- the stopping beta (default: {25})
         max_approx {float} -- target approximation ratio when increasing beta (default: {1.15})
         max_iterations {int} -- maximum number of iterations for owl-qn (default: {200})
-    
+        debug {bool} -- print debug logs after each optimisation step (default: {False})
+
     Returns:
         np.ndarray -- the optimised alpha
     """
@@ -162,6 +172,10 @@ def graduated_optimisation(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsi
     max_approx = log(max_approx)
     while beta < beta_max:
         alpha = owlqn(alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations)
+        if debug:
+            debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
         beta = next_beta((X @ alpha - Y)**2, epsilon**2, beta, beta_max, max_approx, **kwargs)
     alpha = owlqn(alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations * 4)
+    if debug:
+        debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
     return alpha

@@ -12,14 +12,14 @@ from slise.initialisation import initialise_candidates
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
         epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
         beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
-        pca_treshold: int = 10, inits: int = 500) -> np.ndarray:
+        pca_treshold: int = 10, inits: int = 500, debug: bool = False) -> np.ndarray:
     if alpha is None:
         alpha, beta = initialise_candidates(X, Y, x=None, epsilon=epsilon,
             intercept=False, beta_max=beta_max * 0.2, max_approx=max_approx,
             pca_treshold=pca_treshold, inits=inits)
     return graduated_optimisation(alpha, X, Y, epsilon=epsilon, lambda1=lambda1,
             lambda2=lambda2, beta=beta, beta_max=beta_max, max_approx=max_approx,
-            max_iterations=max_iterations)
+            max_iterations=max_iterations, debug=debug)
 
 def regression(X: np.ndarray, Y: np.ndarray, *args, **kwargs) -> SliseRegression:
     return SliseRegression(*args, **kwargs).fit(X, Y)
@@ -35,7 +35,7 @@ class SliseRegression():
     def __init__(self, epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
             intercept: bool = True, logit: bool = False, scale_x = False, scale_y = False,
             beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200, 
-            pca_treshold: int = 10, inits: int = 500):
+            pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         self.epsilon = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
@@ -47,6 +47,7 @@ class SliseRegression():
         self.inits = inits
         self.alpha = 0.0
         self.coefficients = 0.0
+        self.debug = debug
         self.X = np.array([[0.0]])
         self.Y = np.array([0])
 
@@ -61,7 +62,7 @@ class SliseRegression():
             pca_treshold=self.pca_treshold, inits=self.inits)
         self.alpha = graduated_optimisation(alpha, X, Y, epsilon=self.epsilon, lambda1=self.lambda1,
             lambda2=self.lambda2, beta=beta, beta_max=self.beta_max, max_approx=self.max_approx,
-            max_iterations=self.max_iterations)
+            max_iterations=self.max_iterations, debug=self.debug)
         self.coefficients = self.scaler.unscale_model(self.alpha)
         if not self.scaler.intercept:
             if np.abs(self.coefficients[0]) > 1e-8:
@@ -126,13 +127,13 @@ class SliseRegression():
 
 class SliseExplainer():
     def __init__(self, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, lambda1: float = 0,
-            lambda2: float = 0, intercept: bool = True, logit: bool = False, scale_x = False,
-            scale_y = False, beta_max: float = 25, max_approx: float = 1.15,
-            max_iterations: int = 200, pca_treshold: int = 10, inits: int = 500):
+            lambda2: float = 0, logit: bool = False, scale_x = False, scale_y = False,
+            beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
+            pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         self.epsilon = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        self.scaler = DataScaler(scale_x, scale_y, intercept, logit)
+        self.scaler = DataScaler(scale_x, scale_y, False, logit)
         self.beta_max = beta_max
         self.max_approx = max_approx
         self.max_iterations = max_iterations
@@ -140,6 +141,7 @@ class SliseExplainer():
         self.inits = inits
         self.alpha = 0.0
         self.coefficients = 0.0
+        self.debug = debug
         if len(X.shape) == 1:
             X.shape += (1,)
         X, Y = self.scaler.fit(X, Y)
@@ -148,29 +150,56 @@ class SliseExplainer():
         self.x = X[0, :] * 0
         self.y = 0
 
-    def explain(self, x: np.ndarray, y:float = None) -> SliseExplainer:
+    def explain(self, x: np.ndarray, y: float = None) -> SliseExplainer:
+        """Explain an outcome from a black box model
+
+        Arguments:
+            x {np.ndarray} -- the data item to explain, or an index from the dataset X
+
+        Keyword Arguments:
+            y {float} -- the prediction from the black box model, or None if x is an index (default: {None})
+
+        Returns:
+            SliseExplainer -- Self, but with parameters set to the explanation
+        """
         if y is None:
             self.y = self.Y[x]
             self.x = self.X[x, :]
         else:
-            self.x, self.y = self.scaler.fit(x, y)
+            self.x, self.y = self.scaler.scale(x, y)
         X = local_into(self.X, self.x)
         Y = local_into(self.Y, self.y)
         alpha, beta = initialise_candidates(X, Y, x=self.x, epsilon=self.epsilon,
             intercept=self.scaler.intercept, beta_max=self.beta_max * 0.2, max_approx=self.max_approx,
             pca_treshold=self.pca_treshold, inits=self.inits)
-        self.alpha = graduated_optimisation(alpha, X, Y, epsilon=self.epsilon, lambda1=self.lambda1,
+        alpha = graduated_optimisation(alpha, X, Y, epsilon=self.epsilon, lambda1=self.lambda1,
             lambda2=self.lambda2, beta=beta, beta_max=self.beta_max, max_approx=self.max_approx,
-            max_iterations=self.max_iterations)
-        self.alpha = local_model(self.alpha, self.x, self.y)
+            max_iterations=self.max_iterations, debug=self.debug)
+        self.alpha = local_model(alpha, self.x, self.y)
         self.coefficients = self.scaler.unscale_model(self.alpha)
         self.coefficients = local_model(self.coefficients, *self.scaler.unscale(self.x, self.y))
         return self
 
     def get_params(self, scaled: bool = False) -> np.ndarray:
+        """Get the approximating linear model
+
+        Keyword Arguments:
+            scaled {bool} -- get the scaled coefficients, if the dataset is scaled (default: {False})
+
+        Returns:
+            np.ndarray -- the linear model coefficients (first one is the intercept)
+        """
         return self.alpha if scaled else self.coefficients
 
     def predict(self, X: np.ndarray = None) -> np.ndarray:
+        """Use the approximating linear model to predict new outcomes
+
+        Keyword Arguments:
+            X {np.ndarray} -- The data to predict, None for the given dataset (default: {None})
+
+        Returns:
+            np.ndarray -- The response
+        """
         if X is None:
             Y = mat_mul_with_intercept(self.X, self.alpha)
             Y = self.scaler.scaler_y.unscale(Y)
@@ -181,13 +210,30 @@ class SliseExplainer():
         return Y
 
     def score(self) -> float:
+        """
+            Calculate the loss
+        """
         X = local_into(self.X, self.x)
         Y = local_into(self.Y, self.y)
         return loss_sharp(self.alpha[1:], X, Y, self.epsilon, self.lambda1, self.lambda2)
 
-    def subset(self) -> np.ndarray:
-        Y = mat_mul_with_intercept(self.X, self.alpha)
-        return (self.Y - Y)**2 < self.epsilon**2
+    def subset(self, X: np.ndarray = None, Y: np.ndarray = None) -> np.ndarray:
+        """Get the subset as a boolean mask
+
+        Keyword Arguments:
+            X {np.ndarray} -- The data, None for the given dataset (default: {None})
+            Y {np.ndarray} -- The response, None for the given dataset (default: {None})
+
+        Returns:
+            np.ndarray -- the subset as a boolean mask
+        """
+        if X is None or Y is None:
+            X = self.X
+            Y = self.Y
+        else:
+            X, Y = self.scaler.scale(X, Y)
+        Y = mat_mul_with_intercept(X, self.alpha) - Y
+        return Y**2 < self.epsilon**2
 
     def set_params(self, alpha: np.ndarray, x: np.ndarray, y: float) -> SliseExplainer:
         self.alpha = alpha

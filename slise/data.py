@@ -233,11 +233,11 @@ class ScalerRemoveConstant(AScaler):
 
 def local_into(X: np.ndarray, x:np.ndarray) -> np.ndarray:
     """Center a np.ndarray on a selected point
-    
+
     Arguments:
         X {np.ndarray} -- the np.ndarray
         x {np.ndarray} -- the point
-    
+
     Returns:
         np.ndarray -- the centered np.ndarray
     """
@@ -247,11 +247,11 @@ def local_into(X: np.ndarray, x:np.ndarray) -> np.ndarray:
 
 def local_from(X: np.ndarray, x:np.ndarray) -> np.ndarray:
     """Uncenter a np.ndarray on a selected point
-    
+
     Arguments:
         X {np.ndarray} -- the np.ndarray
         x {np.ndarray} -- the point
-    
+
     Returns:
         np.ndarray -- the centered np.ndarray
     """
@@ -261,12 +261,12 @@ def local_from(X: np.ndarray, x:np.ndarray) -> np.ndarray:
 
 def local_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
     """Make sure a linear model passes through a point
-    
+
     Arguments:
         alpha {np.ndarray} -- the linear model
         x {np.ndarray} -- the point
         y {np.ndarray} -- the response
-    
+
     Returns:
         np.ndarray -- the localised model
     """
@@ -283,7 +283,7 @@ class ScalerLocal(AScaler):
 
     def __init__(self, x):
         """A scaler that centers the data on a selected point
-        
+
         Arguments:
             x -- the point to center on
         """
@@ -309,7 +309,7 @@ class ScalerNested(AScaler):
 
     def __init__(self, outer: AScaler, inner: AScaler):
         """A scaler that combines to other AScalers
-        
+
         Arguments:
             outer {AScaler} -- The scaler that operates on the data
             inner {AScaler} -- The scaler that operates on the ouput of the outer scaler
@@ -338,7 +338,7 @@ class DataScaler():
 
     def __init__(self, scaler_x: AScaler = False, scaler_y: AScaler = False, intercept: bool = False, logit: bool = False):
         """This class holds two scalers, one for X and one for Y
-        
+
         Keyword Arguments:
             scaler_x {AScaler} -- The scaler to use for X, or True for ScalerNormal and False for ScalerRemoveConstant (default: {False})
             scaler_y {AScaler} -- The scaler to use for Y, or True for ScalerRange and False for ScalerIdentity (default: {False})
@@ -422,7 +422,8 @@ class DataScaler():
         """
             Unscale a linear model
         """
-        if len(np.atleast_1d(alpha)) == len(np.atleast_1d(self.scaler_x.mask)):
+        alpha = np.atleast_1d(alpha)
+        if len(alpha) == len(np.atleast_1d(self.scaler_x.mask)):
             alpha = np.concatenate(([0], alpha))
         else:
             alpha = alpha.copy()
