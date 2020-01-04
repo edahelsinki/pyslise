@@ -4,6 +4,7 @@ from random import randrange
 from math import log
 import numpy as np
 from scipy.special import expit as sigmoid
+from lbfgs import fmin_lbfgs
 
 def dsigmoid(x: np.ndarray) -> np.ndarray:
     """
@@ -69,3 +70,22 @@ def random_sample_int(n: int, k: int) -> list:
             new = randrange(0, n)
         indices[i] = new
     return indices
+
+def ridge_regression(X: np.ndarray, Y: np.ndarray, lambda2:float = 1e-10) -> np.ndarray:
+    """Train a linear ridge regression model
+
+    Arguments:
+        X {np.ndarray} -- the data
+        Y {np.ndarray} -- the response
+
+    Keyword Arguments:
+        lambda2 {float} -- the L2 regularisation coefficient (default: {1e-6})
+
+    Returns:
+        np.ndarray -- the linear model weights
+    """
+    def f(alpha: np.ndarray, gradient: np.ndarray) -> float:
+        residuals = X @ alpha - Y
+        gradient[:] = 2 * (X.T @ residuals) + (lambda2 * 2) * alpha
+        return np.sum(residuals**2) + lambda2 * np.sum(alpha**2)
+    return fmin_lbfgs(f = f, x0 = np.zeros(X.shape[1]))
