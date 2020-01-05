@@ -139,7 +139,7 @@ class ScalerRange(AScaler):
 
     def __init__(self, quantiles: list = [0.05, 0.95]):
         """A scaler that scales the columns to have spread of one:
-        
+
         Keyword Arguments:
             quantiles {list} -- The quantiles for calculating the spread (default: {[0.05, 0.95]})
         """
@@ -453,14 +453,14 @@ class DataScaler():
 
 def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) -> (np.ndarray, np.ndarray):
     """Fit and use PCA for dimensionality reduction
-    
+
     Arguments:
         X {np.ndarray} -- The matrix to reduce
-    
+
     Keyword Arguments:
         dimensions {int} -- the number of output dimensions (default: {10})
         tolerance {float} -- relative treshold for accepted dimensions (default: {1e-10})
-    
+
     Returns:
         (np.ndarray, np.ndarray): -- The reduced matrix, and the PCA-rotation
     """
@@ -475,11 +475,11 @@ def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) ->
 
 def pca_rotate(X: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Use PCA for dimensionality reduction
-    
+
     Arguments:
         X {np.ndarray} -- the np.ndarray
         v {np.ndarray} -- the PCA-rotation
-    
+
     Returns:
         np.ndarray -- the reduced X
     """
@@ -487,11 +487,11 @@ def pca_rotate(X: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Invert PCA for dimensionality expansion
-    
+
     Arguments:
         X {np.ndarray} -- the np.ndarray
         v {np.ndarray} -- the PCA-rotation
-    
+
     Returns:
         np.ndarray -- the expanded X
     """
@@ -499,11 +499,11 @@ def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Use PCA for dimensionality reduction
-    
+
     Arguments:
         alpha {np.ndarray} -- the linear model to rotate
         v {np.ndarray} -- the PCA-rotation
-    
+
     Returns:
         np.ndarray -- the rotated alpha
     """
@@ -513,11 +513,11 @@ def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Invert PCA for dimensionality expansion
-    
+
     Arguments:
         alpha {np.ndarray} -- the linear model in reduced space
         v {np.ndarray} -- the PCA-rotation
-    
+
     Returns:
         np.ndarray -- the expanded linear model
     """

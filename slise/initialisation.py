@@ -13,7 +13,7 @@ def initialise_lasso(X: np.ndarray, Y: np.ndarray, **kwargs):
     """
     return np.linalg.lstsq(X, Y, rcond=None)[0], 0
 
-def initialise_ols(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max: float = 5, max_approx: float = 1.15, **kwargs):
+def initialise_ols(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max: float = 5, max_approx: float = 1.12, **kwargs):
     """
         Initialise alpha to OLS and beta to "next beta"
     """
@@ -25,7 +25,7 @@ def initialise_ols(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max:
     beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-8)
     return alpha, beta
 
-def initialise_zeros(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max: float = 5, max_approx: float = 1.15, **kwargs):
+def initialise_zeros(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_max: float = 5, max_approx: float = 1.12, **kwargs):
     """
         Initialise alpha to 0 and beta to "next beta"
     """
@@ -38,7 +38,7 @@ def initialise_zeros(X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, beta_ma
     return alpha, beta
 
 def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, epsilon: float = 0.1, intercept: bool = False,
-        beta_max: float = 5, max_approx: float = 1.15, pca_treshold: int = 10, inits: int = 500, **kwargs) -> np.ndarray:
+        beta_max: float = 5, max_approx: float = 1.12, pca_treshold: int = 10, inits: int = 500, **kwargs) -> np.ndarray:
     """
         Generate a number (inits) of candidates and select the best one to be alpha,
         and beta to be the corresponding "next beta"
@@ -49,7 +49,7 @@ def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, ep
     alpha = np.zeros(X.shape[1])
     residuals = Y**2
     beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-8)
-    loss = loss_residuals(alpha, residuals, epsilon, 0, beta)
+    loss = loss_residuals(alpha, residuals, epsilon, 0, 0, beta)
     # Fast functions for generating candidates
     if X.shape[1] <= pca_treshold:
         def init():
@@ -76,14 +76,14 @@ def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, ep
             mod = np.linalg.lstsq(pca, Y[sel], rcond=None)[0]
             return pca_invert_model(mod, v)
     # Select the best candidate
-    for i in range(inits):
+    for _ in range(inits):
         try:
             model = init()
             residuals = (Y - X @ model)**2
-            loss2 = loss_residuals(model, residuals, epsilon, 0, beta)
+            loss2 = loss_residuals(model, residuals, epsilon, 0, 0, beta)
             if loss2 < loss:
-                beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-8)
-                loss = loss_residuals(model, residuals, epsilon, 0, beta)
+                beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-6)
+                loss = loss_residuals(model, residuals, epsilon, 0, 0, beta)
                 alpha = model
         except np.linalg.LinAlgError:
             pass
@@ -91,7 +91,7 @@ def initialise_candidates(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, ep
 
 
 def initialise_candidates2(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, epsilon: float = 0.1, intercept: bool = False,
-        beta_max: float = 5, max_approx: float = 1.15, pca_treshold: int = 10, inits: int = 500, **kwargs) -> np.ndarray:
+        beta_max: float = 5, max_approx: float = 1.12, pca_treshold: int = 10, inits: int = 500, **kwargs) -> np.ndarray:
     """
         Generate a number (inits) of candidates and select the best one to be alpha,
         and beta to be the corresponding "next beta". This version uses ridge regression
@@ -103,21 +103,21 @@ def initialise_candidates2(X: np.ndarray, Y: np.ndarray, x: np.ndarray = None, e
     alpha = np.zeros(X.shape[1])
     residuals = Y**2
     beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-8)
-    loss = loss_residuals(alpha, residuals, epsilon, 0, beta)
+    loss = loss_residuals(alpha, residuals, epsilon, 0, 0, beta)
     # Fast functions for generating candidates
     pca_treshold = min(pca_treshold, X.shape[1])
     def init():
         sel = random_sample_int(X.shape[0], pca_treshold)
         return ridge_regression(X[sel, :], Y[sel], 1e-6)
     # Select the best candidate
-    for i in range(inits):
+    for _ in range(inits):
         try:
             model = init()
             residuals = (Y - X @ model)**2
-            loss2 = loss_residuals(model, residuals, epsilon, 0, beta)
+            loss2 = loss_residuals(model, residuals, epsilon, 0, 0, beta)
             if loss2 < loss:
                 beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-8)
-                loss = loss_residuals(model, residuals, epsilon, 0, beta)
+                loss = loss_residuals(model, residuals, epsilon, 0, 0, beta)
                 alpha = model
         except np.linalg.LinAlgError:
             pass

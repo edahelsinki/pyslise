@@ -11,7 +11,7 @@ from slise.initialisation import initialise_candidates
 
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
         epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
-        beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
+        beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200,
         pca_treshold: int = 10, inits: int = 500, debug: bool = False) -> np.ndarray:
     if alpha is None:
         alpha, beta = initialise_candidates(X, Y, x=None, epsilon=epsilon,
@@ -34,7 +34,7 @@ class SliseWarning(RuntimeWarning):
 class SliseRegression():
     def __init__(self, epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
             intercept: bool = True, logit: bool = False, scale_x = False, scale_y = False,
-            beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200, 
+            beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200, 
             pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         self.epsilon = epsilon
         self.lambda1 = lambda1
@@ -128,7 +128,7 @@ class SliseRegression():
 class SliseExplainer():
     def __init__(self, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, lambda1: float = 0,
             lambda2: float = 0, logit: bool = False, scale_x = False, scale_y = False,
-            beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
+            beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200,
             pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         self.epsilon = epsilon
         self.lambda1 = lambda1
