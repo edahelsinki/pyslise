@@ -34,7 +34,7 @@ class SliseWarning(RuntimeWarning):
 class SliseRegression():
     def __init__(self, epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
             intercept: bool = True, logit: bool = False, scale_x = False, scale_y = False,
-            beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200, 
+            beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200,
             pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         self.epsilon = epsilon
         self.lambda1 = lambda1

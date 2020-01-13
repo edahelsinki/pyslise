@@ -146,12 +146,15 @@ def matching_epsilon(residuals2: np.ndarray, epsilon2: float, beta: float) -> fl
 
 def debug_log(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 0):
+    """
+        Print the log statement for a graduated optimisation step
+    """
     residuals = (X @ alpha - Y)**2
     loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2)
     bloss = loss_residuals(alpha, residuals, epsilon**2, lambda1, lambda2, beta)
     epss = matching_epsilon(residuals, epsilon**2, beta)
     beta = beta*epsilon**2
-    print(f"beta: {beta:5.3f}    epsilon*: {epss:.3f}    Loss: {loss:6.2f}    BLoss: {bloss:6.2f}")
+    print(f"beta: {beta:5.3f}    epsilon*: {epss:.3f}    Loss: {loss:6.2f}    B-Loss: {bloss:6.2f}")
 
 def graduated_optimisation(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 0, beta_max: float = 25,

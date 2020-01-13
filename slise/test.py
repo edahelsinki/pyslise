@@ -1,4 +1,8 @@
-# This script contains unit tests
+"""
+    This script contains unit tests.
+    Some of them are quite rudimentary (the R version contains more).
+    These test are just using native python asserts, i.e., no testing library.
+"""
 
 import numpy as np
 from slise.utils import sigmoid, log_sigmoid, sparsity, log_sum, log_sum_special, ridge_regression
@@ -7,7 +11,7 @@ from slise.data import ScalerNormal, ScalerRange, ScalerLocal, ScalerRemoveConst
     pca_invert, pca_rotate, DataScaler, pca_invert_model, pca_rotate_model, add_intercept_column,\
     ScalerNested, ScalerIdentity, local_into
 from slise.initialisation import initialise_candidates
-
+from slise.slise import regression, explain
 
 def data_create(n: int, d: int) -> (np.ndarray, np.ndarray):
     X = np.random.normal(size=[n, d]) + np.random.normal(size=d)[np.newaxis, ]
@@ -157,10 +161,36 @@ def test_ridge():
     X, Y, mod = data_create2(20, 5)
     alpha = ridge_regression(X, Y, 1e-10)
     Y2 = X @ alpha
-    assert np.allclose(Y, Y2, atol=0.2), f"Ridge Y not close: {Y - Y2}"
+    assert np.allclose(Y, Y2, atol=0.3), f"Ridge Y not close: {Y - Y2}"
     assert np.allclose(mod, alpha, atol=0.2), f"Ridge alpha not close: {mod - alpha}"
 
-#TODO: tests for slise.slise
+def test_slise_reg():
+    print("Testing slise regression")
+    X, Y, mod = data_create2(20, 5)
+    reg = regression(X, Y, epsilon=0.1, lambda1=0.01, lambda2=0.01, intercept=True, scale_x=True, scale_y=True)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = regression(X, Y, epsilon=0.1, lambda1=0.01, lambda2=0.01, intercept=True, scale_x=False, scale_y=False)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = regression(X, Y, epsilon=0.1, lambda1=0, lambda2=0, intercept=True, scale_x=False, scale_y=False)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+
+def test_slise_exp():
+    print("Testing slise explanation")
+    X, Y, mod = data_create2(20, 5)
+    x = np.random.normal(size=5)
+    y = np.random.normal()
+    reg = explain(X, Y, x, y, epsilon=0.1, lambda1=0.1, lambda2=0.1, scale_x=True, scale_y=True)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = explain(X, Y, x, y, epsilon=0.1, lambda1=0.1, lambda2=0.1, scale_x=False, scale_y=False)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = explain(X, Y, x, y, epsilon=0.1, lambda1=0, lambda2=0, scale_x=False, scale_y=False)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = explain(X, Y, 19, epsilon=0.1, lambda1=0.1, lambda2=0.1, scale_x=True, scale_y=True)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = explain(X, Y, 19, epsilon=0.1, lambda1=0.1, lambda2=0.1, scale_x=False, scale_y=False)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    reg = explain(X, Y, 19, epsilon=0.1, lambda1=0, lambda2=0, scale_x=False, scale_y=False)
+    assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
 
 if __name__ == "__main__":
     old = np.seterr(over='ignore')
@@ -173,5 +203,7 @@ if __name__ == "__main__":
     test_data_scaler()
     test_initialise()
     test_ridge()
+    test_slise_reg()
+    test_slise_exp()
     np.seterr(**old)
     print("All tests completed")
