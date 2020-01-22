@@ -6,7 +6,7 @@ import numpy as np
 from numba import jit
 from lbfgs import fmin_lbfgs, LBFGSError
 from scipy.optimize import brentq
-from slise.utils import sigmoid, log_sigmoid, dlog_sigmoid, log_sum_special
+from slise.utils import sigmoid, log_sigmoid, dlog_sigmoid, log_sum_special, SliseWarning
 
 def loss_smooth(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 100) -> float:
@@ -100,7 +100,7 @@ def owlqn(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         if error.args[0] != "The algorithm routine reaches the maximum number of iterations.":
             raise error
         else:
-            warn("An optimisation step reaches the maximum number of iterations.")
+            warn("An optimisation step reaches the maximum number of iterations.", SliseWarning)
     return alpha
 
 def log_approximation_ratio(residuals2: np.ndarray, epsilon2: float, beta1: float, beta2: float) -> float:

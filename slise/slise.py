@@ -6,9 +6,11 @@ from __future__ import annotations
 from warnings import warn
 import numpy as np
 from scipy.special import expit as sigmoid
+from matplotlib import pyplot as plt
 from slise.data import DataScaler, local_into, local_model, mat_mul_with_intercept
 from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
+from slise.utils import SliseWarning, fill_column_names, fill_prediction_str
 
 
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
@@ -100,12 +102,6 @@ def explain(X: np.ndarray, Y: np.ndarray, x: np.ndarray, y: float = None, **kwar
     """
     return SliseExplainer(X, Y, **kwargs).explain(x, y)
 
-
-class SliseWarning(RuntimeWarning):
-    """
-        Custom tag for the warnings
-    """
-    pass
 
 class SliseRegression():
     """
@@ -270,10 +266,7 @@ class SliseRegression():
         coeff = np.atleast_1d(self.coefficients)
         if len(alpha) < len(coeff):
             alpha = np.concatenate(([0.0], alpha))
-        if column_names is None:
-            column_names = ["Col %d"%i for i in range(len(np.atleast_1d(self.scaler.scaler_x.mean)))]
-        if len(column_names) < len(coeff):
-            column_names = ["Intercept"] + column_names
+        column_names = fill_column_names(column_names, len(coeff), len(np.atleast_1d(self.scaler.scaler_x.mean)) < len(coeff))
         alpha = ["%%.%df"%decimals%a for a in alpha]
         coeff = ["%%.%df"%decimals%a for a in coeff]
         col_len = max(8,
@@ -456,21 +449,19 @@ class SliseExplainer():
         self.x, self.y = self.scaler.scale(x, y)
         return self
 
-    def print(self, column_names: list = None, decimals: int = 3) -> SliseExplainer:
+    def print(self, column_names: list = None, class_names: list = None, decimals: int = 3) -> SliseExplainer:
         """Print the current explanation
 
         Keyword Arguments:
             column_names {list} -- the names of the features/variables (default: {None})
+            class_names {list} -- the names of the classes, if explaining a classifier (default: {None})
             decimals {int} -- the precision to use for printing (default: {3})
 
         Returns:
             SliseExplainer -- self
         """
-        if column_names is None:
-            column_names = ["Col %d"%i for i in range(len(np.atleast_1d(self.scaler.scaler_x.mean)))]
-        if len(column_names) < len(np.atleast_1d(self.coefficients)):
-            column_names = ["Intercept"] + column_names
-        column_names = column_names[np.concatenate(([0], self.scaler.scaler_x.mask + 1))]
+        column_names = fill_column_names(column_names, len(np.atleast_1d(self.coefficients)), True)
+        column_names = [column_names[i] for i in np.concatenate(([0], np.atleast_1d(self.scaler.scaler_x.mask + 1)))]
         alpha = np.atleast_1d(self.alpha)
         impact = alpha * np.concatenate(([1.0], np.atleast_1d(self.x)))
         unscaled = self.scaler.unscale(self.x, None)[0][self.scaler.scaler_x.mask]
@@ -485,6 +476,7 @@ class SliseExplainer():
         assert len(alpha) == len(impact)
         assert len(alpha) == len(unscaled)
         assert len(alpha) == len(column_names)
+        print(fill_prediction_str(self.scaler.scaler_y.unscale(self.y), class_names, decimals))
         print("Variables: ", end="")
         for s in column_names:
             print(" %%%ds"%col_len%s, end="")
@@ -504,10 +496,86 @@ class SliseExplainer():
             print("Class Balance:", (self.Y[subset] > 0.0).mean())
         return self
 
-    def plot(self) -> SliseExplainer:
-        pass
-        #TODO plot explanation
+    def plot(self, column_names: list = None, class_names: list = None, decimals: int = 3) -> SliseExplainer:
+        """Plot the current explanation (for tabular data)
+
+        This plots three bar-plots side-by-side. The first one is the values
+        from the item being explained. Note that the text is the original
+        values, while the bars are showing the (potentially) scaled values. The
+        second one is the weights from the linear model (on the scaled data),
+        which can (very loosely) be interpreted as the importance of the
+        different variables for this particular prediction. Finally, the third
+        plot is the impact: the (linear model) weights times the (scaled data
+        item) values normalised so the absolute sums to one. The impact might be
+        an intuitive way of looking at the explanation, since a negative value
+        combined with a negative weight actually supports a positive prediction,
+        which the impact captures.
+
+        Keyword Arguments:
+            column_names {list} -- the names of the features/variables (default: {None})
+            class_names {list} -- the names of the classes, if explaining a classifier (default: {None})
+            decimals {int} -- the precision to use for printing (default: {3})
+
+        Returns:
+            SliseExplainer -- self
+        """
+        # Values
+        scaled_x = np.concatenate(([1.0], self.x))
+        alpha = self.alpha
+        impact = scaled_x * alpha
+        impact /= np.sum(np.abs(impact))
+        scaled_x[0] = 0.0
+        unscaled_x = np.concatenate(([0.0], self.scaler.scaler_x.unscale(self.x)))
+        column_names = fill_column_names(column_names, len(np.atleast_1d(self.coefficients)), True)
+        # Sorting
+        order = np.argsort(alpha)
+        first = np.where(order == 0)[0][0]
+        order = np.concatenate((order[:first], order[(1 + first):], [0]))
+        scaled_x = scaled_x[order]
+        alpha = alpha[order]
+        impact = impact[order]
+        order_outer = np.concatenate(([0], np.atleast_1d(self.scaler.scaler_x.mask + 1)))[order]
+        unscaled_x = unscaled_x[order_outer]
+        column_names = [column_names[i] for i in order_outer]
+        # Plot title
+        plt.figure()
+        plt.suptitle("SLISE Explanation   |   " + fill_prediction_str(self.scaler.scaler_y.unscale(self.y), class_names, decimals))
+        # Plot value
+        plt.subplot(1, 3, 1)
+        val_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, unscaled_x)]
+        val_col_nam[-1] = ""
+        plt.barh(val_col_nam, scaled_x, color="grey")
+        plt.title("\n\nExplained Item")
+        if not np.allclose(unscaled_x, scaled_x):
+            plt.xticks([0.0], ["Scaled Mean"])
+        # Plot weights
+        plt.subplot(1, 3, 2)
+        wei_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, alpha)]
+        wei_col_col = ["#fda411ff" if v < 0 else "#998ec3" for v in alpha]
+        plt.barh(wei_col_nam, alpha, color=wei_col_col)
+        plt.title("\n\nLocal Linear Model")
+        if class_names is not None and len(class_names) > 1:
+            amax = alpha.abs().max()
+            plt.xticks([-amax, amax], class_names[:2])
+        else:
+            plt.xticks([])
+        # Plot impact
+        plt.subplot(1, 3, 3)
+        imp_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, impact)]
+        imp_col_col = ["#fda411ff" if v < 0 else "#998ec3" for v in impact]
+        plt.barh(imp_col_nam, impact, color=imp_col_col)
+        plt.title("\n\nActual Impact")
+        plt.xticks(plt.xticks()[0], class_names)
+        if class_names is not None and len(class_names) > 1:
+            imax = impact.abs().max()
+            plt.xticks([-imax, imax], class_names[:2])
+        else:
+            plt.xticks([])
+        # Plot meta
+        plt.tight_layout()
+        plt.show()
+        return self
 
     def plot_image(self, width: int, height: int) -> SliseExplainer:
-        pass
         #TODO plot image explanation
+        return self
