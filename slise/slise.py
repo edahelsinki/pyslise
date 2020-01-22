@@ -15,7 +15,7 @@ from slise.utils import SliseWarning, fill_column_names, fill_prediction_str
 
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
         epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
-        beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200,
+        beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
         pca_treshold: int = 10, inits: int = 500, debug: bool = False) -> np.ndarray:
     """Use SLISE "raw" without any preprocessing
 
@@ -30,7 +30,7 @@ def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: floa
         lambda1 {float} -- the L1 regularistaion strength (default: {0})
         lambda2 {float} -- the L2 regularisation strength (default: {0})
         beta_max {float} -- the stopping sigmoid steepness (default: {25})
-        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.12})
+        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
         max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
         pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
         inits {int} -- the number of candidates to generate in the initialisation (default: {500})
@@ -63,7 +63,7 @@ def regression(X: np.ndarray, Y: np.ndarray, **kwargs) -> SliseRegression:
         scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
         scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
         beta_max {float} -- the stopping sigmoid steepness (default: {25})
-        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.12})
+        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
         max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
         pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
         inits {int} -- the number of candidates to generate in the initialisation (default: {500})
@@ -91,7 +91,7 @@ def explain(X: np.ndarray, Y: np.ndarray, x: np.ndarray, y: float = None, **kwar
         scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
         scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
         beta_max {float} -- the stopping sigmoid steepness (default: {25})
-        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.12})
+        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
         max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
         pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
         inits {int} -- the number of candidates to generate in the initialisation (default: {500})
@@ -111,7 +111,7 @@ class SliseRegression():
 
     def __init__(self, epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
             intercept: bool = True, logit: bool = False, scale_x = False, scale_y = False,
-            beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200,
+            beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
             pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         """Use SLISE for robust regression
 
@@ -126,7 +126,7 @@ class SliseRegression():
             scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
             scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
             beta_max {float} -- the stopping sigmoid steepness (default: {25})
-            max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.12})
+            max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
             max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
             pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
             inits {int} -- the number of candidates to generate in the initialisation (default: {500})
@@ -296,7 +296,7 @@ class SliseExplainer():
 
     def __init__(self, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1, lambda1: float = 0,
             lambda2: float = 0, logit: bool = False, scale_x = False, scale_y = False,
-            beta_max: float = 25, max_approx: float = 1.12, max_iterations: int = 200,
+            beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
             pca_treshold: int = 10, inits: int = 500, debug: bool = False):
         """Use SLISE for explaining outcomes from black box models
 
@@ -312,7 +312,7 @@ class SliseExplainer():
             scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
             scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
             beta_max {float} -- the stopping sigmoid steepness (default: {25})
-            max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.12})
+            max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
             max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
             pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
             inits {int} -- the number of candidates to generate in the initialisation (default: {500})

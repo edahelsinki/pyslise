@@ -121,7 +121,7 @@ def log_approximation_ratio(residuals2: np.ndarray, epsilon2: float, beta1: floa
     return log_K
 
 def next_beta(residuals2: np.ndarray, epsilon2: float = 0.01, beta: float = 0, beta_max: float = 2500,
-        log_max_approx: float = 0.113, min_beta_step: float = 0.0005, **kwargs) -> float:
+        log_max_approx: float = 0.14, min_beta_step: float = 0.0005, **kwargs) -> float:
     """
         Calculate the next beta for the graduated optimisation
     """
@@ -158,7 +158,7 @@ def debug_log(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 
 
 def graduated_optimisation(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, epsilon: float = 0.1,
         lambda1: float = 0, lambda2: float = 0, beta: float = 0, beta_max: float = 25,
-        max_approx: float = 1.12, max_iterations: int = 200, debug: bool = False, **kwargs) -> np.ndarray:
+        max_approx: float = 1.15, max_iterations: int = 200, debug: bool = False, **kwargs) -> np.ndarray:
     """Optimise alpha using graduated optimisation
 
     Arguments:
