@@ -13,6 +13,13 @@ from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning, fill_column_names, fill_prediction_str
 
 
+# SLISE colors, for unified identity
+SLISE_ORANGE = "#fda411"
+SLISE_PURPLE = "#998ec3"
+SLISE_DARKORANGE = "#e66101"
+SLISE_DARKPURPLE = "#5e3c99"
+
+
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
         epsilon: float = 0.1, lambda1: float = 0, lambda2: float = 0,
         beta_max: float = 25, max_approx: float = 1.15, max_iterations: int = 200,
@@ -288,6 +295,39 @@ class SliseRegression():
         print("Subset:", self.subset().mean())
         return self
 
+    def plot(self, decimals: int = 2) -> SliseRegression:
+        """Plot 1D data in a 2D scatter plot, with a line for the regression model
+
+        Keyword Arguments:
+            decimals {int} -- the number of decimals for the axes (default: {2})
+
+        Raises:
+            Exception: if the data is not 1D (intercept allowed)
+
+        Returns:
+            SliseRegression -- self
+        """
+        if self.scaler.intercept:
+            X = self.X[:, 1].ravel()
+        else:
+            X = self.X.ravel()
+        if len(X) != len(self.Y):
+            raise Exception(f"Can only plot 1D data (len(Y) != len(X): {len(self.Y)} != {len(X)})")
+        XL = np.array((X.min(), X.max()))
+        ext = (XL[1] - XL[0]) * 0.02
+        XL = XL + [-ext, ext]
+        YL = mat_mul_with_intercept(XL, self.alpha)
+        XL = XL.ravel()
+        plt.fill_between(XL, YL+self.epsilon, YL-self.epsilon, color="#998ec333")
+        plt.plot(XL, YL, "-", color=SLISE_PURPLE)
+        plt.plot(X, self.Y, 'o', color=SLISE_ORANGE)
+        ticks = plt.xticks()[0]
+        plt.xticks(ticks, [f"{v:.{decimals}f}" for v in self.scaler.scaler_x.unscale(ticks)])
+        ticks = plt.yticks()[0]
+        plt.yticks(ticks, [f"{v:.{decimals}f}" for v in self.scaler.scaler_y.unscale(ticks)])
+        plt.show()
+        return self
+
 class SliseExplainer():
     """
         Class for holding the result from using SLISE as an explainer.
@@ -551,7 +591,7 @@ class SliseExplainer():
         # Plot weights
         plt.subplot(1, 3, 2)
         wei_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, alpha)]
-        wei_col_col = ["#fda411ff" if v < 0 else "#998ec3" for v in alpha]
+        wei_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
         plt.barh(wei_col_nam, alpha, color=wei_col_col)
         plt.title("\n\nLocal Linear Model")
         if class_names is not None and len(class_names) > 1:
@@ -562,7 +602,7 @@ class SliseExplainer():
         # Plot impact
         plt.subplot(1, 3, 3)
         imp_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, impact)]
-        imp_col_col = ["#fda411ff" if v < 0 else "#998ec3" for v in impact]
+        imp_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in impact]
         plt.barh(imp_col_nam, impact, color=imp_col_col)
         plt.title("\n\nActual Impact")
         plt.xticks(plt.xticks()[0], class_names)
@@ -578,4 +618,8 @@ class SliseExplainer():
 
     def plot_image(self, width: int, height: int) -> SliseExplainer:
         #TODO plot image explanation
+        return self
+
+    def plot_dist(self, column_names: list = None, class_names: list = None, decimals: int = 3) -> SliseExplainer:
+        #TODO plot explanation with dists
         return self
