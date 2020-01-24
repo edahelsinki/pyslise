@@ -4,9 +4,11 @@
 
 from warnings import warn
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.special import expit as sigmoid
-from slise.data import DataScaler, local_into, local_model, mat_mul_with_intercept
+from matplotlib import pyplot as plt
+from matplotlib.colors import Normalize, LinearSegmentedColormap
+from matplotlib.patches import Patch
+from slise.data import DataScaler, mat_mul_with_intercept
 from slise.utils import SliseWarning
 
 
@@ -15,6 +17,7 @@ SLISE_ORANGE = "#fda411"
 SLISE_PURPLE = "#9887cb"
 SLISE_DARKORANGE = "#e66101"
 SLISE_DARKPURPLE = "#5e3c99"
+SLISE_COLORMAP = LinearSegmentedColormap.from_list("SLISE", [SLISE_DARKORANGE, SLISE_ORANGE, "#ffffff", SLISE_PURPLE, SLISE_DARKPURPLE])
 
 
 def fill_column_names(names: list = None, amount: int = -1, intercept: bool = False) -> list:
@@ -67,9 +70,9 @@ def fill_prediction_str(y: float, class_names: list = None, decimals: int = 3) -
         if len(class_names) > 1:
             if y >= 0.0 and y <= 1.0:
                 if y > 0.5:
-                    return f"Predicted: {y*100:.{decimals}f} % {class_names[1]}"
+                    return f"Predicted: {y*100:.{decimals}f}% {class_names[1]}"
                 else:
-                    return f"Predicted: {(1-y)*100:.{decimals}f} % {class_names[0]}"
+                    return f"Predicted: {(1-y)*100:.{decimals}f}% {class_names[0]}"
             else:
                 if y > 0:
                     return f"Predicted: {y:.{decimals}f} {class_names[1]}"
@@ -77,7 +80,7 @@ def fill_prediction_str(y: float, class_names: list = None, decimals: int = 3) -
                     return f"Predicted: {-y:.{decimals}f} {class_names[0]}"
         else:
             if y >= 0.0 and y <= 1.0:
-                return f"Predicted: {y*100:.{decimals}f} % {class_names[0]}"
+                return f"Predicted: {y*100:.{decimals}f}% {class_names[0]}"
             else:
                 return f"Predicted: {y:.{decimals}f} {class_names[0]}"
     else:
@@ -116,18 +119,18 @@ def plot_regression_2D(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray, epsilon:
     plt.plot(XL, YL, "-", color=SLISE_PURPLE)
     plt.plot(X, Y, 'o', color=SLISE_ORANGE)
     ticks = plt.xticks()[0]
-    plt.xticks(ticks, [f"{v:.{decimals}f}" for v in scaler.scaler_x.unscale(ticks)])
+    plt.xticks(ticks, [f"{v:.{decimals}f}" for v in scaler.unscale(ticks)[0]])
     ticks = plt.yticks()[0]
-    plt.yticks(ticks, [f"{v:.{decimals}f}" for v in scaler.scaler_y.unscale(ticks)])
+    plt.yticks(ticks, [f"{v:.{decimals}f}" for v in scaler.unscale(None, ticks)[1]])
     plt.show()
 
 def get_explanation_order(alpha: np.ndarray, mask: np.ndarray) -> (np.ndarray, np.ndarray):
     """
         Get the order in which to show the values in the plots
     """
-    order = np.argsort(alpha)
-    first = np.where(order == 0)[0][0]
-    order = np.concatenate((order[:first], order[(1 + first):], [0]))
+    order = np.argsort(alpha[1:]) + 1
+    order = order[np.nonzero(alpha[order])]
+    order = np.concatenate((order, [0]))
     order_outer = np.concatenate(([0], np.atleast_1d(mask + 1)))[order]
     return order, order_outer
 
@@ -163,7 +166,7 @@ def plot_explanation_tabular(x: np.ndarray, y: float, alpha: np.ndarray, scaler:
     impact = scaled_x * alpha
     impact /= np.sum(np.abs(impact))
     scaled_x[0] = 0.0
-    unscaled_x = np.concatenate(([0.0], scaler.scaler_x.unscale(x)))
+    unscaled_x = np.concatenate(([0.0], scaler.unscale(x)[0]))
     column_names = fill_column_names(column_names, len(unscaled_x), True)
     if isinstance(class_names, str):
         class_names = ("not "+class_names, class_names)
@@ -176,7 +179,7 @@ def plot_explanation_tabular(x: np.ndarray, y: float, alpha: np.ndarray, scaler:
     column_names = [column_names[i] for i in order_outer]
     # Plot title
     plt.figure()
-    plt.suptitle("SLISE Explanation   |   " + fill_prediction_str(scaler.scaler_y.unscale(y), class_names, decimals))
+    plt.suptitle("SLISE Explanation   |   " + fill_prediction_str(scaler.unscale(None, y)[1], class_names, decimals))
     # Plot value
     plt.subplot(1, 3, 1)
     val_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, unscaled_x)]
@@ -257,30 +260,34 @@ def plot_explanation_dist(x: np.ndarray, y: float, X: np.ndarray, Y: np.ndarray,
     rows = max(3, len(order))
     fig, axs = plt.subplots(rows, 2)
     fig.suptitle("SLISE Explanation   |   " + fill_prediction_str(yu, class_names, decimals))
-    gs = axs[0, 0].get_gridspec()
+    gs = axs[1, 0].get_gridspec()
+    axs[0, 0].remove()
+    axs[0, 1].remove()
     for ax in axs[1:, 1]:
         ax.remove()
     aih = (rows-1)//2
     axi = fig.add_subplot(gs[-aih:, 1])
     axa = fig.add_subplot(gs[(-2*aih):-aih, 1])
+    axy = fig.add_subplot(gs[0, :])
     # Y hist
-    axs[0, 0].hist(Yu, bins=bins, density=False, histtype="step", color="black", label="Dataset")
-    axs[0, 0].hist(Yu[subset], bins=bins, density=False, histtype="step", color=SLISE_PURPLE, label="Subset")
-    axs[0, 0].relim()
-    axs[0, 0].vlines(yu, *axs[0, 0].get_ylim(), color=SLISE_ORANGE, label="Explained Item")
-    axs[0, 0].set_yticks([])
+    axy.hist(Yu, bins=bins, density=False, histtype="step", color="black", label="Dataset")
+    axy.hist(Yu[subset], bins=bins, density=False, histtype="step", color=SLISE_PURPLE, label="Subset")
+    axy.relim()
+    axy.vlines(yu, *axy.get_ylim(), color=SLISE_ORANGE, label="Explained Item")
+    axy.set_yticks([])
     if class_names is not None and len(class_names) > 1:
-        pos = inset_pos(*axs[0, 0].get_xlim(), 0.2)
+        pos = inset_pos(*axy.get_xlim(), 0.2)
         if pos[0]*pos[1] < 0:
-            axs[0, 0].set_xticks((pos[0], 0, pos[1]))
-            axs[0, 0].set_xticklabels((class_names[0], "0", class_names[1]))
+            axy.set_xticks((pos[0], 0, pos[1]))
+            axy.set_xticklabels((class_names[0], "0", class_names[1]))
         else:
-            axs[0, 0].set_xticks(pos)
-            axs[0, 0].set_xticklabels(class_names[:2])
-    axs[0, 0].set_title("\n\nPrediction")
-    h, l = axs[0, 0].get_legend_handles_labels()
-    axs[0, 1].legend(h, l, loc="center", bbox_to_anchor=(0, 0.5))
-    axs[0, 1].axis("off")
+            axy.set_xticks(pos)
+            axy.set_xticklabels(class_names[:2])
+    axy.set_title("\n\nPrediction")
+    axy.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=3)
+    # h, l = axy.get_legend_handles_labels()
+    # axs[0, 1].legend(h, l, loc="center", bbox_to_anchor=(0, 0.5))
+    # axs[0, 1].axis("off")
     # X hists
     for i, k, n in zip(reversed(range(1, len(order))), order_outer[:-1]-1, column_names[:-1]):
         ax = axs[i, 0]
@@ -315,5 +322,42 @@ def plot_explanation_dist(x: np.ndarray, y: float, X: np.ndarray, Y: np.ndarray,
     else:
         axi.set_xticks([])
     # meta
+    plt.tight_layout()
+    plt.show()
+
+def plot_explanation_image(x: np.ndarray, y: float, alpha: np.ndarray, width: int, height: int,
+        scaler: DataScaler, class_names: list = None, decimals: int = 2):
+    """Plot the current explanation for a black and white image (MNIST like)
+
+    Arguments:
+        x {np.ndarray} -- the explained image
+        y {float} -- the explained prediction
+        alpha {np.ndarray} -- the explanation
+        width {int} -- the width of the image
+        height {int} -- the height of the image
+        scaler {DataScaler} -- scaler used to unscale the data
+
+    Keyword Arguments:
+        class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
+        decimals {int} -- the precision to use for printing (default: {2})
+    """
+    alpha = scaler.unscale_model(alpha)[1:]
+    alpha.shape = (width, height)
+    alpha = alpha.T
+    x = scaler.unscale(x)[0]
+    x.shape = (width, height)
+    x = x.T
+    alpha = sigmoid(alpha * (4 / np.max(np.abs(alpha))))
+    y = scaler.unscale(None, y)[1]
+    if isinstance(class_names, str):
+        class_names = ("not "+class_names, class_names)
+    plt.imshow(alpha, interpolation="none", cmap=SLISE_COLORMAP, norm=Normalize(vmin=-0.1, vmax=1.1))
+    plt.contour(range(height), range(width), x, levels=[np.median(x) * 0.5 + np.mean(x) * 0.5], colors="black")
+    plt.xticks([])
+    plt.yticks([])
+    plt.title("SLISE Explanation   |   " + fill_prediction_str(y, class_names, decimals))
+    if class_names is not None:
+        plt.legend((Patch(facecolor=SLISE_ORANGE), Patch(facecolor=SLISE_PURPLE)),
+            class_names[:2], loc="upper center", bbox_to_anchor=(0.5, -0.01), ncol=2)
     plt.tight_layout()
     plt.show()

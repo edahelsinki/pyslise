@@ -10,7 +10,7 @@ from slise.data import DataScaler, local_into, local_model, mat_mul_with_interce
 from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning
-from slise.plot import plot_regression_2D, fill_column_names, fill_prediction_str, plot_explanation_tabular, plot_explanation_dist
+from slise.plot import plot_regression_2D, fill_column_names, fill_prediction_str, plot_explanation_tabular, plot_explanation_dist, plot_explanation_image
 
 
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
@@ -537,8 +537,18 @@ class SliseExplainer():
         plot_explanation_tabular(self.x, self.y, self.alpha, self.scaler, column_names, class_names, decimals)
         return self
 
-    def plot_image(self, width: int, height: int) -> SliseExplainer:
-        #TODO plot image explanation
+    def plot_image(self, width: int, height: int, class_names: list = None, decimals: int = 3) -> SliseExplainer:
+        """Plot the current explanation for a black and white image (MNIST like)
+
+        Arguments:
+            width {int} -- the width of the image
+            height {int} -- the height of the image
+
+        Keyword Arguments:
+            class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
+            decimals {int} -- the precision to use for printing (default: {3})
+        """
+        plot_explanation_image(self.x, self.y, self.alpha, width, height, self.scaler, class_names, decimals)
         return self
 
     def plot_dist(self, column_names: list = None, class_names: list = None, decimals: int = 3) -> SliseExplainer:
