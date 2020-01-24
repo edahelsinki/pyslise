@@ -6,18 +6,11 @@ from __future__ import annotations
 from warnings import warn
 import numpy as np
 from scipy.special import expit as sigmoid
-from matplotlib import pyplot as plt
 from slise.data import DataScaler, local_into, local_model, mat_mul_with_intercept
 from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
-from slise.utils import SliseWarning, fill_column_names, fill_prediction_str
-
-
-# SLISE colors, for unified identity
-SLISE_ORANGE = "#fda411"
-SLISE_PURPLE = "#998ec3"
-SLISE_DARKORANGE = "#e66101"
-SLISE_DARKPURPLE = "#5e3c99"
+from slise.utils import SliseWarning
+from slise.plot import plot_regression_2D, fill_column_names, fill_prediction_str, plot_explanation_tabular, plot_explanation_dist
 
 
 def slise_raw(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray = None, beta: float = 0.0, 
@@ -307,25 +300,7 @@ class SliseRegression():
         Returns:
             SliseRegression -- self
         """
-        if self.scaler.intercept:
-            X = self.X[:, 1].ravel()
-        else:
-            X = self.X.ravel()
-        if len(X) != len(self.Y):
-            raise Exception(f"Can only plot 1D data (len(Y) != len(X): {len(self.Y)} != {len(X)})")
-        XL = np.array((X.min(), X.max()))
-        ext = (XL[1] - XL[0]) * 0.02
-        XL = XL + [-ext, ext]
-        YL = mat_mul_with_intercept(XL, self.alpha)
-        XL = XL.ravel()
-        plt.fill_between(XL, YL+self.epsilon, YL-self.epsilon, color="#998ec333")
-        plt.plot(XL, YL, "-", color=SLISE_PURPLE)
-        plt.plot(X, self.Y, 'o', color=SLISE_ORANGE)
-        ticks = plt.xticks()[0]
-        plt.xticks(ticks, [f"{v:.{decimals}f}" for v in self.scaler.scaler_x.unscale(ticks)])
-        ticks = plt.yticks()[0]
-        plt.yticks(ticks, [f"{v:.{decimals}f}" for v in self.scaler.scaler_y.unscale(ticks)])
-        plt.show()
+        plot_regression_2D(self.X, self.Y, self.alpha, self.epsilon, self.scaler, decimals)
         return self
 
 class SliseExplainer():
@@ -553,67 +528,13 @@ class SliseExplainer():
 
         Keyword Arguments:
             column_names {list} -- the names of the features/variables (default: {None})
-            class_names {list} -- the names of the classes, if explaining a classifier (default: {None})
+            class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
             decimals {int} -- the precision to use for printing (default: {3})
 
         Returns:
             SliseExplainer -- self
         """
-        # Values
-        scaled_x = np.concatenate(([1.0], self.x))
-        alpha = self.alpha
-        impact = scaled_x * alpha
-        impact /= np.sum(np.abs(impact))
-        scaled_x[0] = 0.0
-        unscaled_x = np.concatenate(([0.0], self.scaler.scaler_x.unscale(self.x)))
-        column_names = fill_column_names(column_names, len(np.atleast_1d(self.coefficients)), True)
-        # Sorting
-        order = np.argsort(alpha)
-        first = np.where(order == 0)[0][0]
-        order = np.concatenate((order[:first], order[(1 + first):], [0]))
-        scaled_x = scaled_x[order]
-        alpha = alpha[order]
-        impact = impact[order]
-        order_outer = np.concatenate(([0], np.atleast_1d(self.scaler.scaler_x.mask + 1)))[order]
-        unscaled_x = unscaled_x[order_outer]
-        column_names = [column_names[i] for i in order_outer]
-        # Plot title
-        plt.figure()
-        plt.suptitle("SLISE Explanation   |   " + fill_prediction_str(self.scaler.scaler_y.unscale(self.y), class_names, decimals))
-        # Plot value
-        plt.subplot(1, 3, 1)
-        val_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, unscaled_x)]
-        val_col_nam[-1] = ""
-        plt.barh(val_col_nam, scaled_x, color="grey")
-        plt.title("\n\nExplained Item")
-        if not np.allclose(unscaled_x, scaled_x):
-            plt.xticks([0.0], ["Scaled Mean"])
-        # Plot weights
-        plt.subplot(1, 3, 2)
-        wei_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, alpha)]
-        wei_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
-        plt.barh(wei_col_nam, alpha, color=wei_col_col)
-        plt.title("\n\nLocal Linear Model")
-        if class_names is not None and len(class_names) > 1:
-            amax = alpha.abs().max()
-            plt.xticks([-amax, amax], class_names[:2])
-        else:
-            plt.xticks([])
-        # Plot impact
-        plt.subplot(1, 3, 3)
-        imp_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, impact)]
-        imp_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in impact]
-        plt.barh(imp_col_nam, impact, color=imp_col_col)
-        plt.title("\n\nActual Impact")
-        plt.xticks(plt.xticks()[0], class_names)
-        if class_names is not None and len(class_names) > 1:
-            imax = impact.abs().max()
-            plt.xticks([-imax, imax], class_names[:2])
-        else:
-            plt.xticks([])
-        # Plot meta
-        plt.tight_layout()
-        plt.show()
+        plot_explanation_tabular(self.x, self.y, self.alpha, self.scaler, column_names, class_names, decimals)
         return self
 
     def plot_image(self, width: int, height: int) -> SliseExplainer:
@@ -621,5 +542,16 @@ class SliseExplainer():
         return self
 
     def plot_dist(self, column_names: list = None, class_names: list = None, decimals: int = 3) -> SliseExplainer:
-        #TODO plot explanation with dists
+        """Plot the current explanation (for tabular data), with density plots of the dataset and subset
+
+
+        Keyword Arguments:
+            column_names {list} -- the names of the features/variables (default: {None})
+            class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
+            decimals {int} -- the precision to use for printing (default: {3})
+
+        Returns:
+            SliseExplainer -- self
+        """
+        plot_explanation_dist(self.x, self.y, self.X, self.Y, self.alpha, self.subset(), self.scaler, column_names, class_names, decimals)
         return self
