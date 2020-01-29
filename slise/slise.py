@@ -272,20 +272,14 @@ class SliseRegression():
         col_len = max(8,
             np.max([len(s) for s in column_names]),
             np.max([len(a) for a in alpha]),
-            np.max([len(a) for a in coeff])) + 1
+            np.max([len(a) for a in coeff]))
         assert len(alpha) == len(coeff)
         assert len(alpha) == len(column_names)
-        print("Variables:    ", end="")
-        for s in column_names:
-            print(" %%%ds"%col_len%s, end="")
-        print("\nCoefficients: ", end="")
-        for a in coeff:
-            print(" %%%ds"%col_len%a, end="")
-        print("\nScaled Alpha: ", end="")
-        for a in alpha:
-            print(" %%%ds"%col_len%a, end="")
-        print("Loss:", self.score())
-        print("Subset:", self.subset().mean())
+        print("Variables:   ", " ".join([f"{s:>{col_len}}" for s in column_names]))
+        print("Coefficients:", " ".join([f"{s:>{col_len}}" for s in coeff]))
+        print("Scaled Alpha:", " ".join([f"{s:>{col_len}}" for s in alpha]))
+        print(f"Loss:         {self.score():>{col_len}.{decimals}f}")
+        print(f"Subset:       {self.subset().mean():>{col_len}.{decimals}f}")
         return self
 
     def plot(self, label_x: str = "x", label_y: str = "y", decimals: int = 3) -> SliseRegression:
@@ -493,24 +487,19 @@ class SliseExplainer():
         assert len(alpha) == len(impact)
         assert len(alpha) == len(unscaled)
         assert len(alpha) == len(column_names)
-        print(fill_prediction_str(self.scaler.scaler_y.unscale(self.y), class_names, decimals))
-        print("Variables: ", end="")
-        for s in column_names:
-            print(" %%%ds"%col_len%s, end="")
-        print("\nValues:    ", end="")
-        for a in unscaled:
-            print(" %%%ds"%col_len%a, end="")
-        print("\nWeights:   ", end="")
-        for a in alpha:
-            print(" %%%ds"%col_len%a, end="")
-        print("\nImpact:    ", end="")
-        for a in impact:
-            print(" %%%ds"%col_len%a, end="")
-        print("Loss:", self.score())
         subset = self.subset()
-        print("Subset:", subset.mean())
+        print(fill_prediction_str(self.scaler.scaler_y.unscale(self.y), class_names, decimals))
+        print("Variables:", " ".join([f"{s:>{col_len}}" for s in column_names]))
+        print("Values:   ", " ".join([f"{s:>{col_len}}" for s in unscaled]))
+        print("Weights:  ", " ".join([f"{s:>{col_len}}" for s in alpha]))
+        print("Impact:   ", " ".join([f"{s:>{col_len}}" for s in impact]))
+        print(f"Loss:      {self.score():>{col_len}.{decimals}f}")
+        print(f"Subset:    {subset.mean():>{col_len}.{decimals}f}")
         if self.scaler.logit:
-            print("Class Balance:", (self.Y[subset] > 0.0).mean())
+            if isinstance(class_names, list) and len(class_names) == 2:
+                print(f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% {class_names[0]} / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}% {class_names[1]}")
+            else:
+                print(f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}%")
         return self
 
     def plot(self, column_names: list = None, class_names: list = None, decimals: int = 3) -> SliseExplainer:
