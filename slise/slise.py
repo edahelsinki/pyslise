@@ -288,10 +288,12 @@ class SliseRegression():
         print("Subset:", self.subset().mean())
         return self
 
-    def plot(self, decimals: int = 2) -> SliseRegression:
+    def plot(self, label_x: str = "x", label_y: str = "y", decimals: int = 3) -> SliseRegression:
         """Plot 1D data in a 2D scatter plot, with a line for the regression model
 
         Keyword Arguments:
+            label_x {str} -- the name of the dependent value (default: "x")
+            label_y {str} -- the name of the predicted value (default: "y")
             decimals {int} -- the number of decimals for the axes (default: {2})
 
         Raises:
@@ -300,7 +302,7 @@ class SliseRegression():
         Returns:
             SliseRegression -- self
         """
-        plot_regression_2D(self.X, self.Y, self.alpha, self.epsilon, self.scaler, decimals)
+        plot_regression_2D(self.X, self.Y, self.alpha, self.epsilon, self.scaler, label_x, label_y, decimals)
         return self
 
 class SliseExplainer():

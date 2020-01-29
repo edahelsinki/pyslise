@@ -88,7 +88,7 @@ def fill_prediction_str(y: float, class_names: list = None, decimals: int = 3) -
 
 
 def plot_regression_2D(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray, epsilon: float,
-        scaler: DataScaler, decimals: int = 2):
+        scaler: DataScaler, label_x: str = "x", label_y: str = "y", decimals: int = 3):
     """Plot 1D data in a 2D scatter plot, with a line for the regression model
 
     Arguments:
@@ -99,7 +99,9 @@ def plot_regression_2D(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray, epsilon:
         scaler {DataScaler} -- scaler used to unscale the data
 
     Keyword Arguments:
-        decimals {int} -- the number of decimals for the axes (default: {2})
+        label_x {str} -- the name of the dependent value (default: "x")
+        label_y {str} -- the name of the predicted value (default: "y")
+        decimals {int} -- the number of decimals for the axes (default: {3})
 
     Raises:
         Exception: if the data is not 1D (intercept allowed)
@@ -122,6 +124,21 @@ def plot_regression_2D(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray, epsilon:
     plt.xticks(ticks, [f"{v:.{decimals}f}" for v in scaler.unscale(ticks)[0]])
     ticks = plt.yticks()[0]
     plt.yticks(ticks, [f"{v:.{decimals}f}" for v in scaler.unscale(None, ticks)[1]])
+    plt.xlabel(label_x)
+    plt.ylabel(label_y)
+    coef = scaler.unscale_model(alpha)
+    formula = ""
+    if isinstance(coef, float) or len(coef) == 1:
+        formula = f"{float(alpha):.{decimals}f} * {label_x}"
+    elif np.abs(coef[0]) > 1e-8 and alpha[1] >= 0.0:
+        formula = f"{alpha[0]:.{decimals}f} + {alpha[1]:.{decimals}f} $\\cdot$ {label_x}"
+    elif np.abs(coef[0]) > 1e-8:
+        formula = f"{alpha[0]:.{decimals}f} - {np.abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
+    else:
+        formula = f"{alpha[1]:.{decimals}f} * {label_x}"
+    if scaler.logit:
+        formula = f"$\\sigma$({formula})"
+    plt.title(f"SLISE for Robust Regression: {label_y} = {formula}")
     plt.show()
 
 def get_explanation_order(alpha: np.ndarray, mask: np.ndarray) -> (np.ndarray, np.ndarray):
