@@ -143,14 +143,15 @@ class ScalerRange(AScaler):
             min(quantile) - max(quantile) = 1.0
     """
 
-    def __init__(self, quantiles: list = [0.05, 0.95]):
+    def __init__(self, lower_quantile: float = 0.25, upper_quantile: float = 0.75):
         """A scaler that scales the columns to have spread of one:
 
         Keyword Arguments:
             quantiles {list} -- The quantiles for calculating the spread (default: {[0.05, 0.95]})
         """
         super().__init__()
-        self.quantiles = quantiles
+        assert lower_quantile < upper_quantile
+        self.quantiles = (lower_quantile, upper_quantile)
 
     def fit(self, X: np.ndarray) -> np.ndarray:
         """
@@ -159,7 +160,7 @@ class ScalerRange(AScaler):
         if len(X.shape) == 1:
             qs = np.quantile(X, self.quantiles)
             self.mean = 0.0
-            self.stddv = 0.5 * np.max(qs) - 0.5 * np.min(qs)
+            self.stddv = 0.5 * qs[1] - 0.5 * qs[0]
             if self.stddv == 0:
                 self.stddv = 1.0
             X = X / self.stddv
@@ -168,7 +169,7 @@ class ScalerRange(AScaler):
         else:
             qs = np.quantile(X, self.quantiles, 0)
             self.mean = np.zeros(X.shape[1])
-            self.stddv = 0.5 * np.max(qs, 0) - 0.5 * np.min(qs, 0)
+            self.stddv = 0.5 * qs[1] - 0.5 * qs[0]
             self.mask = np.nonzero(self.stddv)
             if isinstance(self.mask, tuple):
                 self.mask = self.mask[-1]
@@ -358,17 +359,19 @@ class DataScaler:
         """This class holds two scalers, one for X and one for Y
 
         Keyword Arguments:
-            scaler_x {AScaler} -- The scaler to use for X, or True for ScalerNormal and False for ScalerRemoveConstant (default: {False})
+            scaler_x {AScaler} -- The scaler to use for X, or True for ScalerRange and False for ScalerRemoveConstant (default: {False})
             scaler_y {AScaler} -- The scaler to use for Y, or True for ScalerRange and False for ScalerIdentity (default: {False})
             intercept {bool} -- Should an intercept column be added to X (default: {False})
             logit {bool} -- Should Y be passed through a logit function (default: {False})
         """
         if scaler_x == True:
-            self.scaler_x = ScalerNormal()
+            self.scaler_x = ScalerRange()
         elif scaler_x:
             self.scaler_x = scaler_x
-        else:
+        elif intercept:
             self.scaler_x = ScalerRemoveConstant()
+        else:
+            self.scaler_x = ScalerIdentity()
         if scaler_y == True:
             self.scaler_y = ScalerRange()
         elif scaler_y:
