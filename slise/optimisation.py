@@ -113,8 +113,8 @@ def loss_numba(
     grad = np.expand_dims(grad, 0) @ X
     # Lambda
     if lambda2 > 0:
-        loss += lambda2 * np.sum(alpha * alpha)
-        grad += (lambda2 * 2) * alpha
+        loss = loss + lambda2 * np.sum(alpha * alpha)
+        grad = grad + (lambda2 * 2) * alpha
     return loss, grad
 
 
@@ -222,7 +222,7 @@ def next_beta(
 
 def matching_epsilon(residuals2: np.ndarray, epsilon2: float, beta: float) -> float:
     """
-        Approximately calculate the epsilon that minimises the approximation ratio to the exact loss 
+        Approximately calculate the epsilon that minimises the approximation ratio to the exact loss
     """
     residuals2 = np.sort(residuals2)
     loss = sigmoid(beta * (epsilon2 - residuals2))
