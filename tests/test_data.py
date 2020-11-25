@@ -87,4 +87,3 @@ def test_data_scaler():
     mod5 = sc.scale_model(mod4)
     assert np.allclose(mod, mod3[1:])
     assert np.allclose(mod, mod5[1:])
-
