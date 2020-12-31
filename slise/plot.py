@@ -130,10 +130,9 @@ def plot_regression_2D(X: np.ndarray, Y: np.ndarray, alpha: np.ndarray, epsilon:
     formula = ""
     if isinstance(coef, float) or len(coef) == 1:
         formula = f"{float(alpha):.{decimals}f} * {label_x}"
-    elif np.abs(coef[0]) > 1e-8 and alpha[1] >= 0.0:
-        formula = f"{alpha[0]:.{decimals}f} + {alpha[1]:.{decimals}f} $\\cdot$ {label_x}"
     elif np.abs(coef[0]) > 1e-8:
-        formula = f"{alpha[0]:.{decimals}f} - {np.abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
+        sign = "-" if alpha[1] < 0.0 else "+"
+        formula = f"{alpha[0]:.{decimals}f} {sign} {abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
     else:
         formula = f"{alpha[1]:.{decimals}f} * {label_x}"
     if scaler.logit:
