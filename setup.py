@@ -12,7 +12,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/aggrathon/slise-py",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=("experiments", "tests")),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
