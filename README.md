@@ -30,3 +30,4 @@ The (original) R implementation can be found [here](https://github.com/edahelsin
 - NumPy
 - SciPy
 - PyLBFGS
+- Numba

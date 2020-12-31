@@ -13,6 +13,7 @@ def add_intercept_column(X: np.ndarray) -> np.ndarray:
         return np.concatenate(([1.0], X))
     return np.concatenate((np.ones((X.shape[0], 1)), X), 1)
 
+
 def remove_intercept_column(X: np.ndarray) -> np.ndarray:
     """
         Remove the first column
@@ -20,6 +21,7 @@ def remove_intercept_column(X: np.ndarray) -> np.ndarray:
     if len(X.shape) == 1:
         return X[1:]
     return X[:, 1:]
+
 
 def mat_mul_with_intercept(X: np.ndarray, alpha: np.ndarray):
     """
@@ -62,18 +64,22 @@ class AScaler(ABC):
             self.mask = np.arange(X.shape[1])
         return X
 
-    def scale(self, X:np.ndarray) -> np.ndarray:
+    def scale(self, X: np.ndarray) -> np.ndarray:
         """
            Scale X using the fitted parameters
         """
         if isinstance(self.mean, float) or len(self.mean) == 1:
             return (X - self.mean) / self.stddv
         elif len(X.shape) > 1:
-            return (X[:, self.mask] - self.mean[np.newaxis, self.mask]) / self.stddv[np.newaxis, :]
+            return (X[:, self.mask] - self.mean[np.newaxis, self.mask]) / self.stddv[
+                np.newaxis, :
+            ]
         elif len(self.mean) == len(X):
             return (X - self.mean)[self.mask] / self.stddv
         else:
-            raise Exception("Wrong dimensions of X (this method is for additional scaling, use 'fit' for finding the scaling parameters)")
+            raise Exception(
+                "Wrong dimensions of X (this method is for additional scaling, use 'fit' for finding the scaling parameters)"
+            )
 
     def unscale(self, X: np.ndarray) -> np.ndarray:
         """
@@ -137,14 +143,15 @@ class ScalerRange(AScaler):
             min(quantile) - max(quantile) = 1.0
     """
 
-    def __init__(self, quantiles: list = [0.05, 0.95]):
+    def __init__(self, lower_quantile: float = 0.25, upper_quantile: float = 0.75):
         """A scaler that scales the columns to have spread of one:
 
         Keyword Arguments:
             quantiles {list} -- The quantiles for calculating the spread (default: {[0.05, 0.95]})
         """
         super().__init__()
-        self.quantiles = quantiles
+        assert lower_quantile < upper_quantile
+        self.quantiles = (lower_quantile, upper_quantile)
 
     def fit(self, X: np.ndarray) -> np.ndarray:
         """
@@ -153,7 +160,7 @@ class ScalerRange(AScaler):
         if len(X.shape) == 1:
             qs = np.quantile(X, self.quantiles)
             self.mean = 0.0
-            self.stddv = 0.5 * np.max(qs) - 0.5 * np.min(qs)
+            self.stddv = 0.5 * qs[1] - 0.5 * qs[0]
             if self.stddv == 0:
                 self.stddv = 1.0
             X = X / self.stddv
@@ -162,7 +169,7 @@ class ScalerRange(AScaler):
         else:
             qs = np.quantile(X, self.quantiles, 0)
             self.mean = np.zeros(X.shape[1])
-            self.stddv = 0.5 * np.max(qs, 0) - 0.5 * np.min(qs, 0)
+            self.stddv = 0.5 * qs[1] - 0.5 * qs[0]
             self.mask = np.nonzero(self.stddv)
             if isinstance(self.mask, tuple):
                 self.mask = self.mask[-1]
@@ -175,6 +182,7 @@ class ScalerRange(AScaler):
                 X = X[:, self.mask]
             X = X / self.stddv[np.newaxis, :]
             return X
+
 
 class ScalerIdentity(AScaler):
     """
@@ -231,7 +239,7 @@ class ScalerRemoveConstant(AScaler):
         return X
 
 
-def local_into(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+def local_into(X: np.ndarray, x: np.ndarray) -> np.ndarray:
     """Center a np.ndarray on a selected point
 
     Arguments:
@@ -245,7 +253,8 @@ def local_into(X: np.ndarray, x:np.ndarray) -> np.ndarray:
         return X - x[np.newaxis, :]
     return X - x
 
-def local_from(X: np.ndarray, x:np.ndarray) -> np.ndarray:
+
+def local_from(X: np.ndarray, x: np.ndarray) -> np.ndarray:
     """Uncenter a np.ndarray on a selected point
 
     Arguments:
@@ -259,7 +268,8 @@ def local_from(X: np.ndarray, x:np.ndarray) -> np.ndarray:
         return X + x[np.newaxis, :]
     return X + x
 
-def local_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
+
+def local_model(alpha: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Make sure a linear model passes through a point
 
     Arguments:
@@ -275,6 +285,7 @@ def local_model(alpha: np.ndarray, x:np.ndarray, y:np.ndarray) -> np.ndarray:
         alpha[0] = y - np.sum(alpha[1:] * x)
         return alpha
     return np.concatenate((y - np.sum(alpha * x, keepdims=True), alpha))
+
 
 class ScalerLocal(AScaler):
     """
@@ -327,30 +338,40 @@ class ScalerNested(AScaler):
         self.mask = np.atleast_1d(self.outer.mask)[self.inner.mask]
         self.stddv = np.atleast_1d(self.outer.stddv)[self.inner.mask] * self.inner.stddv
         self.mean = np.atleast_1d(self.outer.mean)
-        self.mean[self.outer.mask] = self.mean[self.outer.mask] + self.outer.stddv * self.inner.mean
+        self.mean[self.outer.mask] = (
+            self.mean[self.outer.mask] + self.outer.stddv * self.inner.mean
+        )
         return X2
 
 
-class DataScaler():
+class DataScaler:
     """
         This class holds two scalers, one for X and one for Y
     """
 
-    def __init__(self, scaler_x: AScaler = False, scaler_y: AScaler = False, intercept: bool = False, logit: bool = False):
+    def __init__(
+        self,
+        scaler_x: AScaler = False,
+        scaler_y: AScaler = False,
+        intercept: bool = False,
+        logit: bool = False,
+    ):
         """This class holds two scalers, one for X and one for Y
 
         Keyword Arguments:
-            scaler_x {AScaler} -- The scaler to use for X, or True for ScalerNormal and False for ScalerRemoveConstant (default: {False})
+            scaler_x {AScaler} -- The scaler to use for X, or True for ScalerRange and False for ScalerRemoveConstant (default: {False})
             scaler_y {AScaler} -- The scaler to use for Y, or True for ScalerRange and False for ScalerIdentity (default: {False})
             intercept {bool} -- Should an intercept column be added to X (default: {False})
             logit {bool} -- Should Y be passed through a logit function (default: {False})
         """
         if scaler_x == True:
-            self.scaler_x = ScalerNormal()
+            self.scaler_x = ScalerRange()
         elif scaler_x:
             self.scaler_x = scaler_x
-        else:
+        elif intercept:
             self.scaler_x = ScalerRemoveConstant()
+        else:
+            self.scaler_x = ScalerIdentity()
         if scaler_y == True:
             self.scaler_y = ScalerRange()
         elif scaler_y:
@@ -360,7 +381,9 @@ class DataScaler():
         self.logit = logit
         self.intercept = intercept
 
-    def fit(self, X: np.ndarray = None, Y: np.ndarray = None) -> (np.ndarray, np.ndarray):
+    def fit(
+        self, X: np.ndarray = None, Y: np.ndarray = None
+    ) -> (np.ndarray, np.ndarray):
         """
             Fit the scalers for X and Y
         """
@@ -374,7 +397,9 @@ class DataScaler():
             Y = self.scaler_y.fit(Y)
         return X, Y
 
-    def scale(self, X: np.ndarray = None, Y: np.ndarray = None) -> (np.ndarray, np.ndarray):
+    def scale(
+        self, X: np.ndarray = None, Y: np.ndarray = None
+    ) -> (np.ndarray, np.ndarray):
         """
             Scale X and Y
         """
@@ -388,7 +413,9 @@ class DataScaler():
             Y = self.scaler_y.scale(Y)
         return X, Y
 
-    def unscale(self, X: np.ndarray = None, Y: np.ndarray = None) -> (np.ndarray, np.ndarray):
+    def unscale(
+        self, X: np.ndarray = None, Y: np.ndarray = None
+    ) -> (np.ndarray, np.ndarray):
         """
             Unscale X and Y
         """
@@ -410,11 +437,15 @@ class DataScaler():
             alpha = np.array([0.0, alpha])
         elif len(alpha) == len(self.scaler_x.mean):
             alpha = np.concatenate(([0.0], alpha[self.scaler_x.mask]))
-        elif len(alpha) == len(self.scaler_x.mean) + 1: # Assuming intercept
+        elif len(alpha) == len(self.scaler_x.mean) + 1:  # Assuming intercept
             alpha = alpha[np.concatenate(([0], np.atleast_1d(self.scaler_x.mask + 1)))]
         else:
             raise Exception("wrong size for alpha")
-        alpha[0] = (alpha[0] - self.scaler_y.mean + sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask])) / self.scaler_y.stddv
+        alpha[0] = (
+            alpha[0]
+            - self.scaler_y.mean
+            + sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask])
+        ) / self.scaler_y.stddv
         alpha[1:] = alpha[1:] * self.scaler_x.stddv / self.scaler_y.stddv
         return alpha
 
@@ -427,7 +458,12 @@ class DataScaler():
             alpha = np.concatenate(([0], alpha))
         else:
             alpha = alpha.copy()
-        alpha[0] = (alpha[0] - np.sum(alpha[1:] * self.scaler_x.mean[self.scaler_x.mask] / self.scaler_x.stddv)) * self.scaler_y.stddv + self.scaler_y.mean
+        alpha[0] = (
+            alpha[0]
+            - np.sum(
+                alpha[1:] * self.scaler_x.mean[self.scaler_x.mask] / self.scaler_x.stddv
+            )
+        ) * self.scaler_y.stddv + self.scaler_y.mean
         alpha[1:] = alpha[1:] * self.scaler_y.stddv / self.scaler_x.stddv
         return self.extend_model(alpha)
 
@@ -451,7 +487,9 @@ class DataScaler():
         return alpha
 
 
-def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) -> (np.ndarray, np.ndarray):
+def pca_simple(
+    X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10
+) -> (np.ndarray, np.ndarray):
     """Fit and use PCA for dimensionality reduction
 
     Arguments:
@@ -468,10 +506,11 @@ def pca_simple(X: np.ndarray, dimensions: int = 10, tolerance: float = 1e-10) ->
         return X, 1.0
     dimensions = min(dimensions, *X.shape)
     u, s, v = np.linalg.svd(X, False, True, False)
-    dimensions = np.sum(s[:min(dimensions, len(s))] > s[0] * tolerance)
+    dimensions = np.sum(s[: min(dimensions, len(s))] > s[0] * tolerance)
     if dimensions < v.shape[0]:
         v = v[:dimensions, :]
     return u[:, :dimensions].dot(np.diag(s[:dimensions])), v
+
 
 def pca_rotate(X: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Use PCA for dimensionality reduction
@@ -485,6 +524,7 @@ def pca_rotate(X: np.ndarray, v: np.ndarray) -> np.ndarray:
     """
     return X @ v.T
 
+
 def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Invert PCA for dimensionality expansion
 
@@ -496,6 +536,7 @@ def pca_invert(X: np.ndarray, v: np.ndarray) -> np.ndarray:
         np.ndarray -- the expanded X
     """
     return X @ v
+
 
 def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Use PCA for dimensionality reduction
@@ -510,6 +551,7 @@ def pca_rotate_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     if len(alpha) > v.shape[1]:
         return np.concatenate((alpha[:1], v @ alpha[1:]))
     return v @ alpha
+
 
 def pca_invert_model(alpha: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Invert PCA for dimensionality expansion

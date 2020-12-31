@@ -20,6 +20,7 @@ def dsigmoid(x: np.ndarray) -> np.ndarray:
     s = sigmoid(x)
     return s * (1 - s)
 
+
 def log_sigmoid(x: np.ndarray) -> np.ndarray:
     """
         Numerically stable calculation of log(sigmoid(x)):
@@ -28,11 +29,13 @@ def log_sigmoid(x: np.ndarray) -> np.ndarray:
     y = -np.sign(x)
     return (y * 0.5 + 0.5) * x - np.log1p(np.exp(y * x))
 
+
 def dlog_sigmoid(x: np.ndarray) -> np.ndarray:
     """
         Derivative of the log_sigmoid function
     """
     return 1 - sigmoid(x)
+
 
 def sparsity(x: np.ndarray, treshold: float = 0) -> float:
     """
@@ -43,12 +46,14 @@ def sparsity(x: np.ndarray, treshold: float = 0) -> float:
     else:
         return np.count_nonzero(x)
 
+
 def log_sum(x: np.ndarray) -> float:
     """
         Computes log(sum(exp(x))) in a numerically stable way
     """
     xmax = np.max(x)
     return xmax + log(np.sum(np.exp(x - xmax)))
+
 
 def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
     """
@@ -61,6 +66,7 @@ def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
     if xsum == 0:
         xsum = np.sum(xexp)
     return xmax + log(xsum)
+
 
 def random_sample_int(n: int, k: int) -> list:
     """
@@ -78,7 +84,10 @@ def random_sample_int(n: int, k: int) -> list:
         indices[i] = new
     return indices
 
-def ridge_regression(X: np.ndarray, Y: np.ndarray, lambda2:float = 1e-10) -> np.ndarray:
+
+def ridge_regression(
+    X: np.ndarray, Y: np.ndarray, lambda2: float = 1e-10
+) -> np.ndarray:
     """Train a linear ridge regression model
 
     Arguments:
@@ -91,8 +100,10 @@ def ridge_regression(X: np.ndarray, Y: np.ndarray, lambda2:float = 1e-10) -> np.
     Returns:
         np.ndarray -- the linear model weights
     """
+
     def f(alpha: np.ndarray, gradient: np.ndarray) -> float:
         residuals = X @ alpha - Y
         gradient[:] = 2 * (X.T @ residuals) + (lambda2 * 2) * alpha
-        return np.sum(residuals**2) + lambda2 * np.sum(alpha**2)
-    return fmin_lbfgs(f = f, x0 = np.zeros(X.shape[1]))
+        return np.sum(residuals ** 2) + lambda2 * np.sum(alpha ** 2)
+
+    return fmin_lbfgs(f=f, x0=np.zeros(X.shape[1]))

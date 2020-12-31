@@ -2,3 +2,4 @@ numpy
 scipy
 PyLBFGS
 numba
+matplotlib
