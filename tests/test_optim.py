@@ -12,7 +12,7 @@ from slise.optimisation import (
     loss_smooth,
     loss_sharp,
     loss_numba,
-    owlqn,
+    optimise_loss,
     graduated_optimisation,
 )
 from slise.data import add_intercept_column, local_into
@@ -67,13 +67,13 @@ def test_owlqn():
     print("Testing owlqn")
     X, Y = data_create(20, 5)
     alpha = np.random.normal(size=5)
-    alpha2 = owlqn(alpha, X, Y, beta=100)
+    alpha2 = optimise_loss(alpha, X, Y, beta=100)
     assert loss_smooth(alpha, X, Y, beta=100) >= loss_smooth(alpha2, X, Y, beta=100)
-    alpha2 = owlqn(alpha, X, Y, beta=100, lambda1=0.5)
+    alpha2 = optimise_loss(alpha, X, Y, beta=100, lambda1=0.5)
     assert loss_smooth(alpha, X, Y, beta=100, lambda1=0.5) > loss_smooth(
         alpha2, X, Y, beta=100, lambda1=0.5
     )
-    alpha2 = owlqn(alpha, X, Y, beta=100, lambda2=0.5)
+    alpha2 = optimise_loss(alpha, X, Y, beta=100, lambda2=0.5)
     assert loss_smooth(alpha, X, Y, beta=100, lambda2=0.5) > loss_smooth(
         alpha2, X, Y, beta=100, lambda2=0.5
     )

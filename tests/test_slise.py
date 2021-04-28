@@ -4,6 +4,7 @@ from slise.optimisation import loss_smooth
 from slise.data import add_intercept_column, local_into
 from slise.initialisation import (
     initialise_candidates,
+    initialise_candidates2,
     initialise_lasso,
     initialise_ols,
     initialise_zeros,
@@ -31,25 +32,52 @@ def test_initialise():
     print("Testing initialisation")
     X, Y = data_create(20, 5)
     zero = np.zeros(5)
-    alpha, beta = initialise_candidates(X, Y, None)
+    alpha, beta = initialise_candidates(X, Y)
     assert beta > 0
     assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
     X, Y = data_create(20, 12)
     zero = np.zeros(12)
-    alpha, beta = initialise_candidates(X, Y, None)
+    alpha, beta = initialise_candidates(X, Y)
     assert beta > 0
     assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
     X, Y = data_create(20, 11)
     X = add_intercept_column(X)
     zero = np.zeros(12)
-    alpha, beta = initialise_candidates(X, Y, None, intercept=True)
+    alpha, beta = initialise_candidates(X, Y)
     assert beta > 0
     assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
     X, Y = data_create(20, 12)
     x = np.random.normal(size=12)
     X = local_into(X, x)
     zero = np.zeros(12)
-    alpha, beta = initialise_candidates(X, Y, x)
+    alpha, beta = initialise_candidates(X, Y)
+    assert beta > 0
+    assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
+
+
+def test_initialise2():
+    print("Testing initialisation2")
+    X, Y = data_create(20, 5)
+    zero = np.zeros(5)
+    alpha, beta = initialise_candidates2(X, Y)
+    assert beta > 0
+    assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
+    X, Y = data_create(20, 12)
+    zero = np.zeros(12)
+    alpha, beta = initialise_candidates2(X, Y)
+    assert beta > 0
+    assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
+    X, Y = data_create(20, 11)
+    X = add_intercept_column(X)
+    zero = np.zeros(12)
+    alpha, beta = initialise_candidates2(X, Y)
+    assert beta > 0
+    assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
+    X, Y = data_create(20, 12)
+    x = np.random.normal(size=12)
+    X = local_into(X, x)
+    zero = np.zeros(12)
+    alpha, beta = initialise_candidates2(X, Y)
     assert beta > 0
     assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
 

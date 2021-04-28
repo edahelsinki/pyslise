@@ -61,13 +61,11 @@ def slise_raw(
         alpha, beta = initialise_candidates(
             X,
             Y,
-            x=None,
             epsilon=epsilon,
-            intercept=False,
-            beta_max=beta_max * 0.2,
+            beta_max=beta_max,
             max_approx=max_approx,
             pca_treshold=pca_treshold,
-            inits=inits,
+            num_init=inits,
         )
     return graduated_optimisation(
         alpha,
@@ -217,13 +215,11 @@ class SliseRegression:
         alpha, beta = initialise_candidates(
             X,
             Y,
-            x=None,
             epsilon=self.epsilon,
-            intercept=self.scaler.intercept,
-            beta_max=self.beta_max * 0.2,
+            beta_max=self.beta_max,
             max_approx=self.max_approx,
             pca_treshold=self.pca_treshold,
-            inits=self.inits,
+            num_init=self.inits,
         )
         self.alpha = graduated_optimisation(
             alpha,
@@ -475,13 +471,11 @@ class SliseExplainer:
         alpha, beta = initialise_candidates(
             X,
             Y,
-            x=self.x,
             epsilon=self.epsilon,
-            intercept=self.scaler.intercept,
-            beta_max=self.beta_max * 0.2,
+            beta_max=self.beta_max,
             max_approx=self.max_approx,
             pca_treshold=self.pca_treshold,
-            inits=self.inits,
+            num_init=self.inits,
         )
         alpha = graduated_optimisation(
             alpha,

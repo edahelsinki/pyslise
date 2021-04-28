@@ -118,7 +118,19 @@ def loss_numba(
     return loss, grad
 
 
-def owlqn(
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
+def ols_numba(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,) -> (float, np.ndarray):
+    """
+        OLS loss, that also calculates the gradient (sped up with numba)
+    """
+    distances = (X @ alpha) - Y
+    distances2 = distances ** 2
+    loss = np.sum(distances2) / 2
+    grad = np.expand_dims(distances, 0) @ X
+    return loss, grad
+
+
+def optimise_loss(
     alpha: np.ndarray,
     X: np.ndarray,
     Y: np.ndarray,
@@ -131,10 +143,24 @@ def owlqn(
     """
         Optimise a smoothed loss with owlqn
     """
+    return owlqn(
+        lambda alpha: loss_numba(alpha, X, Y, epsilon, lambda2, beta),
+        alpha,
+        lambda1,
+        max_iterations,
+    )
+
+
+def owlqn(
+    loss_grad_fn, x0: np.ndarray, lambda1: float = 0, max_iterations: int = 200,
+) -> np.ndarray:
+    """
+        Wrapper around owlqn that converts max_iter errors to warnings
+    """
     assert lambda1 >= 0, "lambda1 must be >= 0"
 
-    def f(alpha: np.ndarray, gradient: np.ndarray) -> float:
-        loss, grad = loss_numba(alpha, X, Y, epsilon, lambda2, beta)
+    def f(x: np.ndarray, gradient: np.ndarray) -> float:
+        loss, grad = loss_grad_fn(x)
         gradient[:] = grad
         return loss
 
@@ -142,11 +168,11 @@ def owlqn(
 
         def p(x, g, fx, xnorm, gnorm, step, k, num_eval, *args):
             if k >= max_iterations:
-                alpha[:] = x
+                x0[:] = x
 
-        alpha = fmin_lbfgs(
+        x0 = fmin_lbfgs(
             f=f,
-            x0=alpha,
+            x0=x0,
             progress=p,
             orthantwise_c=lambda1,
             max_iterations=max_iterations,
@@ -163,7 +189,7 @@ def owlqn(
                 "An optimisation step reaches the maximum number of iterations.",
                 SliseWarning,
             )
-    return alpha
+    return x0
 
 
 def log_approximation_ratio(
@@ -291,13 +317,17 @@ def graduated_optimisation(
     beta_max = beta_max / epsilon ** 2
     max_approx = log(max_approx)
     while beta < beta_max:
-        alpha = owlqn(alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations)
+        alpha = optimise_loss(
+            alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations
+        )
         if debug:
             debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
         beta = next_beta(
             (X @ alpha - Y) ** 2, epsilon ** 2, beta, beta_max, max_approx, **kwargs
         )
-    alpha = owlqn(alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations * 4)
+    alpha = optimise_loss(
+        alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations * 4
+    )
     if debug:
         debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
     return alpha
