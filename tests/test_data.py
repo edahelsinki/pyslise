@@ -1,19 +1,18 @@
 import numpy as np
 from slise.data import (
-    ScalerNormal,
-    ScalerRange,
-    ScalerLocal,
-    ScalerRemoveConstant,
     pca_simple,
     pca_invert,
     pca_rotate,
-    DataScaler,
     pca_invert_model,
     pca_rotate_model,
     add_intercept_column,
-    ScalerNested,
-    ScalerIdentity,
-    local_into,
+    remove_intercept_column,
+    remove_constant_columns,
+    add_constant_columns,
+    scale_robust,
+    scale_same,
+    mat_mul_with_intercept,
+    unscale_model,
 )
 
 from .utils import *
@@ -21,40 +20,26 @@ from .utils import *
 
 def test_scaling():
     print("Testing scaling")
-    X, Y = data_create(20, 5)
-    X = add_intercept_column(X)
-    scalers = [
-        ScalerNormal(),
-        ScalerRange(),
-        ScalerRemoveConstant(),
-        ScalerIdentity(),
-        ScalerLocal(np.random.normal(size=6)),
-        ScalerNested(ScalerNormal(), ScalerRange()),
-    ]
-    for sc in scalers:
-        X2 = sc.fit(X)
-        X3 = sc.scale(X)
-        X4 = sc.unscale(X2)
-        X5 = sc.unscale(sc.scale(X[1, :]))
-        assert np.allclose(X, X4), f"scale-unscale X failed for {sc}"
-        assert np.allclose(X2, X3), f"unscale-scale X failed for {sc}"
-        assert np.allclose(X[1, :], X5), f"scale-unscale X vector failed for {sc}"
-    scalers = [
-        ScalerNormal(),
-        ScalerRange(),
-        ScalerRemoveConstant(),
-        ScalerIdentity(),
-        ScalerLocal(np.random.normal(size=1)),
-        ScalerNested(ScalerNormal(), ScalerRange()),
-    ]
-    for sc in scalers:
-        X2 = sc.fit(Y)
-        X3 = sc.scale(Y)
-        X4 = sc.unscale(X2)
-        X5 = sc.unscale(sc.scale(Y[1]))
-        assert np.allclose(Y, X4), f"scale-unscale Y failed for {sc}"
-        assert np.allclose(X2, X3), f"unscale-scale Y failed for {sc}"
-        assert np.allclose(Y[1], X5), f"scale-unscale Y scalar failed for {sc}"
+    for i in (4, 6, 8):
+        X, Y = data_create(i * 30, i)
+        X2, center, scale = scale_robust(X)
+        assert np.allclose(scale_same(X, center, scale), X2)
+        assert np.allclose(X2[0,], scale_same(X[0,], center, scale))
+        X3 = add_intercept_column(X2)
+        assert np.allclose(X2, remove_intercept_column(X3))
+        X4, mask = remove_constant_columns(X3)
+        assert np.allclose(X2, X4)
+        assert np.allclose(mask, np.array([False] + [True] * i))
+        assert np.allclose(X3[:, 1:], add_constant_columns(X2, mask)[:, 1:])
+        Y2, center2, scale2 = scale_robust(Y)
+        assert np.allclose(scale_same(Y, center2, scale2), Y2)
+        assert np.allclose(scale_same(Y[0], center2, scale2), Y2[0])
+        mod = np.random.normal(0, 1, i + 1)
+        Y3 = mat_mul_with_intercept(X3, mod)
+        mod2 = unscale_model(mod, center, scale, 0.0, 1.0)
+        assert len(mod) == len(mod2)
+        Y4 = mat_mul_with_intercept(X, mod2)
+        assert np.allclose(Y3, Y4)
 
 
 def test_pca():
@@ -70,20 +55,3 @@ def test_pca():
     assert np.allclose(X @ pca_invert_model(mod, v), X2 @ mod)
     X4, v = pca_simple(X.T, 4)
 
-
-def test_data_scaler():
-    print("Testing model scaling")
-    X, Y = data_create(20, 5)
-    Y = np.random.uniform(0, 1, 5)
-    sc = DataScaler(True, True, True, True)
-    X2, Y2 = sc.fit(X, Y)
-    X3, Y3 = sc.unscale(X2, Y2)
-    assert np.allclose(X, X3)
-    assert np.allclose(Y, Y3)
-    mod = np.random.normal(size=5)
-    mod2 = sc.scale_model(mod)
-    mod3 = sc.unscale_model(mod2)
-    mod4 = sc.unscale_model(mod)
-    mod5 = sc.scale_model(mod4)
-    assert np.allclose(mod, mod3[1:])
-    assert np.allclose(mod, mod5[1:])

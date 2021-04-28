@@ -6,7 +6,7 @@ from __future__ import annotations
 from warnings import warn
 import numpy as np
 from scipy.special import expit as sigmoid
-from slise.data import DataScaler, local_into, local_model, mat_mul_with_intercept
+from slise.data import mat_mul_with_intercept
 from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning

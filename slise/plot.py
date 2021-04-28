@@ -8,7 +8,7 @@ from scipy.special import expit as sigmoid
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
-from slise.data import DataScaler, mat_mul_with_intercept
+from slise.data import mat_mul_with_intercept
 from slise.utils import SliseWarning
 
 
@@ -97,7 +97,7 @@ def plot_regression_2D(
     Y: np.ndarray,
     alpha: np.ndarray,
     epsilon: float,
-    scaler: DataScaler,
+    # scaler: DataScaler,
     label_x: str = "x",
     label_y: str = "y",
     decimals: int = 3,
@@ -173,7 +173,7 @@ def plot_explanation_tabular(
     x: np.ndarray,
     y: float,
     alpha: np.ndarray,
-    scaler: DataScaler,
+    # scaler: DataScaler,
     column_names: list = None,
     class_names: list = None,
     decimals: int = 3,
@@ -278,7 +278,7 @@ def plot_explanation_dist(
     Y: np.ndarray,
     alpha: np.ndarray,
     subset: np.ndarray,
-    scaler: DataScaler,
+    # scaler: DataScaler,
     column_names: list = None,
     class_names: list = None,
     decimals: int = 3,
@@ -407,7 +407,7 @@ def plot_explanation_image(
     alpha: np.ndarray,
     width: int,
     height: int,
-    scaler: DataScaler,
+    # scaler: DataScaler,
     class_names: list = None,
     decimals: int = 2,
 ):
