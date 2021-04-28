@@ -1,6 +1,7 @@
 # This script contains the optimisations for SLISE (Graduated Optimisation and OWL-QN)
 
 from math import log
+from typing import Tuple, Union, Callable
 from warnings import warn
 import numpy as np
 from numba import jit
@@ -120,40 +121,36 @@ def loss_numba(
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def ols_numba(alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,) -> (float, np.ndarray):
+def ols_numba(
+    alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,
+) -> Tuple[float, np.ndarray]:
     """
         OLS loss, that also calculates the gradient (sped up with numba)
     """
     distances = (X @ alpha) - Y
-    distances2 = distances ** 2
-    loss = np.sum(distances2) / 2
+    loss = np.sum(distances ** 2) / 2
     grad = np.expand_dims(distances, 0) @ X
     return loss, grad
 
 
-def optimise_loss(
-    alpha: np.ndarray,
-    X: np.ndarray,
-    Y: np.ndarray,
-    epsilon: float = 0.1,
-    lambda1: float = 0,
-    lambda2: float = 0,
-    beta: float = 100,
-    max_iterations: int = 200,
-) -> np.ndarray:
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
+def ridge_numba(
+    alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, lambda2: float
+) -> Tuple[float, np.ndarray]:
     """
-        Optimise a smoothed loss with owlqn
+        Ridge loss (OLS + L2), that also calculates the gradient (sped up with numba)
     """
-    return owlqn(
-        lambda alpha: loss_numba(alpha, X, Y, epsilon, lambda2, beta),
-        alpha,
-        lambda1,
-        max_iterations,
-    )
+    distances = (X @ alpha) - Y
+    loss = np.sum(distances ** 2) / 2 + lambda2 * np.sum(alpha ** 2) / 2
+    grad = np.expand_dims(distances, 0) @ X + lambda2 * alpha
+    return loss, grad
 
 
 def owlqn(
-    loss_grad_fn, x0: np.ndarray, lambda1: float = 0, max_iterations: int = 200,
+    loss_grad_fn: Callable[np.ndarray, Tuple[float, np.ndarray]],
+    x0: np.ndarray,
+    lambda1: float = 0,
+    max_iterations: int = 200,
 ) -> np.ndarray:
     """
         Wrapper around owlqn that converts max_iter errors to warnings
@@ -190,6 +187,62 @@ def owlqn(
                 SliseWarning,
             )
     return x0
+
+
+def regularised_regression(
+    X: np.ndarray,
+    Y: np.ndarray,
+    lambda1: float = 1e-6,
+    lambda2: float = 1e-6,
+    max_iterations: int = 200,
+) -> np.ndarray:
+    """Train a linear ridge regression model
+
+    Arguments:
+        X {np.ndarray} -- the data
+        Y {np.ndarray} -- the response
+
+    Keyword Arguments:
+        lambda2 {float} -- the L2 regularisation coefficient (default: {1e-6})
+
+    Returns:
+        np.ndarray -- the linear model weights
+    """
+    if lambda2 > 0:
+        return owlqn(
+            lambda alpha: ridge_numba(alpha, X, Y, lambda2),
+            np.zeros(X.shape[1]),
+            lambda1,
+            max_iterations,
+        )
+    else:
+        return owlqn(
+            lambda alpha: ols_numba(alpha, X, Y),
+            np.zeros(X.shape[1]),
+            lambda1,
+            max_iterations,
+        )
+
+
+def optimise_loss(
+    alpha: np.ndarray,
+    X: np.ndarray,
+    Y: np.ndarray,
+    epsilon: float = 0.1,
+    lambda1: float = 0,
+    lambda2: float = 0,
+    beta: float = 100,
+    max_iterations: int = 200,
+) -> np.ndarray:
+    """
+        Optimise a smoothed loss with owlqn
+    """
+    return owlqn(
+        lambda alpha: loss_numba(alpha, X, Y, epsilon, lambda2, beta),
+        alpha,
+        lambda1,
+        max_iterations,
+    )
 
 
 def log_approximation_ratio(

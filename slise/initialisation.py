@@ -4,14 +4,13 @@ from math import log
 import numpy as np
 from slise.utils import random_sample_int
 from slise.data import pca_simple, pca_invert_model
-from slise.optimisation import next_beta, loss_residuals, ols_numba, owlqn
+from slise.optimisation import next_beta, loss_residuals, regularised_regression
 from lbfgs import fmin_lbfgs
 
 
 def fast_lstsq(x: np.ndarray, y: np.ndarray, max_iterations: int = 300):
     if x.shape[1] > max_iterations * 20:
-        # TODO: lbfgs optimisation
-        return np.linalg.lstsq(x, y, rcond=None)[0]
+        return regularised_regression(x, y, 0, 0, max_iterations)
     else:
         return np.linalg.lstsq(x, y, rcond=None)[0]
 
@@ -124,12 +123,7 @@ def __create_candidate2(X: np.ndarray, Y: np.ndarray, max_iterations: int = 300)
     sel = random_sample_int(X.shape[0], 3)
     X = X[sel, :]
     Y = Y[sel]
-    return owlqn(
-        lambda x: ols_numba(x, X, Y),
-        np.zeros(X.shape[1]),
-        lambda1=1e-8,
-        max_iterations=max_iterations,
-    )
+    return regularised_regression(X, Y, 1e-8, 0, max_iterations)
 
 
 def initialise_candidates2(

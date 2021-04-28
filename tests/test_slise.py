@@ -1,6 +1,5 @@
 import numpy as np
-from slise.utils import ridge_regression
-from slise.optimisation import loss_smooth
+from slise.optimisation import loss_smooth, regularised_regression
 from slise.data import add_intercept_column
 from slise.initialisation import (
     initialise_candidates,
@@ -82,10 +81,18 @@ def test_initialise2():
     assert loss_smooth(alpha, X, Y, beta=beta) <= loss_smooth(zero, X, Y, beta=beta)
 
 
-def test_ridge():
+def test_regres():
     print("Testing ridge regression")
     X, Y, mod = data_create2(20, 5)
-    alpha = ridge_regression(X, Y, 1e-10)
+    alpha = regularised_regression(X, Y, 1e-10, 1e-10)
+    Y2 = X @ alpha
+    assert np.allclose(Y, Y2, atol=0.3), f"regres Y not close: {Y - Y2}"
+    assert np.allclose(mod, alpha, atol=0.2), f"regres alpha not close: {mod - alpha}"
+    alpha = regularised_regression(X, Y, 1e-10, 0)
+    Y2 = X @ alpha
+    assert np.allclose(Y, Y2, atol=0.3), f"Lasso Y not close: {Y - Y2}"
+    assert np.allclose(mod, alpha, atol=0.2), f"Lasso alpha not close: {mod - alpha}"
+    alpha = regularised_regression(X, Y, 0, 1e-10)
     Y2 = X @ alpha
     assert np.allclose(Y, Y2, atol=0.3), f"Ridge Y not close: {Y - Y2}"
     assert np.allclose(mod, alpha, atol=0.2), f"Ridge alpha not close: {mod - alpha}"
