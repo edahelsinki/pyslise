@@ -24,19 +24,6 @@ def remove_intercept_column(X: np.ndarray) -> np.ndarray:
     return X[:, 1:]
 
 
-def mat_mul_with_intercept(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
-    """
-        Matrix multiplication, but check and handle potential intercepts in alpha
-    """
-    alpha = np.atleast_1d(alpha)
-    if len(X.shape) == 1:
-        X.shape += (1,)
-    if len(alpha) == X.shape[1] + 1:
-        return X @ alpha[1:] + alpha[0]
-    else:
-        return X @ alpha
-
-
 def remove_constant_columns(
     X: np.ndarray, epsilon: Union[float, None] = None
 ) -> Tuple[np.ndarray, np.ndarray]:

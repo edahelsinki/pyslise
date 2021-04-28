@@ -8,8 +8,7 @@ from scipy.special import expit as sigmoid
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
-from slise.data import mat_mul_with_intercept
-from slise.utils import SliseWarning
+from slise.utils import SliseWarning, mat_mul_with_intercept
 
 
 # SLISE colors, for unified identity

@@ -12,6 +12,7 @@ from slise.utils import (
     dlog_sigmoid,
     log_sum_special,
     SliseWarning,
+    mat_mul_with_intercept,
 )
 
 
@@ -75,7 +76,7 @@ def loss_sharp(
         Exact (combinatorial) version of the loss
     """
     epsilon *= epsilon
-    distances = ((X @ alpha) - Y) ** 2
+    distances = (mat_mul_with_intercept(X, alpha) - Y) ** 2
     loss = np.sum(distances[distances < epsilon] - (epsilon * len(Y))) / len(Y)
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
@@ -157,7 +158,6 @@ def owlqn(
     """
         Wrapper around owlqn that converts max_iter errors to warnings
     """
-    assert lambda1 >= 0, "lambda1 must be >= 0"
 
     def f(x: np.ndarray, gradient: np.ndarray) -> float:
         loss, grad = loss_grad_fn(x)

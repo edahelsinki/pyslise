@@ -107,3 +107,16 @@ def ridge_regression(
         return np.sum(residuals ** 2) + lambda2 * np.sum(alpha ** 2)
 
     return fmin_lbfgs(f=f, x0=np.zeros(X.shape[1]))
+
+
+def mat_mul_with_intercept(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """
+        Matrix multiplication, but check and handle potential intercepts in alpha
+    """
+    alpha = np.atleast_1d(alpha)
+    if len(X.shape) == 1:
+        X.shape += (1,)
+    if len(alpha) == X.shape[1] + 1:
+        return X @ alpha[1:] + alpha[0]
+    else:
+        return X @ alpha

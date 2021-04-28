@@ -3,13 +3,21 @@
 """
 
 from __future__ import annotations
+from typing import Union, Tuple, Callable
 from warnings import warn
 import numpy as np
 from scipy.special import expit as sigmoid
-from slise.data import mat_mul_with_intercept
+from slise.data import (
+    add_constant_columns,
+    add_intercept_column,
+    remove_constant_columns,
+    scale_robust,
+    scale_same,
+    unscale_model,
+)
 from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
-from slise.utils import SliseWarning
+from slise.utils import SliseWarning, mat_mul_with_intercept
 from slise.plot import (
     plot_regression_2D,
     fill_column_names,
@@ -57,6 +65,7 @@ def slise_raw(
     Returns:
         np.ndarray -- the linear model coefficients
     """
+    # TODO is the raw interface redundant?
     if alpha is None:
         alpha, beta = initialise_candidates(
             X,
@@ -82,32 +91,31 @@ def slise_raw(
     )
 
 
-def regression(X: np.ndarray, Y: np.ndarray, **kwargs) -> SliseRegression:
+def regression(
+    X: np.ndarray, Y: np.ndarray, epsilon: float, **kwargs
+) -> SliseRegression:
     """Use SLISE for robust regression
+        It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
+        This is a wrapper that is equivalent to `SliseRegression(epsilon, **kwargs).fit(X, Y)`
 
-    Arguments:
-        X {np.ndarray} -- The data matrix
-        Y {np.ndarray} -- The response vector
+        Args:
+            X (np.ndarray): the data matrix
+            Y (np.ndarray): the response vector
+            epsilon (float): the error tolerance
+            lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
+            lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
+            intercept (bool, optional): add an intercept term. Defaults to True.
+            normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+            initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes X, Y and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
+            max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
+            max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
+            debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
 
-    Keyword Arguments:
-        epsilon {float} -- the error tolerance (default: {0.1})
-        lambda1 {float} -- the L1 regularistaion strength (default: {0})
-        lambda2 {float} -- the L2 regularisation strength (default: {0})
-        intercept {bool} -- add an intercept term (default: {True})
-        logit {bool} -- do a logit transformation on the Y vector, this is recommended if Y is probabilities (default: {False})
-        scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
-        scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
-        beta_max {float} -- the stopping sigmoid steepness (default: {25})
-        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
-        max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
-        pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
-        inits {int} -- the number of candidates to generate in the initialisation (default: {500})
-        debug {bool} -- print debug statements each graduated optimisation step (default: {False})
-
-    Returns:
-        SliseRegression -- object containing the regression result
+        Returns:
+            SliseRegression: object containing the regression result
     """
-    return SliseRegression(**kwargs).fit(X, Y)
+    return SliseRegression(epsilon, **kwargs).fit(X, Y)
 
 
 def explain(
@@ -149,53 +157,50 @@ class SliseRegression:
 
     def __init__(
         self,
-        epsilon: float = 0.1,
+        epsilon: float,
         lambda1: float = 0,
         lambda2: float = 0,
         intercept: bool = True,
-        logit: bool = False,
-        scale_x=False,
-        scale_y=False,
-        beta_max: float = 25,
+        normalise: bool = False,
+        initialisation: Callable[
+            np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float]
+        ] = initialise_candidates,
+        beta_max: float = 20,
         max_approx: float = 1.15,
-        max_iterations: int = 200,
-        pca_treshold: int = 10,
-        inits: int = 500,
+        max_iterations: int = 300,
         debug: bool = False,
+        **kwargs,
     ):
         """Use SLISE for robust regression
+        It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
-        Keyword Arguments:
-            alpha {np.ndarray} -- the starting linear model (None means using initialisation) (default: {None})
-            beta {float} -- the starting sigmoid steepness (default: {0.0})
-            epsilon {float} -- the error tolerance (default: {0.1})
-            lambda1 {float} -- the L1 regularistaion strength (default: {0})
-            lambda2 {float} -- the L2 regularisation strength (default: {0})
-            intercept {bool} -- add an intercept term (default: {True})
-            logit {bool} -- do a logit transformation on the Y vector (default: {False})
-            scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
-            scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
-            beta_max {float} -- the stopping sigmoid steepness (default: {25})
-            max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
-            max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
-            pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
-            inits {int} -- the number of candidates to generate in the initialisation (default: {500})
-            debug {bool} -- print debug statements each graduated optimisation step (default: {False})
+        Args:
+            epsilon (float): the error tolerance
+            lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
+            lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
+            intercept (bool, optional): add an intercept term. Defaults to True.
+            normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+            initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes X, Y and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
+            max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
+            max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
+            debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
         """
         self.epsilon = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        self.scaler = DataScaler(scale_x, scale_y, intercept, logit)
+        self.intercept = intercept
+        self.normalise = normalise
+        self.initialisation = initialisation
         self.beta_max = beta_max
         self.max_approx = max_approx
         self.max_iterations = max_iterations
-        self.pca_treshold = pca_treshold
-        self.inits = inits
-        self.alpha = 0.0
-        self.coefficients = 0.0
         self.debug = debug
-        self.X = np.array([[0.0]])
-        self.Y = np.array([0])
+        self.alpha = None
+        self.coefficients = None
+        self.X = None
+        self.Y = None
+        self.scaling = None
 
     def fit(self, X: np.ndarray, Y: np.ndarray) -> SliseRegression:
         """Fit a robust regression
@@ -209,18 +214,21 @@ class SliseRegression:
         """
         if len(X.shape) == 1:
             X.shape += (1,)
-        X, Y = self.scaler.fit(X, Y)
         self.X = X
         self.Y = Y
-        alpha, beta = initialise_candidates(
-            X,
-            Y,
-            epsilon=self.epsilon,
-            beta_max=self.beta_max,
-            max_approx=self.max_approx,
-            pca_treshold=self.pca_treshold,
-            num_init=self.inits,
-        )
+        # Preprocessing
+        if self.normalise:
+            X, x_cols = remove_constant_columns(X)
+            if self.X.shape[1] == X.shape[1]:
+                x_cols = None
+            X, x_center, x_scale = scale_robust(X)
+            Y, y_center, y_scale = scale_robust(Y)
+            self.scaling = (x_center, x_scale, y_center, y_center, x_cols)
+        if self.intercept:
+            X = add_intercept_column(X)
+        # Initialisation
+        alpha, beta = self.initialisation(X, Y)
+        # Optimisation
         self.alpha = graduated_optimisation(
             alpha,
             X,
@@ -234,15 +242,22 @@ class SliseRegression:
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
-        self.coefficients = self.scaler.unscale_model(self.alpha)
-        if not self.scaler.intercept:
-            if np.abs(self.coefficients[0]) > 1e-8:
-                warn(
-                    "Intercept introduced due to scaling (consider setting scale_*=False, or intercept=True)",
-                    SliseWarning,
-                )
-            else:
-                self.coefficients = self.coefficients[1:]
+        if self.normalise:
+            alpha2 = unscale_model(alpha, x_center, x_scale, y_center, y_scale)
+            if x_cols is not None:
+                alpha2 = add_constant_columns(alpha2, np.concatenate(([True], x_cols)))
+            if not self.intercept:
+                if np.abs(alpha2[0]) > 1e-8:
+                    warn(
+                        "Intercept introduced due to scaling (consider setting scale_*=False, or intercept=True)",
+                        SliseWarning,
+                    )
+                else:
+                    alpha2 = alpha2[1:]
+            self.coefficients = alpha2
+        else:
+            self.coefficients = alpha
+        self.alpha = alpha
         return self
 
     def get_params(self, scaled: bool = False) -> np.ndarray:
@@ -256,7 +271,7 @@ class SliseRegression:
         """
         return self.alpha if scaled else self.coefficients
 
-    def predict(self, X: np.ndarray = None) -> np.ndarray:
+    def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the fitted model to predict new responses
 
         Keyword Arguments:
@@ -266,15 +281,13 @@ class SliseRegression:
             np.ndarray -- the response
         """
         if X is None:
-            Y = mat_mul_with_intercept(self.X, self.alpha)
-            Y = self.scaler.scaler_y.unscale(Y)
+            return mat_mul_with_intercept(self.X, self.coefficients)
         else:
-            Y = mat_mul_with_intercept(X, self.coefficients)
-        if self.scaler.logit:
-            Y = sigmoid(Y)
-        return Y
+            return mat_mul_with_intercept(X, self.coefficients)
 
-    def score(self, X: np.ndarray = None, Y: np.ndarray = None) -> float:
+    def score(
+        self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
+    ) -> float:
         """Calculate the loss
 
         Keyword Arguments:
@@ -287,8 +300,9 @@ class SliseRegression:
         if X is None or Y is None:
             X = self.X
             Y = self.Y
-        else:
-            X, Y = self.scaler.scale(X, Y)
+        if self.normalise:
+            X = scale_same(X, *self.scaling[:2], self.scaling[4])
+            Y = scale_same(Y, *self.scaling[2:4])
         return loss_sharp(self.alpha, X, Y, self.epsilon, self.lambda1, self.lambda2)
 
     def subset(self, X: np.ndarray = None, Y: np.ndarray = None) -> np.ndarray:
@@ -304,12 +318,20 @@ class SliseRegression:
         if X is None or Y is None:
             X = self.X
             Y = self.Y
-        else:
-            X, Y = self.scaler.scale(X, Y)
+        if self.normalise:
+            X = scale_same(X, *self.scaling[:2], self.scaling[4])
+            Y = scale_same(Y, *self.scaling[2:4])
         Y = mat_mul_with_intercept(X, self.alpha) - Y
         return Y ** 2 < self.epsilon ** 2
 
-    def set_params(self, alpha: np.ndarray) -> SliseRegression:
+    def set_params(
+        self,
+        X: np.ndarray,
+        Y: np.ndarray,
+        alpha: np.ndarray,
+        coefficients: np.ndarray,
+        scaling: Union[None, Tuple[np.ndarray, np.ndarray, float, float]] = None,
+    ) -> SliseRegression:
         """Set the coefficient for the current linear model
 
         Arguments:
@@ -319,6 +341,10 @@ class SliseRegression:
             SliseRegression -- self, with the new linear model
         """
         self.alpha = alpha
+        self.X = X
+        self.Y = Y
+        self.coefficients = coefficients
+        self.scaling = scaling
         return self
 
     def print(self, column_names: list = None, decimals: int = 3) -> SliseRegression:
@@ -365,7 +391,7 @@ class SliseRegression:
         Keyword Arguments:
             label_x {str} -- the name of the dependent value (default: "x")
             label_y {str} -- the name of the predicted value (default: "y")
-            decimals {int} -- the number of decimals for the axes (default: {2})
+            decimals {int} -- the number of decimals for the axes (default: {3})
 
         Raises:
             Exception: if the data is not 1D (intercept allowed)
@@ -373,15 +399,11 @@ class SliseRegression:
         Returns:
             SliseRegression -- self
         """
+        epsilon = self.epsilon
+        if self.normalise:
+            epsilon *= self.scaling[3]
         plot_regression_2D(
-            self.X,
-            self.Y,
-            self.alpha,
-            self.epsilon,
-            self.scaler,
-            label_x,
-            label_y,
-            decimals,
+            self.X, self.Y, self.coefficients, epsilon, label_x, label_y, decimals,
         )
         return self
 
@@ -432,7 +454,7 @@ class SliseExplainer:
         self.epsilon = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        self.scaler = DataScaler(scale_x, scale_y, False, logit)
+        # self.scaler = DataScaler(scale_x, scale_y, False, logit)
         self.beta_max = beta_max
         self.max_approx = max_approx
         self.max_iterations = max_iterations

@@ -11,9 +11,9 @@ from slise.data import (
     add_constant_columns,
     scale_robust,
     scale_same,
-    mat_mul_with_intercept,
     unscale_model,
 )
+from slise.utils import mat_mul_with_intercept
 
 from .utils import *
 

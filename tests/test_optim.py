@@ -6,7 +6,6 @@ from slise.utils import (
     sparsity,
     log_sum,
     log_sum_special,
-    ridge_regression,
 )
 from slise.optimisation import (
     loss_smooth,
@@ -15,7 +14,7 @@ from slise.optimisation import (
     optimise_loss,
     graduated_optimisation,
 )
-from slise.data import add_intercept_column, local_into
+from slise.data import add_intercept_column
 from slise.initialisation import initialise_candidates
 from slise.slise import regression, explain
 

@@ -2,7 +2,7 @@
 
 from math import log
 import numpy as np
-from slise.utils import random_sample_int, ridge_regression
+from slise.utils import random_sample_int
 from slise.data import pca_simple, pca_invert_model
 from slise.optimisation import next_beta, loss_residuals, ols_numba, owlqn
 from lbfgs import fmin_lbfgs
@@ -155,7 +155,7 @@ def initialise_candidates2(
     # Initial model (zeros)
     alpha = np.zeros(X.shape[1])
     residuals = Y ** 2
-    beta = next_beta(residuals, epsilon, 0, beta_max, max_approxtep)
+    beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, min_beta_step)
     loss = loss_residuals(alpha, residuals, epsilon, 0, 0, beta)
     # Find the candidate with the best loss for the next_beta
     for i in range(num_init):
