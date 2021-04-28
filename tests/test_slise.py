@@ -2,10 +2,29 @@ import numpy as np
 from slise.utils import ridge_regression
 from slise.optimisation import loss_smooth
 from slise.data import add_intercept_column, local_into
-from slise.initialisation import initialise_candidates
+from slise.initialisation import (
+    initialise_candidates,
+    initialise_lasso,
+    initialise_ols,
+    initialise_zeros,
+)
 from slise.slise import regression, explain
 
 from .utils import *
+
+
+def test_initialise_old():
+    print("Testing old initialisations")
+    X, Y = data_create(20, 5)
+    alpha, beta = initialise_lasso(X, Y)
+    assert beta == 0
+    assert len(alpha) == 5
+    alpha, beta = initialise_zeros(X, Y)
+    assert beta > 0
+    assert len(alpha) == 5
+    alpha, beta = initialise_ols(X, Y)
+    assert beta > 0
+    assert len(alpha) == 5
 
 
 def test_initialise():
@@ -111,8 +130,3 @@ def test_slise_exp():
         X, Y, 19, epsilon=0.1, lambda1=0, lambda2=0, scale_x=False, scale_y=False
     )
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
-
-
-#     old = np.seterr(over="ignore")
-#     TESTS HERE
-#     np.seterr(**old)

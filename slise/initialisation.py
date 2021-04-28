@@ -15,11 +15,19 @@ from slise.data import (
 from slise.optimisation import next_beta, loss_residuals
 
 
+def fast_lstsq(x: np.ndarray, y: np.ndarray, max_steps: int = 500):
+    if x.shape[1] > max_steps * 20:
+        # TODO: lbfgs optimisation
+        return np.linalg.lstsq(x, y, rcond=None)[0]
+    else:
+        return np.linalg.lstsq(x, y, rcond=None)[0]
+
+
 def initialise_lasso(X: np.ndarray, Y: np.ndarray, **kwargs):
     """
         Initialise alpha and beta to be equivalent to LASSO
     """
-    return np.linalg.lstsq(X, Y, rcond=None)[0], 0
+    return fast_lstsq(X, Y), 0
 
 
 def initialise_ols(
@@ -36,7 +44,7 @@ def initialise_ols(
     epsilon = epsilon ** 2
     beta_max = beta_max / epsilon
     max_approx = log(max_approx)
-    alpha = np.linalg.lstsq(X, Y, rcond=None)[0]
+    alpha = fast_lstsq(X, Y)
     residuals = (Y - X @ alpha) ** 2
     beta = next_beta(residuals, epsilon, 0, beta_max, max_approx, 1e-8)
     return alpha, beta
@@ -90,7 +98,7 @@ def initialise_candidates(
 
         def init():
             sel = random_sample_int(*X.shape)
-            return np.linalg.lstsq(X[sel, :], Y[sel], rcond=None)[0]
+            return fast_lstsq(X[sel, :], Y[sel])
 
     elif x is not None:
 
@@ -99,7 +107,7 @@ def initialise_candidates(
             pca, v = pca_simple(local_from(X[sel, :], x), pca_treshold)
             xp = pca_rotate(x, v)
             pca = local_into(pca, xp)
-            mod = np.linalg.lstsq(pca, Y[sel], rcond=None)[0]
+            mod = fast_lstsq(pca, Y[sel])
             return pca_invert_model(mod, v)
 
     elif intercept:
@@ -107,7 +115,7 @@ def initialise_candidates(
         def init():
             sel = random_sample_int(X.shape[0], pca_treshold)
             pca, v = pca_simple(remove_intercept_column(X), pca_treshold - 1)
-            mod = np.linalg.lstsq(add_intercept_column(pca), Y[sel], rcond=None)[0]
+            mod = fast_lstsq(add_intercept_column(pca), Y[sel])
             return pca_invert_model(mod, v)
 
     else:
@@ -115,7 +123,7 @@ def initialise_candidates(
         def init():
             sel = random_sample_int(X.shape[0], pca_treshold)
             pca, v = pca_simple(X[sel, :], pca_treshold)
-            mod = np.linalg.lstsq(pca, Y[sel], rcond=None)[0]
+            mod = fast_lstsq(pca, Y[sel])
             return pca_invert_model(mod, v)
 
     # Select the best candidate
