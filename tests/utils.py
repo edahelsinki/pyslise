@@ -11,5 +11,5 @@ def data_create(n: int, d: int) -> (np.ndarray, np.ndarray):
 def data_create2(n: int, d: int) -> (np.ndarray, np.ndarray):
     X = npr.normal(npr.normal(size=d)[np.newaxis,], 1.0, [n, d])
     mod = npr.normal(size=d)
-    Y = X @ mod + npr.normal(size=n, scale=0.1)
+    Y = X @ mod + npr.normal(size=n, scale=0.05)
     return X, Y, mod

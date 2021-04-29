@@ -43,7 +43,9 @@ def test_loss():
     assert loss_smooth(alpha, X, Y, 10) < 0
     assert loss_sharp(alpha, X, Y, 10) < 0
     assert loss_numba(alpha, X, Y, 10, 0, 0)[0] < 0
-    assert np.allclose(loss_smooth(alpha, X, Y, beta=1000000), loss_sharp(alpha, X, Y))
+    assert np.allclose(
+        loss_smooth(alpha, X, Y, 0.1, beta=1000000), loss_sharp(alpha, X, Y, 0.1)
+    )
     assert np.allclose(
         loss_smooth(alpha, X, Y, 0.1, 0.5, beta=1000000),
         loss_sharp(alpha, X, Y, 0.1, 0.5),
@@ -66,15 +68,17 @@ def test_owlqn():
     print("Testing owlqn")
     X, Y = data_create(20, 5)
     alpha = np.random.normal(size=5)
-    alpha2 = optimise_loss(alpha, X, Y, beta=100)
-    assert loss_smooth(alpha, X, Y, beta=100) >= loss_smooth(alpha2, X, Y, beta=100)
-    alpha2 = optimise_loss(alpha, X, Y, beta=100, lambda1=0.5)
-    assert loss_smooth(alpha, X, Y, beta=100, lambda1=0.5) > loss_smooth(
-        alpha2, X, Y, beta=100, lambda1=0.5
+    alpha2 = optimise_loss(alpha, X, Y, 0.1, beta=100)
+    assert loss_smooth(alpha, X, Y, 0.1, beta=100) >= loss_smooth(
+        alpha2, X, Y, 0.1, beta=100
     )
-    alpha2 = optimise_loss(alpha, X, Y, beta=100, lambda2=0.5)
-    assert loss_smooth(alpha, X, Y, beta=100, lambda2=0.5) > loss_smooth(
-        alpha2, X, Y, beta=100, lambda2=0.5
+    alpha2 = optimise_loss(alpha, X, Y, 0.1, beta=100, lambda1=0.5)
+    assert loss_smooth(alpha, X, Y, 0.1, beta=100, lambda1=0.5) > loss_smooth(
+        alpha2, X, Y, 0.1, beta=100, lambda1=0.5
+    )
+    alpha2 = optimise_loss(alpha, X, Y, 0.1, beta=100, lambda2=0.5)
+    assert loss_smooth(alpha, X, Y, 0.1, beta=100, lambda2=0.5) > loss_smooth(
+        alpha2, X, Y, 0.1, beta=100, lambda2=0.5
     )
 
 
@@ -82,13 +86,15 @@ def test_gradopt():
     print("Testing graduated optimisation")
     X, Y = data_create(20, 5)
     alpha = np.random.normal(size=5)
-    alpha2 = graduated_optimisation(alpha, X, Y)
-    assert loss_smooth(alpha, X, Y, beta=100) >= loss_smooth(alpha2, X, Y, beta=100)
-    alpha2 = graduated_optimisation(alpha, X, Y, beta=100, lambda1=0.5)
-    assert loss_smooth(alpha, X, Y, beta=100, lambda1=0.5) > loss_smooth(
-        alpha2, X, Y, beta=100, lambda1=0.5
+    alpha2 = graduated_optimisation(alpha, X, Y, 0.1,)
+    assert loss_smooth(alpha, X, Y, 0.1, beta=100) >= loss_smooth(
+        alpha2, X, Y, 0.1, beta=100
     )
-    alpha2 = graduated_optimisation(alpha, X, Y, beta=100, lambda2=0.5)
-    assert loss_smooth(alpha, X, Y, beta=100, lambda2=0.5) > loss_smooth(
-        alpha2, X, Y, beta=100, lambda2=0.5
+    alpha2 = graduated_optimisation(alpha, X, Y, 0.1, beta=100, lambda1=0.5)
+    assert loss_smooth(alpha, X, Y, 0.1, beta=100, lambda1=0.5) > loss_smooth(
+        alpha2, X, Y, 0.1, beta=100, lambda1=0.5
+    )
+    alpha2 = graduated_optimisation(alpha, X, Y, 0.1, beta=100, lambda2=0.5)
+    assert loss_smooth(alpha, X, Y, 0.1, beta=100, lambda2=0.5) > loss_smooth(
+        alpha2, X, Y, 0.1, beta=100, lambda2=0.5
     )

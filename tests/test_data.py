@@ -13,7 +13,7 @@ from slise.data import (
     scale_same,
     unscale_model,
 )
-from slise.utils import mat_mul_with_intercept
+from slise.utils import mat_mul_inter
 
 from .utils import *
 
@@ -34,12 +34,26 @@ def test_scaling():
         Y2, center2, scale2 = scale_robust(Y)
         assert np.allclose(scale_same(Y, center2, scale2), Y2)
         assert np.allclose(scale_same(Y[0], center2, scale2), Y2[0])
-        mod = np.random.normal(0, 1, i + 1)
-        Y3 = mat_mul_with_intercept(X3, mod)
-        mod2 = unscale_model(mod, center, scale, 0.0, 1.0)
-        assert len(mod) == len(mod2)
-        Y4 = mat_mul_with_intercept(X, mod2)
-        assert np.allclose(Y3, Y4)
+
+
+def test_model_scaling():
+    print("Testing model scaling")
+    for i in (4, 6, 8):
+        X, Y, model2 = data_create2(i * 30, i)
+        X2, x_center, x_scale = scale_robust(X)
+        Y2, y_center, y_scale = scale_robust(Y)
+        model2 = np.random.normal(size=i)
+        model = unscale_model(model2, x_center, x_scale, y_center, y_scale)
+        Z1 = mat_mul_inter(X, model)
+        Z2 = mat_mul_inter(X2, model2)
+        Z3 = scale_same(Z1, y_center, y_scale)
+        assert np.allclose(Z2, Z3), f"Max Diff {np.max(np.abs(Z2 - Z3))}"
+        model2 = np.random.normal(size=i + 1)
+        model = unscale_model(model2, x_center, x_scale, y_center, y_scale)
+        Z1 = mat_mul_inter(X, model)
+        Z2 = mat_mul_inter(X2, model2)
+        Z3 = scale_same(Z1, y_center, y_scale)
+        assert np.allclose(Z2, Z3), f"Max Diff {np.max(np.abs(Z2 - Z3))}"
 
 
 def test_pca():

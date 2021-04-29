@@ -15,7 +15,13 @@ def fast_lstsq(x: np.ndarray, y: np.ndarray, max_iterations: int = 300):
         return np.linalg.lstsq(x, y, rcond=None)[0]
 
 
-def initialise_lasso(X: np.ndarray, Y: np.ndarray, max_iterations: int = 300, **kwargs):
+def initialise_lasso(
+    X: np.ndarray,
+    Y: np.ndarray,
+    epsilon: float = 0,
+    max_iterations: int = 300,
+    **kwargs
+):
     """
         Initialise alpha and beta to be equivalent to LASSO
     """
@@ -25,7 +31,7 @@ def initialise_lasso(X: np.ndarray, Y: np.ndarray, max_iterations: int = 300, **
 def initialise_ols(
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     beta_max: float = 20,
     max_approx: float = 1.15,
     max_iterations: int = 300,
@@ -47,7 +53,7 @@ def initialise_ols(
 def initialise_zeros(
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     beta_max: float = 20,
     max_approx: float = 1.15,
     beta_max_init: float = 2.5,
@@ -79,7 +85,7 @@ def __create_candidate(
 def initialise_candidates(
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     beta_max: float = 20,
     max_approx: float = 1.15,
     pca_treshold: int = 10,
@@ -129,7 +135,7 @@ def __create_candidate2(X: np.ndarray, Y: np.ndarray, max_iterations: int = 300)
 def initialise_candidates2(
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     beta_max: float = 20,
     max_approx: float = 1.15,
     num_init: int = 500,

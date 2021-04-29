@@ -2,13 +2,14 @@
     This script contains functions for plotting the results
 """
 
+from typing import List, Union
 from warnings import warn
 import numpy as np
 from scipy.special import expit as sigmoid
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
-from slise.utils import SliseWarning, mat_mul_with_intercept
+from slise.utils import SliseWarning, mat_mul_inter
 
 
 # SLISE colors, for unified identity
@@ -22,7 +23,7 @@ SLISE_COLORMAP = LinearSegmentedColormap.from_list(
 
 
 def fill_column_names(
-    names: list = None, amount: int = -1, intercept: bool = False
+    names: Union[List[str], None] = None, amount: int = -1, intercept: bool = False
 ) -> list:
     """Make sure the list of column names is of the correct size
 
@@ -57,7 +58,9 @@ def fill_column_names(
         return names + ["Col %d" % i for i in range(len(names), amount)]
 
 
-def fill_prediction_str(y: float, class_names: list = None, decimals: int = 3) -> str:
+def fill_prediction_str(
+    y: float, class_names: Union[List[str], None] = None, decimals: int = 3
+) -> str:
     """Fill a string with the prediction meassage for explanations
 
     Arguments:
@@ -129,7 +132,7 @@ def plot_regression_2D(
     XL = np.array((X.min(), X.max()))
     ext = (XL[1] - XL[0]) * 0.02
     XL = XL + [-ext, ext]
-    YL = mat_mul_with_intercept(XL, alpha)
+    YL = mat_mul_inter(XL, alpha)
     XL = XL.ravel()
     plt.fill_between(XL, YL + epsilon, YL - epsilon, color=SLISE_PURPLE + "33")
     plt.plot(XL, YL, "-", color=SLISE_PURPLE)

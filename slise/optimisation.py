@@ -13,7 +13,7 @@ from slise.utils import (
     dlog_sigmoid,
     log_sum_special,
     SliseWarning,
-    mat_mul_with_intercept,
+    mat_mul_inter,
 )
 
 
@@ -21,7 +21,7 @@ def loss_smooth(
     alpha: np.ndarray,
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     lambda1: float = 0,
     lambda2: float = 0,
     beta: float = 100,
@@ -45,7 +45,7 @@ def loss_smooth(
 def loss_residuals(
     alpha: np.ndarray,
     residuals2: np.ndarray,
-    epsilon2: float = 0.01,
+    epsilon2: float,
     lambda1: float = 0,
     lambda2: float = 0,
     beta: float = 100,
@@ -69,7 +69,7 @@ def loss_sharp(
     alpha: np.ndarray,
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     lambda1: float = 0,
     lambda2: float = 0,
 ) -> float:
@@ -77,7 +77,7 @@ def loss_sharp(
         Exact (combinatorial) version of the loss
     """
     epsilon *= epsilon
-    distances = (mat_mul_with_intercept(X, alpha) - Y) ** 2
+    distances = (Y - mat_mul_inter(X, alpha)) ** 2
     loss = np.sum(distances[distances < epsilon] - (epsilon * len(Y))) / len(Y)
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
@@ -280,7 +280,6 @@ def next_beta(
     beta_max: float = 2500,
     log_max_approx: float = 0.14,
     min_beta_step: float = 0.0005,
-    **kwargs,
 ) -> float:
     """
         Calculate the next beta for the graduated optimisation
@@ -335,7 +334,7 @@ def graduated_optimisation(
     alpha: np.ndarray,
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0.1,
+    epsilon: float,
     lambda1: float = 0,
     lambda2: float = 0,
     beta: float = 0,
@@ -343,7 +342,6 @@ def graduated_optimisation(
     max_approx: float = 1.15,
     max_iterations: int = 200,
     debug: bool = False,
-    **kwargs,
 ) -> np.ndarray:
     """Optimise alpha using graduated optimisation
 
@@ -375,9 +373,7 @@ def graduated_optimisation(
         )
         if debug:
             debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
-        beta = next_beta(
-            (X @ alpha - Y) ** 2, epsilon ** 2, beta, beta_max, max_approx, **kwargs
-        )
+        beta = next_beta((X @ alpha - Y) ** 2, epsilon ** 2, beta, beta_max, max_approx)
     alpha = optimise_loss(
         alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations * 4
     )

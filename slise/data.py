@@ -1,9 +1,8 @@
 # This script contains functions for modifying data
 
-from abc import ABC, abstractmethod
+from typing import Union, Tuple, NamedTuple
 import numpy as np
 from scipy.special import logit, expit as sigmoid
-from typing import Union, Tuple
 
 
 def add_intercept_column(X: np.ndarray) -> np.ndarray:
@@ -43,19 +42,31 @@ def remove_constant_columns(
     return X[:, mask], mask
 
 
-def add_constant_columns(X: np.ndarray, mask: np.ndarray) -> np.ndarray:
+def add_constant_columns(
+    X: np.ndarray, mask: Union[np.ndarray, None], intercept: bool = False
+) -> np.ndarray:
     """Add (back) contant columns to a matrix
 
     Args:
         X (np.ndarray): the matrix
-        mask (np.ndarray): a boolean array showing which columns are already in the matrix
+        mask (Union[np.ndarray, None]): a boolean array showing which columns are already in the matrix
+        intercept (bool, optional): does X has an intercept (added to it after constant columns where removed). Defaults to False.
 
     Returns:
         np.ndarray: a matrix with new columns filled with zeros
     """
-    X2 = np.zeros((X.shape[0], len(mask)), X.dtype)
-    X2[:, mask] = X
-    return X2
+    if mask is None:
+        return X
+    if intercept:
+        mask = np.concatenate(([True], mask))
+    if len(X.shape) < 2:
+        X2 = np.zeros(len(mask), X.dtype)
+        X2[mask] = X
+        return X2
+    else:
+        X2 = np.zeros((X.shape[0], len(mask)), X.dtype)
+        X2[:, mask] = X
+        return X2
 
 
 def unscale_model(
@@ -64,6 +75,7 @@ def unscale_model(
     x_scale: np.ndarray,
     y_center: float = 0.0,
     y_scale: float = 1.0,
+    columns: Union[np.ndarray, None] = None,
 ) -> np.ndarray:
     """Scale a linear model such that it matches unnormalised data
 
@@ -78,13 +90,15 @@ def unscale_model(
         np.ndarray: the unscaled model
     """
     if len(model) == len(x_center):
-        model = np.concatenate((np.zeros(1, x_center.dtype), x_center))
-    return np.concatenate(
-        (
-            model[:1] - np.sum(model[1:] * x_center / x_scale) * y_scale + y_center,
-            model[1:] / x_scale * y_scale,
-        )
-    )
+        model = np.concatenate((np.zeros(1, x_center.dtype), model))
+    else:
+        model = model.copy()
+    model[0] = (model[0] - np.sum(model[1:] * x_center / x_scale)) * y_scale + y_center
+    model[1:] = model[1:] / x_scale * y_scale
+    if columns is not None:
+        return add_constant_columns(model, columns, True)
+    else:
+        return model
 
 
 def scale_robust(
@@ -118,7 +132,7 @@ def scale_robust(
 
 
 def scale_same(
-    x: np.ndarray,
+    x: Union[np.ndarray, float],
     center: Union[float, np.ndarray],
     scale: Union[float, np.ndarray],
     constant_colums: Union[np.ndarray, None] = None,
@@ -134,7 +148,7 @@ def scale_same(
     Returns:
         np.ndarray: the scaled matrix/vector
     """
-    if len(x.shape) < 2:
+    if isinstance(x, float) or len(x.shape) < 2:
         if constant_colums is not None:
             x = x[constant_colums]
         return (x - center) / scale
@@ -142,6 +156,34 @@ def scale_same(
         if constant_colums is not None:
             x = x[:, constant_colums]
         return (x - center[None, :]) / scale[None, :]
+
+
+class DataScaling(NamedTuple):
+    # Container class for scaling data information
+    x_center: np.ndarray
+    x_scale: np.ndarray
+    y_center: float
+    y_scale: float
+    columns: np.ndarray
+
+    def scale_x(self, x):
+        # Scale a new x vector
+        return scale_same(x, self.x_center, self.x_scale, self.columns)
+
+    def scale_y(self, y):
+        # Scale a new y vector
+        return scale_same(y, self.y_center, self.y_scale)
+
+    def unscale_model(self, model):
+        # Unscale a linear model
+        return unscale_model(
+            model,
+            self.x_center,
+            self.x_scale,
+            self.y_center,
+            self.y_scale,
+            self.columns,
+        )
 
 
 def pca_simple(

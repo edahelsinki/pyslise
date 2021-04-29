@@ -2,6 +2,7 @@
 
 from random import randrange
 from math import log
+from typing import Union
 import numpy as np
 from scipy.special import expit as sigmoid
 from lbfgs import fmin_lbfgs
@@ -11,6 +12,17 @@ class SliseWarning(RuntimeWarning):
     """
         Custom tag for the warnings
     """
+
+
+def limited_logit(p: Union[np.ndarray, float], stab: float = 0.001):
+    """Computes the logits from probabilities
+
+    Args:
+        p (Union[np.ndarray, float]): probability vector
+        stab (float, optional): limit p to [stab, 1-stab] for numerical stability. Defaults to 0.001.
+    """
+    p = np.minimum(1.0 - stab, np.maximum(stab, p))
+    return np.log(p / (1.0 - p))
 
 
 def dsigmoid(x: np.ndarray) -> np.ndarray:
@@ -85,7 +97,7 @@ def random_sample_int(n: int, k: int) -> list:
     return indices
 
 
-def mat_mul_with_intercept(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+def mat_mul_inter(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     """
         Matrix multiplication, but check and handle potential intercepts in alpha
     """
