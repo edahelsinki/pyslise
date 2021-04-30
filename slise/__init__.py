@@ -3,3 +3,5 @@
 """
 
 from slise.slise import SliseRegression, regression, SliseExplainer, explain
+from slise.utils import limited_logit as logit
+from slise.data import scale_robust

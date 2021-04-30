@@ -81,34 +81,60 @@ def regression(
 
 
 def explain(
-    X: np.ndarray, Y: np.ndarray, x: np.ndarray, y: float = None, **kwargs
+    X: np.ndarray,
+    Y: np.ndarray,
+    epsilon: float,
+    x: Union[np.ndarray, int],
+    y: Union[float, None] = None,
+    lambda1: float = 0,
+    lambda2: float = 0,
+    logit: bool = False,
+    normalise: bool = False,
+    initialisation: Callable[
+        np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
+    ] = initialise_candidates,
+    beta_max: float = 20,
+    max_approx: float = 1.15,
+    max_iterations: int = 300,
+    debug: bool = False,
 ) -> SliseExplainer:
-    """Use SLISE for explaining predictions from black box models
+    """Use SLISE for explaining outcomes from black box models.
+        It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
+        This is a wrapper that is equivalent to `SliseExplainer(X, Y, epsilon, **kwargs).explain(x, y)`
 
-    Arguments:
-        X {np.ndarray} -- the data matrix
-        Y {np.ndarray} -- the vector of predictions
-        x {np.ndarray} -- the data item to explain, or the row/index from X
-        y {float} -- the prediction to explain, or None if x is an index (default: {None})
-
-    Keyword Arguments:
-        epsilon {float} -- the error tolerance (default: {0.1})
-        lambda1 {float} -- the L1 regularistaion strength (default: {0})
-        lambda2 {float} -- the L2 regularisation strength (default: {0})
-        logit {bool} -- do a logit transformation on the Y vector, this is recommended if Y is probabilities (default: {False})
-        scale_x {bool or slise.data.AScaler} -- should the X matrix be scaled by subtracting the mean and dividing by the standard deviation, or specific scaler to use (default: {False})
-        scale_y {bool or slise.data.AScaler} -- should the Y vector be scaled to have a range of one, or specific scaler to use (default: {False})
-        beta_max {float} -- the stopping sigmoid steepness (default: {25})
-        max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
-        max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
-        pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
-        inits {int} -- the number of candidates to generate in the initialisation (default: {500})
-        debug {bool} -- print debug statements each graduated optimisation step (default: {False})
+    Args:
+        X (np.ndarray): the data matrix
+        Y (np.ndarray): the vector of predictions
+        epsilon (float): the error tolerance
+        x (Union[np.ndarray, int]): the data item to explain, or an index to get the item from self.X
+        y (Union[float, None], optional): the outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
+        lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
+        lambda2 (float, optional): the L2 regularistaion strength. Defaults to 0.
+        logit (bool, optional): do a logit transformation on the Y vector, this is recommended opnly if Y consists of probabilities. Defaults to False.
+        normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+        initialisation (Callable[ np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+        beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
+        max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
+        debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
 
     Returns:
-        SliseExplainer -- object containing the explanation result
+        SliseExplainer: object containing the explanation
     """
-    return SliseExplainer(X, Y, **kwargs).explain(x, y)
+    return SliseExplainer(
+        X,
+        Y,
+        epsilon,
+        lambda1,
+        lambda2,
+        logit,
+        normalise,
+        initialisation,
+        beta_max,
+        max_approx,
+        max_iterations,
+        debug,
+    ).explain(x, y)
 
 
 class SliseRegression:
@@ -132,7 +158,8 @@ class SliseRegression:
         max_iterations: int = 300,
         debug: bool = False,
     ):
-        """Use SLISE for robust regression
+        """Use SLISE for robust regression.
+        This constructor prepares the parameters, call `fit` to fit a robust regression to a dataset.
         It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
         Args:
@@ -165,14 +192,14 @@ class SliseRegression:
         self.scale = None
 
     def fit(self, X: np.ndarray, Y: np.ndarray) -> SliseRegression:
-        """Fit a robust regression
+        """Robustly fit a regression to a dataset
 
-        Arguments:
-            X {np.ndarray} -- The data matrix
-            Y {np.ndarray} -- The response vector
+        Args:
+            X (np.ndarray): the data matrix
+            Y (np.ndarray): the response vector
 
         Returns:
-            SliseRegression -- self, containing the regression result
+            SliseRegression: self, containing the regression result
         """
         if len(X.shape) == 1:
             X.shape += (1,)
@@ -223,22 +250,22 @@ class SliseRegression:
     def get_params(self, scaled: bool = False) -> np.ndarray:
         """Get the coefficients of the linear model
 
-        Keyword Arguments:
-            scaled {bool} -- return the model that fits the scaled data (if the data is being scaled within SLISE) (default: {False})
+        Args:
+            scaled (bool, optional): if the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
 
         Returns:
-            np.ndarray -- the coefficients of the linear model
+            np.ndarray: the coefficients of the linear model
         """
         return self.alpha if scaled else self.coefficients
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the fitted model to predict new responses
 
-        Keyword Arguments:
-            X {np.ndarray} -- the data to predict, or None for using the give dataset (default: {None})
+        Args:
+            X (Union[np.ndarray, None], optional): data matrix to predict, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray -- the response
+            np.ndarray: the predicted response
         """
         if X is None:
             return mat_mul_inter(self.X, self.coefficients)
@@ -248,14 +275,14 @@ class SliseRegression:
     def score(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
     ) -> float:
-        """Calculate the loss
+        """Calculate the loss. Lower is better and it should usually be negative (unless the regularisation is very (/too?) strong).
 
-        Keyword Arguments:
-            X {np.ndarray} -- the data, None for the given dataset (default: {None})
-            Y {np.ndarray} -- the response, None for the given dataset (default: {None})
+        Args:
+            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            float -- the loss
+            float: the loss
         """
         if X is None or Y is None:
             X = self.X
@@ -267,15 +294,19 @@ class SliseRegression:
             self.alpha, X, Y, self.epsilon_orig, self.lambda1, self.lambda2
         )
 
-    def subset(self, X: np.ndarray = None, Y: np.ndarray = None) -> np.ndarray:
-        """Get the subset as a boolean mask
+    loss = score
 
-        Keyword Arguments:
-            X {np.ndarray} -- the data, None for the given dataset (default: {None})
-            Y {np.ndarray} -- the response, None for the given dataset (default: {None})
+    def subset(
+        self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
+    ) -> np.ndarray:
+        """Get the subset (of non-outliers) used for the robust regression model
+
+        Args:
+            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray -- the subset as a boolean mask
+            np.ndarray: the selected subset as a boolean mask
         """
         if X is None or Y is None:
             X = self.X
@@ -288,12 +319,9 @@ class SliseRegression:
     ) -> SliseRegression:
         """Print the current robust regression result
 
-        Keyword Arguments:
-            column_names {list} -- names of the variables/columns in X (default: {None})
-            decimals {int} -- the precision to use for printing (default: {3})
-
-        Returns:
-            SliseRegression -- self
+        Args:
+            column_names ( Union[List[str], None], optional): names of the variables/columns in X. Defaults to None.
+            decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         intercept = self.intercept or len(self.coefficients) > self.X.shape[1]
         alpha = self.alpha
@@ -321,7 +349,6 @@ class SliseRegression:
         print(f"Loss:         {self.score():>{col_len}.{decimals}f}")
         print(f"Subset:       {self.subset().mean():>{col_len}.{decimals}f}")
         print(f"Epsilon:      {self.epsilon:>{col_len}.{decimals}f}")
-        return self
 
     def plot(
         self, label_x: str = "x", label_y: str = "y", decimals: int = 3
@@ -339,6 +366,7 @@ class SliseRegression:
         Returns:
             SliseRegression -- self
         """
+        # TODO: This needs to be updated and checked
         plot_regression_2D(
             self.X,
             self.Y,
@@ -365,7 +393,7 @@ class SliseExplainer:
         lambda1: float = 0,
         lambda2: float = 0,
         logit: bool = False,
-        normalise=False,
+        normalise: bool = False,
         initialisation: Callable[
             np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
         ] = initialise_candidates,
@@ -374,25 +402,23 @@ class SliseExplainer:
         max_iterations: int = 300,
         debug: bool = False,
     ):
-        """Use SLISE for explaining outcomes from black box models
+        """Use SLISE for explaining outcomes from black box models.
+            This prepares the dataset used for the explanations, call `explain` on this object to explain outcomes.
+            It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
-        Arguments:
-            X {np.ndarray} -- the data matrix
-            Y {np.ndarray} -- the vector of predictions
-
-        Keyword Arguments:
-            epsilon {float} -- the error tolerance (default: {0.1})
-            lambda1 {float} -- the L1 regularistaion strength (default: {0})
-            lambda2 {float} -- the L2 regularisation strength (default: {0})
-            logit {bool} -- do a logit transformation on the Y vector, this is recommended if Y is probabilities (default: {False})
+        Args:
+            X (np.ndarray): the data matrix
+            Y (np.ndarray): the vector of predictions
+            epsilon (float): the error tolerance
+            lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
+            lambda2 (float, optional): the L2 regularistaion strength. Defaults to 0.
+            logit (bool, optional): do a logit transformation on the Y vector, this is recommended opnly if Y consists of probabilities. Defaults to False.
             normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
-            initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
-            beta_max {float} -- the stopping sigmoid steepness (default: {25})
-            max_approx {float} -- the target approximation ratio for the graduated optimisation (default: {1.15})
-            max_iterations {int} -- the maximum iterations of OWL-QN per graduated optimisation step (default: {200})
-            pca_treshold {int} -- the treshold for using pca in the initialisation (default: {10})
-            inits {int} -- the number of candidates to generate in the initialisation (default: {500})
-            debug {bool} -- print debug statements each graduated optimisation step (default: {False})
+            initialisation (Callable[ np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
+            max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
+            max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
+            debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
         """
         self.epsilon_orig = epsilon
         self.lambda1 = lambda1
@@ -429,19 +455,19 @@ class SliseExplainer:
         self.X2 = X
         self.Y2 = Y
 
-    def explain(self, x: np.ndarray, y: float = None) -> SliseExplainer:
+    def explain(
+        self, x: Union[np.ndarray, int], y: Union[float, None] = None
+    ) -> SliseExplainer:
         """Explain an outcome from a black box model
 
-        Arguments:
-            x {np.ndarray} -- the data item to explain, or an index from the dataset X
-
-        Keyword Arguments:
-            y {float} -- the prediction from the black box model, or None if x is an index (default: {None})
+        Args:
+            x (Union[np.ndarray, int]): the data item to explain, or an index to get the item from self.X
+            y (Union[float, None], optional): the outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
 
         Returns:
-            SliseExplainer -- self, with values set to the explanation
+            SliseExplainer: self, with values set to the explanation
         """
-        if isinstance(x, int) and y is None:
+        if y is None:
             self.y = self.Y[x]
             self.x = self.X[x, :]
             y = self.Y2[x]
@@ -483,24 +509,24 @@ class SliseExplainer:
         return self
 
     def get_params(self, scaled: bool = False) -> np.ndarray:
-        """Get the approximating linear model
+        """Get the explanation as the coefficients of a linear model (approximating the black box model)
 
-        Keyword Arguments:
-            scaled {bool} -- get the scaled coefficients, if the dataset is being scaled within SLISE (default: {False})
+        Args:
+            scaled (bool, optional): if the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
 
         Returns:
-            np.ndarray -- the linear model coefficients (first one is the intercept)
+            np.ndarray: the coefficients of the linear model (the first scalar in the vector is the intercept)
         """
         return self.alpha if scaled else self.coefficients
 
-    def predict(self, X: np.ndarray = None) -> np.ndarray:
+    def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the approximating linear model to predict new outcomes
 
-        Keyword Arguments:
-            X {np.ndarray} -- the data to predict, None for the given dataset (default: {None})
+        Args:
+            X (Union[np.ndarray, None], optional): data matrix to predict, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray -- the (approximated) predictions
+            np.ndarray: prediction vector
         """
         if X is None:
             Y = mat_mul_inter(self.X, self.coefficients)
@@ -513,14 +539,14 @@ class SliseExplainer:
     def score(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
     ) -> float:
-        """Calculate the loss
+        """Calculate the loss. Lower is better and it should usually be negative (unless the regularisation is very (/too?) strong).
 
-        Keyword Arguments:
-            X {np.ndarray} -- the data, None for the given dataset (default: {None})
-            Y {np.ndarray} -- the response, None for the given dataset (default: {None})
+        Args:
+            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            float -- the loss
+            float: the loss
         """
         x = self.x
         y = self.y
@@ -544,15 +570,19 @@ class SliseExplainer:
             self.alpha[1:], X, Y, self.epsilon_orig, self.lambda1, self.lambda2,
         )
 
-    def subset(self, X: np.ndarray = None, Y: np.ndarray = None) -> np.ndarray:
-        """Get the subset as a boolean mask
+    loss = score
 
-        Keyword Arguments:
-            X {np.ndarray} -- the data, None for the given dataset (default: {None})
-            Y {np.ndarray} -- the response, None for the given dataset (default: {None})
+    def subset(
+        self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
+    ) -> np.ndarray:
+        """Get the subset / neighbourhood used for the approximation (explanation)
+
+        Args:
+            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray -- the subset as a boolean mask
+            np.ndarray: the subset as a boolean mask
         """
         if X is None or Y is None:
             res = mat_mul_inter(self.X2, self.alpha) - self.Y2
@@ -571,13 +601,10 @@ class SliseExplainer:
     ) -> SliseExplainer:
         """Print the current explanation
 
-        Keyword Arguments:
-            column_names {list} -- the names of the features/variables (default: {None})
-            class_names {list} -- the names of the classes, if explaining a classifier (default: {None})
-            decimals {int} -- the precision to use for printing (default: {3})
-
-        Returns:
-            SliseExplainer -- self
+        Args:
+            column_names (Union[List[str], None], optional): the names of the features/variables. Defaults to None.
+            class_names (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
+            decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         column_names = fill_column_names(column_names, len(self.coefficients), True)[1:]
         alpha = self.alpha[1:]
@@ -625,11 +652,11 @@ class SliseExplainer:
                 print(
                     f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}%"
                 )
-        return self
 
     def plot(
         self, column_names: list = None, class_names: list = None, decimals: int = 3
     ) -> SliseExplainer:
+        # TODO: This needs to be updated and checked
         """Plot the current explanation (for tabular data)
 
         This plots three bar-plots side-by-side. The first one is the values
@@ -660,6 +687,7 @@ class SliseExplainer:
     def plot_image(
         self, width: int, height: int, class_names: list = None, decimals: int = 3
     ) -> SliseExplainer:
+        # TODO: This needs to be updated and checked
         """Plot the current explanation for a black and white image (MNIST like)
 
         Arguments:
@@ -685,6 +713,7 @@ class SliseExplainer:
     def plot_dist(
         self, column_names: list = None, class_names: list = None, decimals: int = 3
     ) -> SliseExplainer:
+        # TODO: This needs to be updated and checked
         """Plot the current explanation (for tabular data), with density plots of the dataset and subset
 
 

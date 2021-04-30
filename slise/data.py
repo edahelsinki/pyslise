@@ -203,10 +203,8 @@ def pca_simple(
         return x, 1.0
     dimensions = min(dimensions, *x.shape)
     u, s, v = np.linalg.svd(x, False, True, False)
-    dimensions = np.sum(s[: min(dimensions, len(s))] > s[0] * tolerance)
-    if dimensions < v.shape[0]:
-        v = v[:dimensions, :]
-    return u[:, :dimensions].dot(np.diag(s[:dimensions])), v
+    dimensions = max(1, np.sum(s[: min(dimensions, len(s))] > s[0] * tolerance))
+    return u[:, :dimensions].dot(np.diag(s[:dimensions])), v[:dimensions, :]
 
 
 def pca_rotate(x: np.ndarray, v: np.ndarray) -> np.ndarray:

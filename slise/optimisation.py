@@ -147,7 +147,7 @@ def ridge_numba(
 
 
 def owlqn(
-    loss_grad_fn: Callable[np.ndarray, Tuple[float, np.ndarray]],
+    loss_grad_fn: Callable[[np.ndarray], Tuple[float, np.ndarray]],
     x0: np.ndarray,
     lambda1: float = 0,
     max_iterations: int = 200,
