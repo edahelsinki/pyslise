@@ -10,7 +10,13 @@ from lbfgs import fmin_lbfgs
 
 class SliseWarning(RuntimeWarning):
     """
-        Custom tag for the warnings
+        Custom tag for warnings
+    """
+
+
+class SliseException(Exception):
+    """
+        Custom tag for exceptions
     """
 
 
@@ -90,7 +96,7 @@ def random_sample_int(n: int, k: int) -> list:
         Get k random, but unique, integers from the interval [0,n)
     """
     if n < k:
-        raise Exception("random_sample_int: n must be equal or larger than k")
+        raise SliseException("random_sample_int: n must be equal or larger than k")
     if n == k:
         return list(range(k))
     indices = [randrange(0, n)] * k
@@ -108,7 +114,12 @@ def mat_mul_inter(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     """
     alpha = np.atleast_1d(alpha)
     if len(X.shape) == 1:
-        X.shape += (1,)
+        if len(alpha) == len(X):
+            return np.sum(alpha[1:] * X)
+        if len(alpha) == len(X) + 1:
+            return alpha[0] + np.sum(alpha[1:] * X)
+        else:
+            X = np.reshape(X, X.shape + (1,))
     if len(alpha) == X.shape[1] + 1:
         return X @ alpha[1:] + alpha[0]
     else:

@@ -8,10 +8,10 @@ from slise.initialisation import (
     initialise_ols,
     initialise_zeros,
 )
-from slise.slise import regression, explain
+from slise import regression, explain
+from slise.utils import mat_mul_inter
 
 from .utils import *
-from slise.utils import mat_mul_inter
 
 
 def test_initialise_old():

@@ -5,6 +5,7 @@
 from __future__ import annotations
 from typing import Union, Tuple, Callable, List
 from warnings import warn
+from matplotlib.pyplot import Axes
 import numpy as np
 from scipy.special import expit as sigmoid
 from slise.data import (
@@ -20,7 +21,7 @@ from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning, mat_mul_inter, limited_logit
 from slise.plot import (
-    plot_regression_2D,
+    plot_2d,
     fill_column_names,
     fill_prediction_str,
     plot_explanation_tabular,
@@ -350,33 +351,40 @@ class SliseRegression:
         print(f"Subset:       {self.subset().mean():>{col_len}.{decimals}f}")
         print(f"Epsilon:      {self.epsilon:>{col_len}.{decimals}f}")
 
-    def plot(
-        self, label_x: str = "x", label_y: str = "y", decimals: int = 3
+    def plot_2d(
+        self,
+        title: str = "SLISE Regression",
+        label_x: str = "x",
+        label_y: str = "y",
+        decimals: int = 3,
+        fig: Union[Axes, None] = None,
     ) -> SliseRegression:
-        """Plot 1D data in a 2D scatter plot, with a line for the regression model
+        """Plot the regression in a 2D scatter plot with a line for the regression model
 
-        Keyword Arguments:
-            label_x {str} -- the name of the dependent value (default: "x")
-            label_y {str} -- the name of the predicted value (default: "y")
-            decimals {int} -- the number of decimals for the axes (default: {3})
+        Args:
+            title (str, optional): plot title. Defaults to "SLISE Regression".
+            label_x (str, optional): x-axis label. Defaults to "x".
+            label_y (str, optional): y-axis label. Defaults to "y".
+            decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
+            fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
-            Exception: if the data is not 1D (intercept allowed)
-
-        Returns:
-            SliseRegression -- self
+            SliseException: if the data has too many dimensions
         """
-        # TODO: This needs to be updated and checked
-        plot_regression_2D(
+        plot_2d(
             self.X,
             self.Y,
             self.coefficients,
-            self.epsilon * (self.scale.y_scale if self.normalise else 1),
+            self.epsilon,
+            None,
+            None,
+            False,
+            title,
             label_x,
             label_y,
             decimals,
+            fig,
         )
-        return self
 
 
 class SliseExplainer:
@@ -652,6 +660,41 @@ class SliseExplainer:
                 print(
                     f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}%"
                 )
+
+    def plot_2d(
+        self,
+        title: str = "SLISE Explanation",
+        label_x: str = "x",
+        label_y: str = "y",
+        decimals: int = 3,
+        fig: Union[Axes, None] = None,
+    ) -> SliseRegression:
+        """Plot the explanation in a 2D scatter plot (where the explained item is marked) with a line for the approximating model.
+
+        Args:
+            title (str, optional): plot title. Defaults to "SLISE Explanation".
+            label_x (str, optional): x-axis label. Defaults to "x".
+            label_y (str, optional): y-axis label. Defaults to "y".
+            decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
+            fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+
+        Raises:
+            SliseException: if the data has too many dimensions
+        """
+        plot_2d(
+            self.X,
+            self.Y,
+            self.coefficients,
+            self.epsilon,
+            self.x,
+            self.y,
+            self.logit,
+            title,
+            label_x,
+            label_y,
+            decimals,
+            fig,
+        )
 
     def plot(
         self, column_names: list = None, class_names: list = None, decimals: int = 3

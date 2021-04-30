@@ -7,9 +7,10 @@ from warnings import warn
 import numpy as np
 from scipy.special import expit as sigmoid
 from matplotlib import pyplot as plt
+from matplotlib.pyplot import Axes
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
-from slise.utils import SliseWarning, mat_mul_inter
+from slise.utils import SliseException, SliseWarning, mat_mul_inter, limited_logit
 
 
 # SLISE colors, for unified identity
@@ -94,68 +95,91 @@ def fill_prediction_str(
         return f"Predicted: {y:.{decimals}f}"
 
 
-def plot_regression_2D(
+def plot_2d(
     X: np.ndarray,
     Y: np.ndarray,
     alpha: np.ndarray,
     epsilon: float,
-    # scaler: DataScaler,
+    x: Union[np.ndarray, None] = None,
+    y: Union[float, None] = None,
+    logit: bool = False,
+    title: str = "SLISE for Robust Regression",
     label_x: str = "x",
     label_y: str = "y",
     decimals: int = 3,
+    fig: Union[Axes, None] = None,
 ):
-    """Plot 1D data in a 2D scatter plot, with a line for the regression model
+    """Plot the regression/explanation in a 2D scatter plot with a line for the regression model (and the explained item marked)
 
-    Arguments:
-        X {np.ndarray} -- the dataset (data matrix)
-        Y {np.ndarray} -- the dataset (prediciton vector)
-        alpha {np.ndarray} -- the regression model
-        epsilon {float} -- the error tolerance
-        scaler {DataScaler} -- scaler used to unscale the data
-
-    Keyword Arguments:
-        label_x {str} -- the name of the dependent value (default: "x")
-        label_y {str} -- the name of the predicted value (default: "y")
-        decimals {int} -- the number of decimals for the axes (default: {3})
+    Args:
+        X (np.ndarray): data matrix
+        Y (np.ndarray): response vector
+        alpha (np.ndarray): regression model
+        epsilon (float): error tolerance
+        x (Union[np.ndarray, None], optional): explained item. Defaults to None.
+        y (Union[float, None], optional): explained outcome. Defaults to None.
+        logit (bool, optional): should Y be logit-transformed. Defaults to False.
+        title (str, optional): plot title. Defaults to "SLISE for Robust Regression".
+        label_x (str, optional): x-axis label. Defaults to "x".
+        label_y (str, optional): y-axis label. Defaults to "y".
+        decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
+        fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
 
     Raises:
-        Exception: if the data is not 1D (intercept allowed)
+        SliseException: if the data has too many dimensions
     """
-    if scaler.intercept:
-        X = X[:, 1].ravel()
-    else:
-        X = X.ravel()
-    if len(X) != len(Y):
-        raise Exception(
-            f"Can only plot 1D data (len(Y) != len(X): {len(Y)} != {len(X)})"
+    if fig is None:
+        fig = plt
+    if X.size != Y.size:
+        raise SliseException(f"Can only plot 1D data, |Y| = {Y.size} != {X.size} = |X|")
+    x_limits = np.array([X.min(), X.max()])
+    ext = (x_limits[1] - x_limits[0]) * 0.02
+    x_limits = x_limits + [-ext, ext]
+    if logit:
+        x_limits = np.linspace(*x_limits, 20)
+        y_limits = mat_mul_inter(x_limits, alpha)
+        fig.fill_between(
+            x_limits,
+            sigmoid(y_limits + epsilon),
+            sigmoid(y_limits - epsilon),
+            color=SLISE_PURPLE + "33",
+            label="Subset",
         )
-    XL = np.array((X.min(), X.max()))
-    ext = (XL[1] - XL[0]) * 0.02
-    XL = XL + [-ext, ext]
-    YL = mat_mul_inter(XL, alpha)
-    XL = XL.ravel()
-    plt.fill_between(XL, YL + epsilon, YL - epsilon, color=SLISE_PURPLE + "33")
-    plt.plot(XL, YL, "-", color=SLISE_PURPLE)
-    plt.plot(X, Y, "o", color=SLISE_ORANGE)
-    ticks = plt.xticks()[0]
-    plt.xticks(ticks, [f"{v:.{decimals}f}" for v in scaler.unscale(ticks)[0]])
-    ticks = plt.yticks()[0]
-    plt.yticks(ticks, [f"{v:.{decimals}f}" for v in scaler.unscale(None, ticks)[1]])
-    plt.xlabel(label_x)
-    plt.ylabel(label_y)
-    coef = scaler.unscale_model(alpha)
+        y_limits = sigmoid(y_limits)
+    else:
+        y_limits = mat_mul_inter(x_limits[:, None], alpha)
+        fig.fill_between(
+            x_limits,
+            y_limits + epsilon,
+            y_limits - epsilon,
+            color=SLISE_PURPLE + "33",
+            label="Subset",
+        )
+    fig.plot(X.ravel(), Y, "o", color="black", label="Dataset")
+    fig.plot(x_limits, y_limits, "-", color=SLISE_PURPLE, label="Model")
+    if x is not None and y is not None:
+        fig.plot(x, y, "o", color=SLISE_ORANGE, label="Explained Item")
     formula = ""
-    if isinstance(coef, float) or len(coef) == 1:
+    if isinstance(alpha, float) or len(alpha) == 1:
         formula = f"{float(alpha):.{decimals}f} * {label_x}"
-    elif np.abs(coef[0]) > 1e-8:
+    elif np.abs(alpha[0]) > 1e-8:
         sign = "-" if alpha[1] < 0.0 else "+"
         formula = f"{alpha[0]:.{decimals}f} {sign} {abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
     else:
         formula = f"{alpha[1]:.{decimals}f} * {label_x}"
-    if scaler.logit:
+    if logit:
         formula = f"$\\sigma$({formula})"
-    plt.title(f"SLISE for Robust Regression: {label_y} = {formula}")
-    plt.show()
+    fig.legend()
+    if plt == fig:
+        fig.xlabel(label_x)
+        fig.ylabel(label_y)
+        fig.title(f"{title}: {label_y} = {formula}")
+        plt.tight_layout()
+        plt.show()
+    else:
+        fig.set_xlabel(label_x)
+        fig.set_ylabel(label_y)
+        fig.set_title(f"{title}: {label_y} = {formula}")
 
 
 def get_explanation_order(
