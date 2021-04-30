@@ -101,7 +101,7 @@ def unscale_model(
         return model
 
 
-def scale_robust(
+def normalise_robust(
     x: np.ndarray, epsilon: Union[float, None] = None
 ) -> Tuple[np.ndarray, Union[float, np.ndarray], Union[float, np.ndarray]]:
     """A robust version of normalisation that uses median and mad (median absolute deviation).

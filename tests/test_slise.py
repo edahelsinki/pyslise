@@ -162,23 +162,23 @@ def test_slise_exp():
     X, Y, mod = data_create2(100, 5)
     x = np.random.normal(size=5)
     y = np.random.normal()
-    reg = explain(X, Y, x, y, epsilon=0.1, lambda1=0.01, lambda2=0.01, normalise=True)
+    reg = explain(X, Y, 0.1, x, y, lambda1=0.01, lambda2=0.01, normalise=True)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, 19, epsilon=0.1, lambda1=0.01, lambda2=0.01, normalise=True)
+    reg = explain(X, Y, 0.1, 19, lambda1=0.01, lambda2=0.01, normalise=True)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, x, y, epsilon=0.1, lambda1=0.01, lambda2=0.01, normalise=False)
+    reg = explain(X, Y, 0.1, x, y, lambda1=0.01, lambda2=0.01, normalise=False)
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, x, y, epsilon=0.1, lambda1=0, lambda2=0, normalise=False)
+    reg = explain(X, Y, 0.1, x, y, lambda1=0, lambda2=0, normalise=False)
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, 19, epsilon=0.1, lambda1=0.01, lambda2=0.01, normalise=False)
+    reg = explain(X, Y, 0.1, 19, lambda1=0.01, lambda2=0.01, normalise=False)
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, 19, epsilon=0.1, lambda1=0, lambda2=0, normalise=False)
+    reg = explain(X, Y, 0.1, 19, lambda1=0, lambda2=0, normalise=False)
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert 1.0 >= reg.subset().mean() > 0.0

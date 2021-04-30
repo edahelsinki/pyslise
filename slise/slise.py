@@ -12,7 +12,7 @@ from slise.data import (
     add_constant_columns,
     add_intercept_column,
     remove_constant_columns,
-    scale_robust,
+    normalise_robust,
     scale_same,
     unscale_model,
 )
@@ -210,8 +210,8 @@ class SliseRegression:
             X, x_cols = remove_constant_columns(X)
             if self.X.shape[1] == X.shape[1]:
                 x_cols = None
-            X, x_center, x_scale = scale_robust(X)
-            Y, y_center, y_scale = scale_robust(Y)
+            X, x_center, x_scale = normalise_robust(X)
+            Y, y_center, y_scale = normalise_robust(Y)
             self.scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
         if self.intercept:
             X = add_intercept_column(X)
@@ -445,8 +445,8 @@ class SliseExplainer:
             X2, x_cols = remove_constant_columns(X)
             if X.shape[1] == X2.shape[1]:
                 x_cols = None
-            X, x_center, x_scale = scale_robust(X2)
-            Y, y_center, y_scale = scale_robust(Y)
+            X, x_center, x_scale = normalise_robust(X2)
+            Y, y_center, y_scale = normalise_robust(Y)
             self.scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
             self.epsilon = epsilon * y_scale
         else:

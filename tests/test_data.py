@@ -9,7 +9,7 @@ from slise.data import (
     remove_intercept_column,
     remove_constant_columns,
     add_constant_columns,
-    scale_robust,
+    normalise_robust,
     scale_same,
     unscale_model,
 )
@@ -22,7 +22,7 @@ def test_scaling():
     print("Testing scaling")
     for i in (4, 6, 8):
         X, Y = data_create(i * 30, i)
-        X2, center, scale = scale_robust(X)
+        X2, center, scale = normalise_robust(X)
         assert np.allclose(scale_same(X, center, scale), X2)
         assert np.allclose(X2[0,], scale_same(X[0,], center, scale))
         X3 = add_intercept_column(X2)
@@ -31,7 +31,7 @@ def test_scaling():
         assert np.allclose(X2, X4)
         assert np.allclose(mask, np.array([False] + [True] * i))
         assert np.allclose(X3[:, 1:], add_constant_columns(X2, mask)[:, 1:])
-        Y2, center2, scale2 = scale_robust(Y)
+        Y2, center2, scale2 = normalise_robust(Y)
         assert np.allclose(scale_same(Y, center2, scale2), Y2)
         assert np.allclose(scale_same(Y[0], center2, scale2), Y2[0])
 
@@ -40,8 +40,8 @@ def test_model_scaling():
     print("Testing model scaling")
     for i in (4, 6, 8):
         X, Y, model2 = data_create2(i * 30, i)
-        X2, x_center, x_scale = scale_robust(X)
-        Y2, y_center, y_scale = scale_robust(Y)
+        X2, x_center, x_scale = normalise_robust(X)
+        Y2, y_center, y_scale = normalise_robust(Y)
         model2 = np.random.normal(size=i)
         model = unscale_model(model2, x_center, x_scale, y_center, y_scale)
         Z1 = mat_mul_inter(X, model)
