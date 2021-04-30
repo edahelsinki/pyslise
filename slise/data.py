@@ -7,7 +7,7 @@ from scipy.special import logit, expit as sigmoid
 
 def add_intercept_column(X: np.ndarray) -> np.ndarray:
     """
-        Add a constant (first) column of ones to the matrix
+        Add a constant column of ones to the matrix
     """
     if len(X.shape) == 1:
         return np.concatenate(([1.0], X))
@@ -159,7 +159,7 @@ def scale_same(
 
 
 class DataScaling(NamedTuple):
-    # Container class for scaling data information
+    # Container class for scaling information
     x_center: np.ndarray
     x_scale: np.ndarray
     y_center: float

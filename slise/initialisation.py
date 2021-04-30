@@ -1,6 +1,7 @@
 # This script contains functions for initialising alpha and beta
 
 from math import log
+from typing import Tuple
 import numpy as np
 from slise.utils import random_sample_int
 from slise.data import pca_simple, pca_invert_model
@@ -8,7 +9,17 @@ from slise.optimisation import next_beta, loss_residuals, regularised_regression
 from lbfgs import fmin_lbfgs
 
 
-def fast_lstsq(x: np.ndarray, y: np.ndarray, max_iterations: int = 300):
+def fast_lstsq(x: np.ndarray, y: np.ndarray, max_iterations: int = 300) -> np.ndarray:
+    """A fast version of least squares that falls back to optimisation if the input size gest too large.
+
+    Args:
+        x (np.ndarray): the data matrix
+        y (np.ndarray): the response vector
+        max_iterations (int, optional): the number of iterations to use in case of optimisation. Defaults to 300.
+
+    Returns:
+        np.ndarray: vector of coefficients
+    """
     if x.shape[1] > max_iterations * 20:
         return regularised_regression(x, y, 0, 0, max_iterations)
     else:
@@ -21,7 +32,7 @@ def initialise_lasso(
     epsilon: float = 0,
     max_iterations: int = 300,
     **kwargs
-):
+) -> Tuple[np.ndarray, float]:
     """
         Initialise alpha and beta to be equivalent to LASSO
     """
@@ -38,9 +49,9 @@ def initialise_ols(
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
     **kwargs
-):
+) -> Tuple[np.ndarray, float]:
     """
-        Initialise alpha to OLS and beta to "next beta"
+        Initialise alpha to OLS and beta to `next_beta`
     """
     alpha = fast_lstsq(X, Y, max_iterations)
     epsilon = epsilon ** 2
@@ -59,9 +70,9 @@ def initialise_zeros(
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
     **kwargs
-):
+) -> Tuple[np.ndarray, float]:
     """
-        Initialise alpha to 0 and beta to "next beta"
+        Initialise alpha to 0 and beta to `next_beta`
     """
     epsilon = epsilon ** 2
     beta_max = min(beta_max, beta_max_init) / epsilon
@@ -94,10 +105,10 @@ def initialise_candidates(
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
     **kwargs
-) -> np.ndarray:
+) -> Tuple[np.ndarray, float]:
     """
-        Generate a number (num_init) of candidates and select the best one to be
-        alpha, and beta to be the corresponding "next_beta"
+        Generate a number (num_init) of candidates, using PCA to shrink the random subsets.
+        Then select the best one to be alpha and beta to be the corresponding `next_beta`
     """
     # Prepare parameters
     epsilon = epsilon ** 2
@@ -143,10 +154,10 @@ def initialise_candidates2(
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
     **kwargs
-) -> np.ndarray:
+) -> Tuple[np.ndarray, float]:
     """
-        Generate a number (num_init) of candidates and select the best one to be
-        alpha, and beta to be the corresponding "next_beta"
+        Generate a number (num_init) of candidates, using LASSO to shrink the random subsets.
+        Then select the best one to be alpha and beta to be the corresponding `next_beta`
     """
     # Prepare parameters
     epsilon = epsilon ** 2

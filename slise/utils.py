@@ -14,18 +14,23 @@ class SliseWarning(RuntimeWarning):
     """
 
 
-def limited_logit(p: Union[np.ndarray, float], stab: float = 0.001):
+def limited_logit(
+    p: Union[np.ndarray, float], stab: float = 0.001
+) -> Union[np.ndarray, float]:
     """Computes the logits from probabilities
 
     Args:
         p (Union[np.ndarray, float]): probability vector
         stab (float, optional): limit p to [stab, 1-stab] for numerical stability. Defaults to 0.001.
+
+    Returns:
+        Union[np.ndarray, float]: logit(clamp(p, stab, 1-stab))
     """
     p = np.minimum(1.0 - stab, np.maximum(stab, p))
     return np.log(p / (1.0 - p))
 
 
-def dsigmoid(x: np.ndarray) -> np.ndarray:
+def dsigmoid(x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
     """
         Derivative of the sigmoid function
     """
@@ -33,7 +38,7 @@ def dsigmoid(x: np.ndarray) -> np.ndarray:
     return s * (1 - s)
 
 
-def log_sigmoid(x: np.ndarray) -> np.ndarray:
+def log_sigmoid(x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
     """
         Numerically stable calculation of log(sigmoid(x)):
             ifelse(x >= 0, - log(1 + exp(-x)), x - log(1 + exp(x)))
@@ -42,14 +47,14 @@ def log_sigmoid(x: np.ndarray) -> np.ndarray:
     return (y * 0.5 + 0.5) * x - np.log1p(np.exp(y * x))
 
 
-def dlog_sigmoid(x: np.ndarray) -> np.ndarray:
+def dlog_sigmoid(x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
     """
         Derivative of the log_sigmoid function
     """
     return 1 - sigmoid(x)
 
 
-def sparsity(x: np.ndarray, treshold: float = 0) -> float:
+def sparsity(x: Union[np.ndarray, float], treshold: float = 0) -> int:
     """
         Count the number of abs(x) > treshold
     """

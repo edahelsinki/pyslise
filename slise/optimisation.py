@@ -27,7 +27,7 @@ def loss_smooth(
     beta: float = 100,
 ) -> float:
     """
-        Smoothed (with sigmoid) version of the loss
+        Smoothed (with sigmoid) version of the loss.
     """
     epsilon *= epsilon
     distances = ((X @ alpha) - Y) ** 2
@@ -51,7 +51,8 @@ def loss_residuals(
     beta: float = 100,
 ) -> float:
     """
-        Smoothed (with sigmoid) version of the loss, that takes already calculated residuals
+        Smoothed (with sigmoid) version of the loss, that takes already calculated residuals.
+        This function is sped up with numba.
     """
     # Takes squared residuals and epsilons
     subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))
@@ -74,7 +75,7 @@ def loss_sharp(
     lambda2: float = 0,
 ) -> float:
     """
-        Exact (combinatorial) version of the loss
+        Exact (combinatorial) version of the loss.
     """
     epsilon *= epsilon
     distances = (Y - mat_mul_inter(X, alpha)) ** 2
@@ -96,8 +97,8 @@ def loss_numba(
     beta: float,
 ) -> (float, np.ndarray):
     """
-        Smoothed (with sigmoid) version of the loss, that also calculates
-        the gradient (sped up with numba)
+        Smoothed (with sigmoid) version of the loss, that also calculates the gradient.
+        This function is sped up with numba.
     """
     epsilon *= epsilon
     distances = (X @ alpha) - Y
@@ -125,7 +126,8 @@ def ols_numba(
     alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,
 ) -> Tuple[float, np.ndarray]:
     """
-        OLS loss, that also calculates the gradient (sped up with numba)
+        Ordinary Least Squares regression loss, that also calculates the gradient.
+        This function is sped up with numba.
     """
     distances = (X @ alpha) - Y
     loss = np.sum(distances ** 2) / 2
@@ -138,7 +140,8 @@ def ridge_numba(
     alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, lambda2: float
 ) -> Tuple[float, np.ndarray]:
     """
-        Ridge loss (OLS + L2), that also calculates the gradient (sped up with numba)
+        Ridge regression (OLS + L2) loss, that also calculates the gradient.
+        This function is sped up with numba.
     """
     distances = (X @ alpha) - Y
     loss = np.sum(distances ** 2) / 2 + lambda2 * np.sum(alpha ** 2) / 2
@@ -151,6 +154,7 @@ def owlqn(
     x0: np.ndarray,
     lambda1: float = 0,
     max_iterations: int = 200,
+    **kwargs,
 ) -> np.ndarray:
     """
         Wrapper around owlqn that converts max_iter errors to warnings
@@ -174,6 +178,7 @@ def owlqn(
             orthantwise_c=lambda1,
             max_iterations=max_iterations,
             line_search="wolfe" if lambda1 > 0 else "default",
+            **kwargs,
         )
     except LBFGSError as error:
         if (
@@ -196,17 +201,17 @@ def regularised_regression(
     lambda2: float = 1e-6,
     max_iterations: int = 200,
 ) -> np.ndarray:
-    """Train a linear ridge regression model
+    """Train a linear regression model with lasso (L1) and/or ridge (L2) regularisation.
 
-    Arguments:
-        X {np.ndarray} -- the data
-        Y {np.ndarray} -- the response
-
-    Keyword Arguments:
-        lambda2 {float} -- the L2 regularisation coefficient (default: {1e-6})
+    Args:
+        X (np.ndarray): data matrix
+        Y (np.ndarray): response vector
+        lambda1 (float, optional): LASSO/L1 regularisation coefficient. Defaults to 1e-6.
+        lambda2 (float, optional): Ridge/L2 regularisation coefficient. Defaults to 1e-6.
+        max_iterations (int, optional): maximum number of optimisation steps. Defaults to 200.
 
     Returns:
-        np.ndarray -- the linear model weights
+        np.ndarray: the linear model coefficients
     """
     if lambda2 > 0:
         return owlqn(
@@ -235,7 +240,7 @@ def optimise_loss(
     max_iterations: int = 200,
 ) -> np.ndarray:
     """
-        Optimise a smoothed loss with owlqn
+        Optimise a smoothed loss with owl-qn
     """
     return owlqn(
         lambda alpha: loss_numba(alpha, X, Y, epsilon, lambda2, beta),
@@ -338,30 +343,28 @@ def graduated_optimisation(
     lambda1: float = 0,
     lambda2: float = 0,
     beta: float = 0,
-    beta_max: float = 25,
+    beta_max: float = 20,
     max_approx: float = 1.15,
     max_iterations: int = 200,
     debug: bool = False,
 ) -> np.ndarray:
     """Optimise alpha using graduated optimisation
 
-    Arguments:
-        alpha {np.ndarray} -- the initial alpha
-        X {np.ndarray} -- the data matrix
-        Y {np.ndarray} -- the response vector
-
-    Keyword Arguments:
-        epsilon {float} -- the error tolerance (default: {0.1})
-        lambda1 {float} -- L1 regularisation (default: {0})
-        lambda2 {float} -- L2 regularisation (default: {0})
-        beta {float} -- the initial beta (default: {0})
-        beta_max {float} -- the stopping beta (default: {25})
-        max_approx {float} -- target approximation ratio when increasing beta (default: {1.15})
-        max_iterations {int} -- maximum number of iterations for owl-qn (default: {200})
-        debug {bool} -- print debug logs after each optimisation step (default: {False})
+    Args:
+        alpha (np.ndarray): initial alpha
+        X (np.ndarray): data matrix
+        Y (np.ndarray): response vector
+        epsilon (float): error tolerance
+        lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
+        lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
+        beta (float, optional): initial beta. Defaults to 0.
+        beta_max (float, optional): the final beta. Defaults to 20.
+        max_approx (float, optional): target approximation ratio when increasing beta. Defaults to 1.15.
+        max_iterations (int, optional): maximum number of iterations for owl-qn. Defaults to 200.
+        debug (bool, optional): print debug logs after each optimisation step. Defaults to False.
 
     Returns:
-        np.ndarray -- the optimised alpha
+        np.ndarray: the optimised alpha
     """
     X = np.asfortranarray(X, dtype=np.float64)
     Y = np.asfortranarray(Y, dtype=np.float64)
