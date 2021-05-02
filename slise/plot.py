@@ -2,12 +2,13 @@
     This script contains functions for plotting the results
 """
 
-from typing import List, Union
+from typing import List, Union, Tuple
 from warnings import warn
 import numpy as np
+from scipy.stats import gaussian_kde
 from scipy.special import expit as sigmoid
 from matplotlib import pyplot as plt
-from matplotlib.pyplot import Axes
+from matplotlib.pyplot import Axes, Figure
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
 from slise.utils import SliseException, SliseWarning, mat_mul_inter, limited_logit
@@ -40,23 +41,19 @@ def fill_column_names(
         return names
     if names is None:
         if intercept:
-            return ["Intercept"] + ["Col %d" % i for i in range(amount - 1)]
+            return ["Intercept"] + ["Variable %d" % i for i in range(amount)]
         else:
-            return ["Col %d" % i for i in range(amount)]
-    elif len(names) == amount:
-        if intercept:
-            warn("No room to add the name for the intercept column", SliseWarning)
-        return names
-    elif len(names) == amount - 1 and intercept:
-        return ["Intercept"] + names
-    elif len(names) > amount:
+            return ["Variable %d" % i for i in range(amount)]
+    if len(names) > amount:
         warn("Too many column names given", SliseWarning)
-        return names[:amount]
-    else:
+        names = names[:amount]
+    if len(names) < amount:
         warn("Too few column names given", SliseWarning)
-        if intercept:
-            names = ["Intercept"] + names
-        return names + ["Col %d" % i for i in range(len(names), amount)]
+        names = names + ["Variable %d" % i for i in range(len(names), amount)]
+    if intercept:
+        return ["Intercept"] + names
+    else:
+        return names
 
 
 def fill_prediction_str(
@@ -93,6 +90,18 @@ def fill_prediction_str(
                 return f"Predicted: {y:.{decimals}f} {class_names[0]}"
     else:
         return f"Predicted: {y:.{decimals}f}"
+
+
+def extended_limits(
+    x: np.ndarray, extension: float = 0.05, steps: int = 2
+) -> np.ndarray:
+    min = np.min(x)
+    max = np.max(x)
+    diff = max - min
+    if steps <= 2:
+        return np.array([min - diff * extension, max + diff * extension])
+    else:
+        return np.linspace(min - diff * extension, max + diff * extension, steps)
 
 
 def plot_2d(
@@ -132,12 +141,9 @@ def plot_2d(
         fig = plt
     if X.size != Y.size:
         raise SliseException(f"Can only plot 1D data, |Y| = {Y.size} != {X.size} = |X|")
-    x_limits = np.array([X.min(), X.max()])
-    ext = (x_limits[1] - x_limits[0]) * 0.02
-    x_limits = x_limits + [-ext, ext]
+    x_limits = extended_limits(X, 0.03, 20 if logit else 2)
+    y_limits = mat_mul_inter(x_limits[:, None], alpha)
     if logit:
-        x_limits = np.linspace(*x_limits, 20)
-        y_limits = mat_mul_inter(x_limits, alpha)
         fig.fill_between(
             x_limits,
             sigmoid(y_limits + epsilon),
@@ -147,7 +153,6 @@ def plot_2d(
         )
         y_limits = sigmoid(y_limits)
     else:
-        y_limits = mat_mul_inter(x_limits[:, None], alpha)
         fig.fill_between(
             x_limits,
             y_limits + epsilon,
@@ -183,248 +188,118 @@ def plot_2d(
 
 
 def get_explanation_order(
-    alpha: np.ndarray, mask: np.ndarray
+    alpha: np.ndarray, intercept: bool = True, min: int = 5
 ) -> (np.ndarray, np.ndarray):
     """
         Get the order in which to show the values in the plots
     """
-    order = np.argsort(alpha[1:]) + 1
-    order = order[np.nonzero(alpha[order])]
-    order = np.concatenate((order, [0]))
-    order_outer = np.concatenate(([0], np.atleast_1d(mask + 1)))[order]
-    return order, order_outer
-
-
-def plot_explanation_tabular(
-    x: np.ndarray,
-    y: float,
-    alpha: np.ndarray,
-    # scaler: DataScaler,
-    column_names: list = None,
-    class_names: list = None,
-    decimals: int = 3,
-):
-    """Plot the current explanation (for tabular data)
-
-    This plots three bar-plots side-by-side. The first one is the values
-    from the item being explained. Note that the text is the original
-    values, while the bars are showing the (potentially) scaled values. The
-    second one is the weights from the linear model (on the scaled data),
-    which can (very loosely) be interpreted as the importance of the
-    different variables for this particular prediction. Finally, the third
-    plot is the impact: the (linear model) weights times the (scaled data
-    item) values normalised so the absolute sums to one. The impact might be
-    an intuitive way of looking at the explanation, since a negative value
-    combined with a negative weight actually supports a positive prediction,
-    which the impact captures.
-
-    Arguments:
-        x {np.ndarray} -- the explained item
-        y {float} -- the explained prediction
-        alpha {np.ndarray} -- the explanation
-        scaler {DataScaler} -- scaler used to unscale the data
-
-    Keyword Arguments:
-        column_names {list} -- the names of the features/variables (default: {None})
-        class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
-        decimals {int} -- the precision to use for printing (default: {3})
-    """
-    # Values
-    scaled_x = np.concatenate(([1.0], x))
-    impact = scaled_x * alpha
-    impact /= np.sum(np.abs(impact))
-    scaled_x[0] = 0.0
-    unscaled_x = np.concatenate(([0.0], scaler.unscale(x)[0]))
-    column_names = fill_column_names(column_names, len(unscaled_x), True)
-    if isinstance(class_names, str):
-        class_names = ("not " + class_names, class_names)
-    # Sorting
-    order, order_outer = get_explanation_order(alpha, scaler.scaler_x.mask)
-    scaled_x = scaled_x[order]
-    alpha = alpha[order]
-    impact = impact[order]
-    unscaled_x = unscaled_x[order_outer]
-    column_names = [column_names[i] for i in order_outer]
-    # Plot title
-    plt.figure()
-    plt.suptitle(
-        "SLISE Explanation   |   "
-        + fill_prediction_str(scaler.unscale(None, y)[1], class_names, decimals)
-    )
-    # Plot value
-    plt.subplot(1, 3, 1)
-    val_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, unscaled_x)]
-    val_col_nam[-1] = ""
-    plt.barh(val_col_nam, scaled_x, color="grey")
-    plt.title("\n\nExplained Item")
-    if not np.allclose(unscaled_x, scaled_x):
-        plt.xticks([0.0], ["Scaled Mean"])
-    # Plot weights
-    plt.subplot(1, 3, 2)
-    wei_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, alpha)]
-    wei_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
-    plt.barh(wei_col_nam, alpha, color=wei_col_col)
-    plt.title("\n\nLocal Linear Model")
-    if class_names is not None and len(class_names) > 1:
-        amax = alpha.abs().max() * 0.9
-        plt.xticks([-amax, amax], class_names[:2])
+    if intercept:
+        order = np.argsort(alpha[1:]) + 1
+        if len(order) > min:
+            order = order[np.nonzero(alpha[order])]
+        order = np.concatenate((order, np.zeros(1, order.dtype)))
     else:
-        plt.xticks([])
-    # Plot impact
-    plt.subplot(1, 3, 3)
-    imp_col_nam = [f"{n}\n{x:.{decimals}f}" for n, x in zip(column_names, impact)]
-    imp_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in impact]
-    plt.barh(imp_col_nam, impact, color=imp_col_col)
-    plt.title("\n\nActual Impact")
-    if class_names is not None and len(class_names) > 1:
-        imax = impact.abs().max() * 0.9
-        plt.xticks([-imax, imax], class_names[:2])
-    else:
-        plt.xticks([])
-    # Plot meta
-    plt.tight_layout()
-    plt.show()
+        order = np.argsort(alpha)
+        if len(order) > min:
+            order = order[np.nonzero(alpha[order])]
+    return np.flip(order)
 
 
-def inset_pos(a: float, b: float, p: float = 0.2) -> (float, float):
-    """
-        Inset an interval with a percentage
-    """
-    if a > b:
-        return inset_pos(b, a, p)
-    d = b - a
-    d = d * p * 0.5
-    return a + d, b - d
-
-
-def plot_explanation_dist(
-    x: np.ndarray,
-    y: float,
+def plot_dist(
     X: np.ndarray,
     Y: np.ndarray,
     alpha: np.ndarray,
     subset: np.ndarray,
-    # scaler: DataScaler,
+    x: Union[np.ndarray, None] = None,
+    y: Union[float, None] = None,
+    impact: Union[np.ndarray, None] = None,
+    title: str = "SLISE Explanation",
     column_names: list = None,
-    class_names: list = None,
-    decimals: int = 3,
+    fig: Union[Figure, None] = None,
 ):
-    """Plot the current explanation (for tabular data), with density plots of the dataset and subset
+    """Plot the SLISE result with density distributions for the dataset and barplot for the model
 
-    Arguments:
-        x {np.ndarray} -- the explained item
-        y {float} -- the explained prediction
-        X {np.ndarray} -- the dataset (data matrix)
-        Y {np.ndarray} -- the dataset (prediciton vector)
-        alpha {np.ndarray} -- the explanation
-        subset {np.ndarray} -- the subset of approximated items (as a boolean mask)
-        scaler {DataScaler} -- scaler used to unscale the data
-
-    Keyword Arguments:
-        column_names {list} -- the names of the features/variables (default: {None})
-        class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
-        decimals {int} -- the precision to use for printing (default: {3})
+    Args:
+        X (np.ndarray): data matrix
+        Y (np.ndarray): response vector
+        alpha (np.ndarray): linear model
+        subset (np.ndarray): selected subset
+        x (Union[np.ndarray, None], optional): the explained item (if it is an explanation). Defaults to None.
+        y (Union[float, None], optional): the explained outcome (if it is an explanation). Defaults to None.
+        impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
+        title (str, optional): title of the plot. Defaults to "SLISE Explanation".
+        column_names (list, optional): names for the variables. Defaults to None.
+        fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     # Values and order
-    Xu, Yu = scaler.unscale(X, Y)
-    xu, yu = scaler.unscale(x, y)
-    impact = np.concatenate(([1.0], x)) * alpha
-    impact /= np.sum(np.abs(impact))
-    order, order_outer = get_explanation_order(alpha, scaler.scaler_x.mask)
-    column_names = fill_column_names(column_names, len(xu) + 1, True)
+    order = get_explanation_order(alpha, True)
+    column_names = fill_column_names(column_names, X.shape[1], True)
+    if len(alpha) == X.shape[1]:
+        alpha = np.concatenate((np.zeros(1, alpha.dtype), alpha))
+        column_names[0] = ""
     bins = max(10, min(50, len(Y) // 20))
-    if isinstance(class_names, str):
-        class_names = ("not " + class_names, class_names)
     alpha = alpha[order]
-    impact = impact[order]
-    column_names = [column_names[i] for i in order_outer]
-    # subplots
-    rows = max(3, len(order))
-    fig, axs = plt.subplots(rows, 2)
-    fig.suptitle(
-        "SLISE Explanation   |   " + fill_prediction_str(yu, class_names, decimals)
-    )
-    gs = axs[1, 0].get_gridspec()
-    axs[0, 0].remove()
-    axs[0, 1].remove()
-    for ax in axs[1:, 1]:
-        ax.remove()
-    aih = (rows - 1) // 2
-    axi = fig.add_subplot(gs[-aih:, 1])
-    axa = fig.add_subplot(gs[(-2 * aih) : -aih, 1])
-    axy = fig.add_subplot(gs[0, :])
-    # Y hist
-    axy.hist(
-        Yu, bins=bins, density=False, histtype="step", color="black", label="Dataset"
-    )
-    axy.hist(
-        Yu[subset],
-        bins=bins,
-        density=False,
-        histtype="step",
-        color=SLISE_PURPLE,
-        label="Subset",
-    )
-    axy.relim()
-    axy.vlines(yu, *axy.get_ylim(), color=SLISE_ORANGE, label="Explained Item")
-    axy.set_yticks([])
-    if class_names is not None and len(class_names) > 1:
-        pos = inset_pos(*axy.get_xlim(), 0.2)
-        if pos[0] * pos[1] < 0:
-            axy.set_xticks((pos[0], 0, pos[1]))
-            axy.set_xticklabels((class_names[0], "0", class_names[1]))
-        else:
-            axy.set_xticks(pos)
-            axy.set_xticklabels(class_names[:2])
-    axy.set_title("\n\nPrediction")
-    axy.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=3)
-    # h, l = axy.get_legend_handles_labels()
-    # axs[0, 1].legend(h, l, loc="center", bbox_to_anchor=(0, 0.5))
-    # axs[0, 1].axis("off")
-    # X hists
-    for i, k, n in zip(
-        reversed(range(1, len(order))), order_outer[:-1] - 1, column_names[:-1]
-    ):
-        ax = axs[i, 0]
-        ax.hist(Xu[:, k], bins=bins, density=False, histtype="step", color="black")
-        ax.hist(
-            Xu[subset, k], bins=bins, density=False, histtype="step", color=SLISE_PURPLE
-        )
-        ax.relim()
-        ax.vlines(xu[k], *ax.get_ylim(), color=SLISE_ORANGE)
+    if impact is not None:
+        impact = impact[order] / np.max(np.abs(impact)) * np.max(np.abs(alpha))
+    column_names = [column_names[i] for i in order]
+    # Figures:
+    plot = False
+    if isinstance(fig, Figure):
+        axs = fig.subplots(len(order), 2)
+    else:
+        plot = True
+        fig, axs = plt.subplots(len(order), 2)
+    fig.suptitle(title)
+    # Density plots
+    subset_size = subset.mean()
+
+    def fill_density(ax, X, x, n):
+        kde1 = gaussian_kde(X, 0.25)
+        kde2 = gaussian_kde(X[subset], 0.25)
+        lim = extended_limits(X, 0.1, 100)
+        ax.plot(lim, kde1(lim), color="black", label="Dataset")
+        ax.plot(lim, kde2(lim) * subset_size, color=SLISE_PURPLE, label="Subset")
+        if x is not None:
+            ax.relim()
+            ax.vlines(x, *ax.get_ylim(), color=SLISE_ORANGE, label="Explained Item")
         ax.set_yticks([])
-        ax.set_title(n)
-    # alpha
-    wei_col_nam = [
-        f"{n} {x:{decimals + 3}.{decimals}f}" for n, x in zip(column_names, alpha)
-    ]
-    wei_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
-    axa.barh(wei_col_nam, alpha, color=wei_col_col)
-    axa.set_title("Local Linear Model")
-    if class_names is not None and len(class_names) > 1:
-        pos = axa.get_xlim()
-        amax = np.abs(alpha).max() * 0.4
-        axa.set_xticks(inset_pos(pos[0] * 0.6 - amax, pos[1] * 0.6 + amax, 0.2))
-        axa.set_xticklabels(class_names[:2])
+        ax.set_ylabel(
+            n, rotation=0, horizontalalignment="right", verticalalignment="center"
+        )
+
+    fill_density(axs[0, 0], Y, y, "Response")
+    axs[0, 0].legend()
+    axs[0, 0].set_title("Dataset Distribution")
+    for i, k, n in zip(range(1, len(order)), order[1:] - 1, column_names[1:]):
+        fill_density(axs[i, 0], X[:, k], x[k] if x is not None else None, n)
+    # Bar plots
+    gs = axs[0, 1].get_gridspec()
+    for ax in axs[:, 1]:
+        ax.remove()
+    axbig = fig.add_subplot(gs[:, 1])
+    if x is None or y is None:
+        axbig.set_title("Linear Model")
     else:
-        axa.set_xticks([])
-    # impact
-    imp_col_nam = [
-        f"{n} {x:{decimals + 3}.{decimals}f}" for n, x in zip(column_names, impact)
-    ]
-    imp_col_col = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in impact]
-    axi.barh(imp_col_nam, impact, color=imp_col_col)
-    axi.set_title("Actual Impact")
-    if class_names is not None and len(class_names) > 1:
-        imax = np.abs(impact).max() * 0.4
-        pos = axi.get_xlim()
-        axi.set_xticks(inset_pos(pos[0] * 0.6 - imax, pos[1] * 0.6 + imax, 0.2))
-        axi.set_xticklabels(class_names[:2])
+        axbig.set_title("Explanation")
+    ticks = np.arange(len(column_names))
+    axbig.set_yticks(ticks)
+    axbig.set_yticklabels(column_names)
+    axbig.set_ylim(bottom=ticks[0] - 0.45, top=ticks[-1] + 0.45)
+    axbig.invert_yaxis()
+    if impact is None:
+        column_color = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
+        axbig.barh(ticks, alpha, color=column_color)
     else:
-        axi.set_xticks([])
+        axbig.barh(
+            ticks - 0.2, alpha, height=0.35, color=SLISE_PURPLE, label="Linear Model"
+        )
+        axbig.barh(ticks + 0.2, impact, height=0.35, color=SLISE_ORANGE, label="Impact")
+        axbig.legend()
+    axbig.yaxis.tick_right()
     # meta
-    plt.tight_layout()
-    plt.show()
+    fig.tight_layout()
+    if plot:
+        plt.show()
 
 
 def plot_explanation_image(

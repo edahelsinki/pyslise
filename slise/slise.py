@@ -5,7 +5,7 @@
 from __future__ import annotations
 from typing import Union, Tuple, Callable, List
 from warnings import warn
-from matplotlib.pyplot import Axes
+from matplotlib.pyplot import Axes, Figure
 import numpy as np
 from scipy.special import expit as sigmoid
 from slise.data import (
@@ -24,8 +24,7 @@ from slise.plot import (
     plot_2d,
     fill_column_names,
     fill_prediction_str,
-    plot_explanation_tabular,
-    plot_explanation_dist,
+    plot_dist,
     plot_explanation_image,
 )
 
@@ -331,7 +330,7 @@ class SliseRegression:
             alpha = add_constant_columns(alpha, self.scale.columns, self.intercept)
         if len(alpha) < len(coeff):
             alpha = np.concatenate(([0.0], alpha))
-        column_names = fill_column_names(column_names, len(coeff), intercept)
+        column_names = fill_column_names(column_names, self.X.shape[1], intercept)
         alpha = ["%%.%df" % decimals % a for a in alpha]
         coeff = ["%%.%df" % decimals % a for a in coeff]
         col_len = max(
@@ -357,7 +356,7 @@ class SliseRegression:
         label_x: str = "x",
         label_y: str = "y",
         decimals: int = 3,
-        fig: Union[Axes, None] = None,
+        axis: Union[Axes, None] = None,
     ) -> SliseRegression:
         """Plot the regression in a 2D scatter plot with a line for the regression model
 
@@ -366,7 +365,7 @@ class SliseRegression:
             label_x (str, optional): x-axis label. Defaults to "x".
             label_y (str, optional): y-axis label. Defaults to "y".
             decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-            fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+            axis (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
             SliseException: if the data has too many dimensions
@@ -383,6 +382,32 @@ class SliseRegression:
             label_x,
             label_y,
             decimals,
+            axis,
+        )
+
+    def plot_dist(
+        self,
+        title: str = "SLISE Regression",
+        column_names: list = None,
+        fig: Union[Figure, None] = None,
+    ) -> SliseExplainer:
+        """Plot the regression with density distributions for the dataset and a barplot for the model.
+
+        Args:
+            title (str, optional): title of the plot. Defaults to "SLISE Explanation".
+            column_names (list, optional): names for the variables. Defaults to None.
+            fig (Union[Figure, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+        """
+        plot_dist(
+            self.X,
+            self.Y,
+            self.coefficients,
+            self.subset(),
+            None,
+            None,
+            None,
+            title,
+            column_names,
             fig,
         )
 
@@ -614,7 +639,7 @@ class SliseExplainer:
             class_names (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
-        column_names = fill_column_names(column_names, len(self.coefficients), True)[1:]
+        column_names = fill_column_names(column_names, self.X.shape[1], True)[1:]
         alpha = self.alpha[1:]
         unscaled = self.x
         scaled = unscaled
@@ -661,13 +686,25 @@ class SliseExplainer:
                     f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}%"
                 )
 
+    def get_impact(self) -> np.ndarray:
+        """Get the "impact" of different variables on the outcome.
+            The impact is the (scaled) model times the (scaled) item.
+
+        Returns:
+            np.ndarray: the impact vector
+        """
+        if self.normalise:
+            return add_intercept_column(self.scale.scale_x(self.x)) * self.alpha
+        else:
+            return add_intercept_column(self.x) * self.coefficients
+
     def plot_2d(
         self,
         title: str = "SLISE Explanation",
         label_x: str = "x",
         label_y: str = "y",
         decimals: int = 3,
-        fig: Union[Axes, None] = None,
+        axis: Union[Axes, None] = None,
     ) -> SliseRegression:
         """Plot the explanation in a 2D scatter plot (where the explained item is marked) with a line for the approximating model.
 
@@ -676,7 +713,7 @@ class SliseExplainer:
             label_x (str, optional): x-axis label. Defaults to "x".
             label_y (str, optional): y-axis label. Defaults to "y".
             decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-            fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+            axis (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
             SliseException: if the data has too many dimensions
@@ -693,39 +730,8 @@ class SliseExplainer:
             label_x,
             label_y,
             decimals,
-            fig,
+            axis,
         )
-
-    def plot(
-        self, column_names: list = None, class_names: list = None, decimals: int = 3
-    ) -> SliseExplainer:
-        # TODO: This needs to be updated and checked
-        """Plot the current explanation (for tabular data)
-
-        This plots three bar-plots side-by-side. The first one is the values
-        from the item being explained. Note that the text is the original
-        values, while the bars are showing the (potentially) scaled values. The
-        second one is the weights from the linear model (on the scaled data),
-        which can (very loosely) be interpreted as the importance of the
-        different variables for this particular prediction. Finally, the third
-        plot is the impact: the (linear model) weights times the (scaled data
-        item) values normalised so the absolute sums to one. The impact might be
-        an intuitive way of looking at the explanation, since a negative value
-        combined with a negative weight actually supports a positive prediction,
-        which the impact captures.
-
-        Keyword Arguments:
-            column_names {list} -- the names of the features/variables (default: {None})
-            class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
-            decimals {int} -- the precision to use for printing (default: {3})
-
-        Returns:
-            SliseExplainer -- self
-        """
-        plot_explanation_tabular(
-            self.x, self.y, self.alpha, self.scaler, column_names, class_names, decimals
-        )
-        return self
 
     def plot_image(
         self, width: int, height: int, class_names: list = None, decimals: int = 3
@@ -754,30 +760,34 @@ class SliseExplainer:
         return self
 
     def plot_dist(
-        self, column_names: list = None, class_names: list = None, decimals: int = 3
+        self,
+        title: str = "SLISE Explanation",
+        column_names: list = None,
+        fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
-        # TODO: This needs to be updated and checked
-        """Plot the current explanation (for tabular data), with density plots of the dataset and subset
+        """Plot the current explanation with density distributions for the dataset and a barplot for the model.
 
+        The barbplot contains both the approximating linear model (where the
+        weights can be loosely interpreted as the importance of the different
+        variables and their sign) and the "impact" which is the (scaled) model
+        time the (scaled) item values (which demonstrates how the explained
+        item interacts with the approximating linear model, since a negative
+        weight times a negative value actually supports a positive prediction).
 
-        Keyword Arguments:
-            column_names {list} -- the names of the features/variables (default: {None})
-            class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
-            decimals {int} -- the precision to use for printing (default: {3})
-
-        Returns:
-            SliseExplainer -- self
+        Args:
+            title (str, optional): title of the plot. Defaults to "SLISE Explanation".
+            column_names (list, optional): names for the variables. Defaults to None.
+            fig (Union[Figure, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
         """
-        plot_explanation_dist(
-            self.x,
-            self.y,
+        plot_dist(
             self.X,
             self.Y,
-            self.alpha,
+            self.coefficients,
             self.subset(),
-            self.scaler,
+            self.x,
+            self.y,
+            self.get_impact(),
+            title,
             column_names,
-            class_names,
-            decimals,
+            fig,
         )
-        return self
