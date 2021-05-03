@@ -18,7 +18,10 @@ The (original) R implementation can be found [here](https://github.com/edahelsin
 
 ## Installation
 
-**`TODO`**
+To install this package just run:
+```sh
+pip install https://github.com/edahelsinki/pyslise
+```
 
 ## Example
 
@@ -27,7 +30,8 @@ The (original) R implementation can be found [here](https://github.com/edahelsin
 ## Dependencies
 
 - Python 3
-- NumPy
-- SciPy
+- numpy
+- scipy
 - PyLBFGS
-- Numba
+- mumba
+- matplotlib
