@@ -758,7 +758,7 @@ class SliseExplainer:
             self.x,
             self.y,
             self.Y,
-            self.alpha,
+            self.coefficients,
             width,
             height,
             saturated,

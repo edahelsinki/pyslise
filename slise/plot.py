@@ -339,9 +339,7 @@ def plot_explanation_image(
     intercept = alpha[0]
     alpha = alpha[1:]
     alpha.shape = (width, height)
-    alpha = alpha.T
     x.shape = (width, height)
-    x = x.T
     if saturated:
         alpha = sigmoid(alpha * (4 / np.max(np.abs(alpha))))
     if fig is None:
@@ -364,7 +362,7 @@ def plot_explanation_image(
         cmap=SLISE_COLORMAP,
         norm=Normalize(vmin=-0.1, vmax=1.1),
     )
-    ax2.contour(range(height), range(width), x, colors="black")
+    ax2.contour(range(height), range(width), x, levels=1, colors="#00000033")
     ax2.set_xticks([])
     ax2.set_yticks([])
     ax2.set_title("Explanation")
