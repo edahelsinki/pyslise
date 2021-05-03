@@ -129,7 +129,7 @@ def get_explanation_order(
 def plot_2d(
     X: np.ndarray,
     Y: np.ndarray,
-    alpha: np.ndarray,
+    model: np.ndarray,
     epsilon: float,
     x: Union[np.ndarray, None] = None,
     y: Union[float, None] = None,
@@ -145,7 +145,7 @@ def plot_2d(
     Args:
         X (np.ndarray): data matrix
         Y (np.ndarray): response vector
-        alpha (np.ndarray): regression model
+        model (np.ndarray): regression model
         epsilon (float): error tolerance
         x (Union[np.ndarray, None], optional): explained item. Defaults to None.
         y (Union[float, None], optional): explained outcome. Defaults to None.
@@ -168,7 +168,7 @@ def plot_2d(
     if X.size != Y.size:
         raise SliseException(f"Can only plot 1D data, |Y| = {Y.size} != {X.size} = |X|")
     x_limits = extended_limits(X, 0.03, 20 if logit else 2)
-    y_limits = mat_mul_inter(x_limits[:, None], alpha)
+    y_limits = mat_mul_inter(x_limits[:, None], model)
     if logit:
         ax.fill_between(
             x_limits,
@@ -193,13 +193,13 @@ def plot_2d(
     else:
         ax.plot(x_limits, y_limits, "-", color=SLISE_ORANGE, label="Model")
     formula = ""
-    if isinstance(alpha, float) or len(alpha) == 1:
-        formula = f"{float(alpha):.{decimals}f} * {label_x}"
-    elif np.abs(alpha[0]) > 1e-8:
-        sign = "-" if alpha[1] < 0.0 else "+"
-        formula = f"{alpha[0]:.{decimals}f} {sign} {abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
+    if isinstance(model, float) or len(model) == 1:
+        formula = f"{float(model):.{decimals}f} * {label_x}"
+    elif np.abs(model[0]) > 1e-8:
+        sign = "-" if model[1] < 0.0 else "+"
+        formula = f"{model[0]:.{decimals}f} {sign} {abs(model[1]):.{decimals}f} $\\cdot$ {label_x}"
     else:
-        formula = f"{alpha[1]:.{decimals}f} * {label_x}"
+        formula = f"{model[1]:.{decimals}f} * {label_x}"
     if logit:
         formula = f"$\\sigma$({formula})"
     ax.legend()
@@ -214,13 +214,15 @@ def plot_2d(
 def plot_dist(
     X: np.ndarray,
     Y: np.ndarray,
-    alpha: np.ndarray,
+    model: np.ndarray,
     subset: np.ndarray,
+    alpha: Union[np.ndarray, None] = None,
     x: Union[np.ndarray, None] = None,
     y: Union[float, None] = None,
     impact: Union[np.ndarray, None] = None,
     title: str = "SLISE Explanation",
     variables: list = None,
+    decimals: int = 3,
     fig: Union[Figure, None] = None,
 ):
     """Plot the SLISE result with density distributions for the dataset and barplot for the model
@@ -228,26 +230,36 @@ def plot_dist(
     Args:
         X (np.ndarray): data matrix
         Y (np.ndarray): response vector
-        alpha (np.ndarray): linear model
+        model (np.ndarray): linear model
         subset (np.ndarray): selected subset
+        alpha (Union[np.ndarray, None]): scaled model. Defaults to None.
         x (Union[np.ndarray, None], optional): the explained item (if it is an explanation). Defaults to None.
         y (Union[float, None], optional): the explained outcome (if it is an explanation). Defaults to None.
         impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): title of the plot. Defaults to "SLISE Explanation".
         variables (list, optional): names for the (columns/) variables. Defaults to None.
+        decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
         fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     # Values and order
-    order = get_explanation_order(alpha, True)
     variables = fill_column_names(variables, X.shape[1], True)
-    if len(alpha) == X.shape[1]:
-        alpha = np.concatenate((np.zeros(1, alpha.dtype), alpha))
+    if alpha is None:
+        noticks = False
+        alpha = model
+    else:
+        noticks = True
+    if len(model) == X.shape[1]:
+        model = np.concatenate((np.zeros(1, model.dtype), model))
+        alpha = np.concatenate((np.zeros(1, model.dtype), alpha))
         variables[0] = ""
+    order = get_explanation_order(alpha, True)
     bins = max(10, min(50, len(Y) // 20))
+    model = model[order]
     alpha = alpha[order]
     if impact is not None:
         impact = impact[order] / np.max(np.abs(impact)) * np.max(np.abs(alpha))
     variables = [variables[i] for i in order]
+    subset_size = subset.mean()
     # Figures:
     plot = False
     if isinstance(fig, Figure):
@@ -257,7 +269,6 @@ def plot_dist(
         fig, axs = plt.subplots(len(order), 2)
     fig.suptitle(title)
     # Density plots
-    subset_size = subset.mean()
 
     def fill_density(ax, X, x, n):
         kde1 = gaussian_kde(X, 0.25)
@@ -279,6 +290,16 @@ def plot_dist(
     for i, k, n in zip(range(1, len(order)), order[1:] - 1, variables[1:]):
         fill_density(axs[i, 0], X[:, k], x[k] if x is not None else None, n)
     # Bar plots
+    def text(x, y, v):
+        axbig.text(
+            x,
+            y,
+            f"{v:.{decimals}f}",
+            ha="center",
+            va="center",
+            bbox=dict(boxstyle="square", fc="white"),
+        )
+
     gs = axs[0, 1].get_gridspec()
     for ax in axs[:, 1]:
         ax.remove()
@@ -295,12 +316,18 @@ def plot_dist(
     if impact is None:
         column_color = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
         axbig.barh(ticks, alpha, color=column_color)
+        for y, x, v in zip(ticks, 0 * alpha, model):
+            text(x, y, v)
     else:
         axbig.barh(
             ticks - 0.2, alpha, height=0.35, color=SLISE_PURPLE, label="Linear Model"
         )
+        for y, x, v in zip(ticks - 0.2, 0 * alpha, model):
+            text(x, y, v)
         axbig.barh(ticks + 0.2, impact, height=0.35, color=SLISE_ORANGE, label="Impact")
         axbig.legend()
+    if noticks:
+        axbig.set_xticks([])
     axbig.yaxis.tick_right()
     # meta
     fig.tight_layout()
@@ -308,11 +335,11 @@ def plot_dist(
         plt.show()
 
 
-def plot_explanation_image(
+def plot_image(
     x: np.ndarray,
     y: float,
     Y: np.ndarray,
-    alpha: np.ndarray,
+    model: np.ndarray,
     width: int,
     height: int,
     saturated: bool = True,
@@ -327,7 +354,7 @@ def plot_explanation_image(
         x (np.ndarray): the explained item
         y (float): the explained outcome
         Y (np.ndarray): dataset response vector (used for guessing prediction formatting)
-        alpha (np.ndarray): the approximating model
+        model (np.ndarray): the approximating model
         width (int): the width of the image
         height (int): the height of the image
         saturated (bool, optional): should the explanation be more saturated. Defaults to True.
@@ -336,12 +363,12 @@ def plot_explanation_image(
         decimals (int, optional): the number of decimals to write. Defaults to 3.
         fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
-    intercept = alpha[0]
-    alpha = alpha[1:]
-    alpha.shape = (width, height)
+    intercept = model[0]
+    model = model[1:]
+    model.shape = (width, height)
     x.shape = (width, height)
     if saturated:
-        alpha = sigmoid(alpha * (4 / np.max(np.abs(alpha))))
+        model = sigmoid(model * (4 / np.max(np.abs(model))))
     if fig is None:
         fig, [ax1, ax2] = plt.subplots(1, 2)
         plot = True
@@ -357,7 +384,7 @@ def plot_explanation_image(
     ax1.set_xlabel(fill_prediction_str(y, Y, classes, decimals))
     # Explanation Image
     ax2.imshow(
-        alpha,
+        model,
         interpolation="none",
         cmap=SLISE_COLORMAP,
         norm=Normalize(vmin=-0.1, vmax=1.1),

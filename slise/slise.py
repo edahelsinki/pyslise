@@ -25,7 +25,7 @@ from slise.plot import (
     fill_column_names,
     fill_prediction_str,
     plot_dist,
-    plot_explanation_image,
+    plot_image,
 )
 
 
@@ -389,6 +389,7 @@ class SliseRegression:
         self,
         title: str = "SLISE Regression",
         variables: list = None,
+        decimals: int = 3,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
         """Plot the regression with density distributions for the dataset and a barplot for the model.
@@ -396,18 +397,25 @@ class SliseRegression:
         Args:
             title (str, optional): title of the plot. Defaults to "SLISE Explanation".
             variables (list, optional): names for the variables. Defaults to None.
+            decimals (int, optional): the number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
+        if self.normalise:
+            alpha = add_constant_columns(self.alpha, self.scale.columns, self.intercept)
+        else:
+            alpha = None
         plot_dist(
             self.X,
             self.Y,
             self.coefficients,
             self.subset(),
+            alpha,
             None,
             None,
             None,
             title,
             variables,
+            decimals,
             fig,
         )
 
@@ -754,7 +762,7 @@ class SliseExplainer:
             decimals (int, optional): the number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
-        plot_explanation_image(
+        plot_image(
             self.x,
             self.y,
             self.Y,
@@ -772,6 +780,7 @@ class SliseExplainer:
         self,
         title: str = "SLISE Explanation",
         variables: list = None,
+        decimals: int = 3,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
         """Plot the current explanation with density distributions for the dataset and a barplot for the model.
@@ -786,17 +795,25 @@ class SliseExplainer:
         Args:
             title (str, optional): title of the plot. Defaults to "SLISE Explanation".
             variables (list, optional): names for the variables. Defaults to None.
+            decimals (int, optional): the number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
+        if self.normalise:
+            alpha = add_constant_columns(self.alpha, self.scale.columns, True)
+        else:
+            alpha = None
         plot_dist(
             self.X,
             self.Y,
             self.coefficients,
             self.subset(),
+            alpha,
             self.x,
             self.y,
             self.get_impact(),
             title,
             variables,
+            decimals,
             fig,
         )
+
