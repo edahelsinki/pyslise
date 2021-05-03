@@ -22,20 +22,21 @@ SLISE_DARKPURPLE = "#5e3c99"
 SLISE_COLORMAP = LinearSegmentedColormap.from_list(
     "SLISE", [SLISE_DARKORANGE, SLISE_ORANGE, "#ffffff", SLISE_PURPLE, SLISE_DARKPURPLE]
 )
+BW_COLORMAP = LinearSegmentedColormap.from_list("BW", ["black", "white"])
 
 
 def fill_column_names(
     names: Union[List[str], None] = None, amount: int = -1, intercept: bool = False
-) -> list:
+) -> List[str]:
     """Make sure the list of column names is of the correct size
 
-    Keyword Arguments:
-        names {list} -- prefilled list of column names (default: {None})
-        amount {int} -- the number of columns, including intercept (default: {-1})
-        intercept {bool} -- is the first column an intercept column (default: {False})
+    Args:
+        names (Union[List[str], None], optional): prefilled list of column names. Defaults to None.
+        amount (int, optional): the number of columns. Defaults to -1.
+        intercept (bool, optional): should an intercept column be added. Defaults to False.
 
     Returns:
-        list -- list of column names
+        List[str]: list of column names
     """
     if amount < 1:
         return names
@@ -57,37 +58,40 @@ def fill_column_names(
 
 
 def fill_prediction_str(
-    y: float, class_names: Union[List[str], None] = None, decimals: int = 3
+    y: float,
+    Y: np.ndarray,
+    classes: Union[List[str], str, None] = None,
+    decimals: int = 3,
 ) -> str:
-    """Fill a string with the prediction meassage for explanations
+    """Create a string describing the prediction
 
-    Arguments:
-        y {float} -- the prediction
-
-    Keyword Arguments:
-        class_names {list} -- list of class names, if classification (default: {None})
-        decimals {int} -- the decimal precision (default: {3})
+    Args:
+        y (float): the prediction
+        Y (np.ndarray): vector of predictions (used to guess if the predictions are probabilities)
+        classes (Union[List[str], str, None], optional): list of class names (starting with the negative class), or singular class name. Defaults to None.
+        decimals (int, optional): how many decimals hsould be written. Defaults to 3.
 
     Returns:
-        str -- the formatted message
+        str: description of prediction
     """
-    if class_names is not None:
-        if len(class_names) > 1:
-            if y >= 0.0 and y <= 1.0:
+    if classes is not None:
+        prob = (0 <= Y.min() < 0.5) and (0.5 < Y.max() <= 1)
+        if isinstance(classes, str):
+            if prob:
+                return f"Predicted: {y*100:.{decimals}f}% {classes[0]}"
+            else:
+                return f"Predicted: {y:.{decimals}f} {classes}"
+        else:
+            if prob:
                 if y > 0.5:
-                    return f"Predicted: {y*100:.{decimals}f}% {class_names[1]}"
+                    return f"Predicted: {y*100:.{decimals}f}% {classes[1]}"
                 else:
-                    return f"Predicted: {(1-y)*100:.{decimals}f}% {class_names[0]}"
+                    return f"Predicted: {(1-y)*100:.{decimals}f}% {classes[0]}"
             else:
                 if y > 0:
-                    return f"Predicted: {y:.{decimals}f} {class_names[1]}"
+                    return f"Predicted: {y:.{decimals}f} {classes[1]}"
                 else:
-                    return f"Predicted: {-y:.{decimals}f} {class_names[0]}"
-        else:
-            if y >= 0.0 and y <= 1.0:
-                return f"Predicted: {y*100:.{decimals}f}% {class_names[0]}"
-            else:
-                return f"Predicted: {y:.{decimals}f} {class_names[0]}"
+                    return f"Predicted: {-y:.{decimals}f} {classes[0]}"
     else:
         return f"Predicted: {y:.{decimals}f}"
 
@@ -102,89 +106,6 @@ def extended_limits(
         return np.array([min - diff * extension, max + diff * extension])
     else:
         return np.linspace(min - diff * extension, max + diff * extension, steps)
-
-
-def plot_2d(
-    X: np.ndarray,
-    Y: np.ndarray,
-    alpha: np.ndarray,
-    epsilon: float,
-    x: Union[np.ndarray, None] = None,
-    y: Union[float, None] = None,
-    logit: bool = False,
-    title: str = "SLISE for Robust Regression",
-    label_x: str = "x",
-    label_y: str = "y",
-    decimals: int = 3,
-    fig: Union[Axes, None] = None,
-):
-    """Plot the regression/explanation in a 2D scatter plot with a line for the regression model (and the explained item marked)
-
-    Args:
-        X (np.ndarray): data matrix
-        Y (np.ndarray): response vector
-        alpha (np.ndarray): regression model
-        epsilon (float): error tolerance
-        x (Union[np.ndarray, None], optional): explained item. Defaults to None.
-        y (Union[float, None], optional): explained outcome. Defaults to None.
-        logit (bool, optional): should Y be logit-transformed. Defaults to False.
-        title (str, optional): plot title. Defaults to "SLISE for Robust Regression".
-        label_x (str, optional): x-axis label. Defaults to "x".
-        label_y (str, optional): y-axis label. Defaults to "y".
-        decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-        fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
-
-    Raises:
-        SliseException: if the data has too many dimensions
-    """
-    if fig is None:
-        fig = plt
-    if X.size != Y.size:
-        raise SliseException(f"Can only plot 1D data, |Y| = {Y.size} != {X.size} = |X|")
-    x_limits = extended_limits(X, 0.03, 20 if logit else 2)
-    y_limits = mat_mul_inter(x_limits[:, None], alpha)
-    if logit:
-        fig.fill_between(
-            x_limits,
-            sigmoid(y_limits + epsilon),
-            sigmoid(y_limits - epsilon),
-            color=SLISE_PURPLE + "33",
-            label="Subset",
-        )
-        y_limits = sigmoid(y_limits)
-    else:
-        fig.fill_between(
-            x_limits,
-            y_limits + epsilon,
-            y_limits - epsilon,
-            color=SLISE_PURPLE + "33",
-            label="Subset",
-        )
-    fig.plot(X.ravel(), Y, "o", color="black", label="Dataset")
-    fig.plot(x_limits, y_limits, "-", color=SLISE_PURPLE, label="Model")
-    if x is not None and y is not None:
-        fig.plot(x, y, "o", color=SLISE_ORANGE, label="Explained Item")
-    formula = ""
-    if isinstance(alpha, float) or len(alpha) == 1:
-        formula = f"{float(alpha):.{decimals}f} * {label_x}"
-    elif np.abs(alpha[0]) > 1e-8:
-        sign = "-" if alpha[1] < 0.0 else "+"
-        formula = f"{alpha[0]:.{decimals}f} {sign} {abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
-    else:
-        formula = f"{alpha[1]:.{decimals}f} * {label_x}"
-    if logit:
-        formula = f"$\\sigma$({formula})"
-    fig.legend()
-    if plt == fig:
-        fig.xlabel(label_x)
-        fig.ylabel(label_y)
-        fig.title(f"{title}: {label_y} = {formula}")
-        plt.tight_layout()
-        plt.show()
-    else:
-        fig.set_xlabel(label_x)
-        fig.set_ylabel(label_y)
-        fig.set_title(f"{title}: {label_y} = {formula}")
 
 
 def get_explanation_order(
@@ -203,6 +124,89 @@ def get_explanation_order(
         if len(order) > min:
             order = order[np.nonzero(alpha[order])]
     return np.flip(order)
+
+
+def plot_2d(
+    X: np.ndarray,
+    Y: np.ndarray,
+    alpha: np.ndarray,
+    epsilon: float,
+    x: Union[np.ndarray, None] = None,
+    y: Union[float, None] = None,
+    logit: bool = False,
+    title: str = "SLISE for Robust Regression",
+    label_x: str = "x",
+    label_y: str = "y",
+    decimals: int = 3,
+    fig: Union[Figure, None] = None,
+):
+    """Plot the regression/explanation in a 2D scatter plot with a line for the regression model (and the explained item marked)
+
+    Args:
+        X (np.ndarray): data matrix
+        Y (np.ndarray): response vector
+        alpha (np.ndarray): regression model
+        epsilon (float): error tolerance
+        x (Union[np.ndarray, None], optional): explained item. Defaults to None.
+        y (Union[float, None], optional): explained outcome. Defaults to None.
+        logit (bool, optional): should Y be logit-transformed. Defaults to False.
+        title (str, optional): plot title. Defaults to "SLISE for Robust Regression".
+        label_x (str, optional): x-axis label. Defaults to "x".
+        label_y (str, optional): y-axis label. Defaults to "y".
+        decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
+        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+
+    Raises:
+        SliseException: if the data has too many dimensions
+    """
+    if fig is None:
+        plot = True
+        fig, ax = plt.subplots()
+    else:
+        ax = fig.subplots()
+        plot = False
+    if X.size != Y.size:
+        raise SliseException(f"Can only plot 1D data, |Y| = {Y.size} != {X.size} = |X|")
+    x_limits = extended_limits(X, 0.03, 20 if logit else 2)
+    y_limits = mat_mul_inter(x_limits[:, None], alpha)
+    if logit:
+        ax.fill_between(
+            x_limits,
+            sigmoid(y_limits + epsilon),
+            sigmoid(y_limits - epsilon),
+            color=SLISE_PURPLE + "33",
+            label="Subset",
+        )
+        y_limits = sigmoid(y_limits)
+    else:
+        ax.fill_between(
+            x_limits,
+            y_limits + epsilon,
+            y_limits - epsilon,
+            color=SLISE_PURPLE + "33",
+            label="Subset",
+        )
+    ax.plot(X.ravel(), Y, "o", color="black", label="Dataset")
+    ax.plot(x_limits, y_limits, "-", color=SLISE_PURPLE, label="Model")
+    if x is not None and y is not None:
+        ax.plot(x, y, "o", color=SLISE_ORANGE, label="Explained Item")
+    formula = ""
+    if isinstance(alpha, float) or len(alpha) == 1:
+        formula = f"{float(alpha):.{decimals}f} * {label_x}"
+    elif np.abs(alpha[0]) > 1e-8:
+        sign = "-" if alpha[1] < 0.0 else "+"
+        formula = f"{alpha[0]:.{decimals}f} {sign} {abs(alpha[1]):.{decimals}f} $\\cdot$ {label_x}"
+    else:
+        formula = f"{alpha[1]:.{decimals}f} * {label_x}"
+    if logit:
+        formula = f"$\\sigma$({formula})"
+    ax.legend()
+    ax.set_xlabel(label_x)
+    ax.set_ylabel(label_y)
+    ax.set_title(f"{title}: {label_y} = {formula}")
+    fig.tight_layout()
+    if plot:
+        plt.show()
 
 
 def plot_dist(
@@ -229,7 +233,7 @@ def plot_dist(
         impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): title of the plot. Defaults to "SLISE Explanation".
         column_names (list, optional): names for the variables. Defaults to None.
-        fig (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     # Values and order
     order = get_explanation_order(alpha, True)
@@ -305,62 +309,74 @@ def plot_dist(
 def plot_explanation_image(
     x: np.ndarray,
     y: float,
+    Y: np.ndarray,
     alpha: np.ndarray,
     width: int,
     height: int,
-    # scaler: DataScaler,
-    class_names: list = None,
-    decimals: int = 2,
+    saturated: bool = True,
+    title: str = "SLISE Explanation",
+    classes: Union[List, str, None] = None,
+    decimals: int = 3,
+    fig: Union[Figure, None] = None,
 ):
-    """Plot the current explanation for a black and white image (MNIST like)
+    """Plot an explanation for a black and white image (e.g. MNIST)
 
-    Arguments:
-        x {np.ndarray} -- the explained image
-        y {float} -- the explained prediction
-        alpha {np.ndarray} -- the explanation
-        width {int} -- the width of the image
-        height {int} -- the height of the image
-        scaler {DataScaler} -- scaler used to unscale the data
-
-    Keyword Arguments:
-        class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
-        decimals {int} -- the precision to use for printing (default: {2})
+    Args:
+        x (np.ndarray): the explained item
+        y (float): the explained outcome
+        Y (np.ndarray): dataset response vector (used for guessing prediction formatting)
+        alpha (np.ndarray): the approximating model
+        width (int): the width of the image
+        height (int): the height of the image
+        saturated (bool, optional): should the explanation be more saturated. Defaults to True.
+        title (str, optional): title of the plot. Defaults to "SLISE Explanation".
+        classes (Union[List, str, None], optional): list of class names (first the negative, then the positive), or a single (positive) class name. Defaults to None.
+        decimals (int, optional): the number of decimals to write. Defaults to 3.
+        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
-    alpha = scaler.unscale_model(alpha)[1:]
+    intercept = alpha[0]
+    alpha = alpha[1:]
     alpha.shape = (width, height)
     alpha = alpha.T
-    x = scaler.unscale(x)[0]
     x.shape = (width, height)
     x = x.T
-    alpha = sigmoid(alpha * (4 / np.max(np.abs(alpha))))
-    y = scaler.unscale(None, y)[1]
-    if isinstance(class_names, str):
-        class_names = ("not " + class_names, class_names)
-    plt.imshow(
+    if saturated:
+        alpha = sigmoid(alpha * (4 / np.max(np.abs(alpha))))
+    if fig is None:
+        fig, [ax1, ax2] = plt.subplots(1, 2)
+        plot = True
+    else:
+        [ax1, ax2] = fig.subplots(1, 2)
+        plot = False
+    fig.suptitle(title)
+    # Image
+    ax1.imshow(x, cmap=BW_COLORMAP)
+    ax1.set_xticks([])
+    ax1.set_yticks([])
+    ax1.set_title("Explained Item")
+    ax1.set_xlabel(fill_prediction_str(y, Y, classes, decimals))
+    # Explanation Image
+    ax2.imshow(
         alpha,
         interpolation="none",
         cmap=SLISE_COLORMAP,
         norm=Normalize(vmin=-0.1, vmax=1.1),
     )
-    plt.contour(
-        range(height),
-        range(width),
-        x,
-        levels=[np.median(x) * 0.5 + np.mean(x) * 0.5],
-        colors="black",
+    ax2.contour(range(height), range(width), x, colors="black")
+    ax2.set_xticks([])
+    ax2.set_yticks([])
+    ax2.set_title("Explanation")
+    if classes is None:
+        classes = ["Negative", "Positive"]
+    elif isinstance(classes, str):
+        classes = ["Not " + classes, classes]
+    ax2.legend(
+        (Patch(facecolor=SLISE_ORANGE), Patch(facecolor=SLISE_PURPLE)),
+        classes[:2],
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.01),
+        ncol=2,
     )
-    plt.xticks([])
-    plt.yticks([])
-    plt.title(
-        "SLISE Explanation   |   " + fill_prediction_str(y, class_names, decimals)
-    )
-    if class_names is not None:
-        plt.legend(
-            (Patch(facecolor=SLISE_ORANGE), Patch(facecolor=SLISE_PURPLE)),
-            class_names[:2],
-            loc="upper center",
-            bbox_to_anchor=(0.5, -0.01),
-            ncol=2,
-        )
-    plt.tight_layout()
-    plt.show()
+    fig.tight_layout()
+    if plot:
+        plt.show()

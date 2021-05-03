@@ -5,7 +5,7 @@
 from __future__ import annotations
 from typing import Union, Tuple, Callable, List
 from warnings import warn
-from matplotlib.pyplot import Axes, Figure
+from matplotlib.pyplot import Figure
 import numpy as np
 from scipy.special import expit as sigmoid
 from slise.data import (
@@ -56,7 +56,7 @@ def regression(
             lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
             lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
             intercept (bool, optional): add an intercept term. Defaults to True.
-            normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+            normalise (bool, optional): should X aclasses not be scaled). Defaults to False.
             initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes X, Y and gives an initial values for alpha and beta. Defaults to initialise_candidates.
             beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
             max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
@@ -356,7 +356,7 @@ class SliseRegression:
         label_x: str = "x",
         label_y: str = "y",
         decimals: int = 3,
-        axis: Union[Axes, None] = None,
+        fig: Union[Figure, None] = None,
     ) -> SliseRegression:
         """Plot the regression in a 2D scatter plot with a line for the regression model
 
@@ -365,7 +365,7 @@ class SliseRegression:
             label_x (str, optional): x-axis label. Defaults to "x".
             label_y (str, optional): y-axis label. Defaults to "y".
             decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-            axis (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
             SliseException: if the data has too many dimensions
@@ -382,7 +382,7 @@ class SliseRegression:
             label_x,
             label_y,
             decimals,
-            axis,
+            fig,
         )
 
     def plot_dist(
@@ -396,7 +396,7 @@ class SliseRegression:
         Args:
             title (str, optional): title of the plot. Defaults to "SLISE Explanation".
             column_names (list, optional): names for the variables. Defaults to None.
-            fig (Union[Figure, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
             self.X,
@@ -704,7 +704,7 @@ class SliseExplainer:
         label_x: str = "x",
         label_y: str = "y",
         decimals: int = 3,
-        axis: Union[Axes, None] = None,
+        fig: Union[Figure, None] = None,
     ) -> SliseRegression:
         """Plot the explanation in a 2D scatter plot (where the explained item is marked) with a line for the approximating model.
 
@@ -713,7 +713,7 @@ class SliseExplainer:
             label_x (str, optional): x-axis label. Defaults to "x".
             label_y (str, optional): y-axis label. Defaults to "y".
             decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-            axis (Union[Axes, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
             SliseException: if the data has too many dimensions
@@ -730,34 +730,43 @@ class SliseExplainer:
             label_x,
             label_y,
             decimals,
-            axis,
+            fig,
         )
 
     def plot_image(
-        self, width: int, height: int, class_names: list = None, decimals: int = 3
+        self,
+        width: int,
+        height: int,
+        saturated: bool = True,
+        title: str = "SLISE Explanation",
+        classes: Union[List, str, None] = None,
+        decimals: int = 3,
+        fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
-        # TODO: This needs to be updated and checked
-        """Plot the current explanation for a black and white image (MNIST like)
+        """Plot the current explanation for a black and white image (e.g. MNIST)
 
-        Arguments:
-            width {int} -- the width of the image
-            height {int} -- the height of the image
-
-        Keyword Arguments:
-            class_names {str or list} -- the names of the class (str) / classes (list), if explaining a classifier (default: {None})
-            decimals {int} -- the precision to use for printing (default: {3})
+        Args:
+            width (int): the width of the image
+            height (int): the height of the image
+            saturated (bool, optional): should the explanation be more saturated. Defaults to True.
+            title (str, optional): title of the plot. Defaults to "SLISE Explanation".
+            classes (Union[List, str, None], optional): list of class names (first the negative, then the positive), or a single (positive) class name. Defaults to None.
+            decimals (int, optional): the number of decimals to write. Defaults to 3.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_explanation_image(
             self.x,
             self.y,
+            self.Y,
             self.alpha,
             width,
             height,
-            self.scaler,
-            class_names,
+            saturated,
+            title,
+            classes,
             decimals,
+            fig,
         )
-        return self
 
     def plot_dist(
         self,
@@ -777,7 +786,7 @@ class SliseExplainer:
         Args:
             title (str, optional): title of the plot. Defaults to "SLISE Explanation".
             column_names (list, optional): names for the variables. Defaults to None.
-            fig (Union[Figure, None], optional): Pyplot axes to plot on, if None then a new plot is created and shown. Defaults to None.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
             self.X,
