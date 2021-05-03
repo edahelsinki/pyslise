@@ -25,18 +25,21 @@ pip install https://github.com/edahelsinki/pyslise
 
 ## Example
 
-SLISE, as a robust regression algorithm, is able to handle outliers, while normal least-squares regression gives skewed results:  
+SLISE is a robust regression algorithm, which means that it is able to handle outliers. This is in contrast to, e.g., normal least-squares regression, which gives skewed results in presence of outliers:  
 ![Example of Robust Regression](examples/ex1.png)
 
-**`TODO`**
+SLISE can also be used to explain outcomes from black box models by locally approximating the complex models with a simpler linear model (in a way that takes the dataset into account):  
+![Example of Robust Regression](examples/ex2.png)
 
-For more detailed examples and descriptions see the [examples](tree/master/examples) directory.
+
+For more detailed examples and descriptions see the [examples](https://github.com/edahelsinki/pyslise/tree/master/examples) directory.
 
 ## Dependencies
 
-- Python 3
-- numpy
-- scipy
-- PyLBFGS
-- mumba
+This implementation is requires Python 3 and the following packages:
+
 - matplotlib
+- numba
+- numpy
+- PyLBFGS
+- scipy
