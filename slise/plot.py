@@ -109,7 +109,7 @@ def extended_limits(
 
 
 def get_explanation_order(
-    alpha: np.ndarray, intercept: bool = True, min: int = 5
+    alpha: np.ndarray, intercept: bool = True, min: int = 5, th=1e-6
 ) -> (np.ndarray, np.ndarray):
     """
         Get the order in which to show the values in the plots
@@ -118,11 +118,15 @@ def get_explanation_order(
         order = np.argsort(alpha[1:]) + 1
         if len(order) > min:
             order = order[np.nonzero(alpha[order])]
+            if len(order) > min:
+                order = order[np.abs(alpha[order]) > np.max(np.abs(alpha)) * th]
         order = np.concatenate((order, np.zeros(1, order.dtype)))
     else:
         order = np.argsort(alpha)
         if len(order) > min:
             order = order[np.nonzero(alpha[order])]
+            if len(order) > min:
+                order = order[np.abs(alpha[order]) > np.max(np.abs(alpha)) * th]
     return np.flip(order)
 
 
