@@ -22,7 +22,7 @@ from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning, mat_mul_inter, limited_logit
 from slise.plot import (
     plot_2d,
-    fill_variables,
+    fill_column_names,
     fill_prediction_str,
     plot_dist,
     plot_explanation_image,
@@ -330,7 +330,7 @@ class SliseRegression:
             alpha = add_constant_columns(alpha, self.scale.columns, self.intercept)
         if len(alpha) < len(coeff):
             alpha = np.concatenate(([0.0], alpha))
-        variables = fill_variables(variables, self.X.shape[1], intercept)
+        variables = fill_column_names(variables, self.X.shape[1], intercept)
         alpha = ["%%.%df" % decimals % a for a in alpha]
         coeff = ["%%.%df" % decimals % a for a in coeff]
         col_len = max(
@@ -639,7 +639,7 @@ class SliseExplainer:
             classes (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
-        variables = fill_variables(variables, self.X.shape[1], True)[1:]
+        variables = fill_column_names(variables, self.X.shape[1], True)[1:]
         alpha = self.alpha[1:]
         unscaled = self.x
         scaled = unscaled
