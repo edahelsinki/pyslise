@@ -202,7 +202,7 @@ class SliseRegression:
             SliseRegression: self, containing the regression result
         """
         if len(X.shape) == 1:
-            X.shape += (1,)
+            X = np.reshape(X, X.shape + (1,))
         self.X = X
         self.Y = Y
         # Preprocessing
@@ -464,7 +464,7 @@ class SliseExplainer:
         self.max_iterations = max_iterations
         self.debug = debug
         if len(X.shape) == 1:
-            X.shape += (1,)
+            X = np.reshape(X, X.shape + (1,))
         self.X = X
         self.Y = Y
         self.x = None

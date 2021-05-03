@@ -187,9 +187,11 @@ def plot_2d(
             label="Subset",
         )
     ax.plot(X.ravel(), Y, "o", color="black", label="Dataset")
-    ax.plot(x_limits, y_limits, "-", color=SLISE_PURPLE, label="Model")
     if x is not None and y is not None:
+        ax.plot(x_limits, y_limits, "-", color=SLISE_PURPLE, label="Model")
         ax.plot(x, y, "o", color=SLISE_ORANGE, label="Explained Item")
+    else:
+        ax.plot(x_limits, y_limits, "-", color=SLISE_ORANGE, label="Model")
     formula = ""
     if isinstance(alpha, float) or len(alpha) == 1:
         formula = f"{float(alpha):.{decimals}f} * {label_x}"
