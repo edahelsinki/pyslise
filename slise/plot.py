@@ -8,7 +8,7 @@ import numpy as np
 from scipy.stats import gaussian_kde
 from scipy.special import expit as sigmoid
 from matplotlib import pyplot as plt
-from matplotlib.pyplot import Axes, Figure
+from matplotlib.pyplot import Figure
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
 from slise.utils import SliseException, SliseWarning, mat_mul_inter, limited_logit
@@ -218,7 +218,7 @@ def plot_dist(
     y: Union[float, None] = None,
     impact: Union[np.ndarray, None] = None,
     title: str = "SLISE Explanation",
-    column_names: list = None,
+    variables: list = None,
     fig: Union[Figure, None] = None,
 ):
     """Plot the SLISE result with density distributions for the dataset and barplot for the model
@@ -232,20 +232,20 @@ def plot_dist(
         y (Union[float, None], optional): the explained outcome (if it is an explanation). Defaults to None.
         impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-        column_names (list, optional): names for the variables. Defaults to None.
+        variables (list, optional): names for the (columns/) variables. Defaults to None.
         fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     # Values and order
     order = get_explanation_order(alpha, True)
-    column_names = fill_column_names(column_names, X.shape[1], True)
+    variables = fill_column_names(variables, X.shape[1], True)
     if len(alpha) == X.shape[1]:
         alpha = np.concatenate((np.zeros(1, alpha.dtype), alpha))
-        column_names[0] = ""
+        variables[0] = ""
     bins = max(10, min(50, len(Y) // 20))
     alpha = alpha[order]
     if impact is not None:
         impact = impact[order] / np.max(np.abs(impact)) * np.max(np.abs(alpha))
-    column_names = [column_names[i] for i in order]
+    variables = [variables[i] for i in order]
     # Figures:
     plot = False
     if isinstance(fig, Figure):
@@ -274,7 +274,7 @@ def plot_dist(
     fill_density(axs[0, 0], Y, y, "Response")
     axs[0, 0].legend()
     axs[0, 0].set_title("Dataset Distribution")
-    for i, k, n in zip(range(1, len(order)), order[1:] - 1, column_names[1:]):
+    for i, k, n in zip(range(1, len(order)), order[1:] - 1, variables[1:]):
         fill_density(axs[i, 0], X[:, k], x[k] if x is not None else None, n)
     # Bar plots
     gs = axs[0, 1].get_gridspec()
@@ -285,9 +285,9 @@ def plot_dist(
         axbig.set_title("Linear Model")
     else:
         axbig.set_title("Explanation")
-    ticks = np.arange(len(column_names))
+    ticks = np.arange(len(variables))
     axbig.set_yticks(ticks)
-    axbig.set_yticklabels(column_names)
+    axbig.set_yticklabels(variables)
     axbig.set_ylim(bottom=ticks[0] - 0.45, top=ticks[-1] + 0.45)
     axbig.invert_yaxis()
     if impact is None:

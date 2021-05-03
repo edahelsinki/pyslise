@@ -22,7 +22,7 @@ from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning, mat_mul_inter, limited_logit
 from slise.plot import (
     plot_2d,
-    fill_column_names,
+    fill_variables,
     fill_prediction_str,
     plot_dist,
     plot_explanation_image,
@@ -315,12 +315,12 @@ class SliseRegression:
         return (Y2 - Y) ** 2 < self.epsilon ** 2
 
     def print(
-        self, column_names: Union[List[str], None] = None, decimals: int = 3
+        self, variables: Union[List[str], None] = None, decimals: int = 3
     ) -> SliseRegression:
         """Print the current robust regression result
 
         Args:
-            column_names ( Union[List[str], None], optional): names of the variables/columns in X. Defaults to None.
+            variables ( Union[List[str], None], optional): names of the variables/columns in X. Defaults to None.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         intercept = self.intercept or len(self.coefficients) > self.X.shape[1]
@@ -330,19 +330,19 @@ class SliseRegression:
             alpha = add_constant_columns(alpha, self.scale.columns, self.intercept)
         if len(alpha) < len(coeff):
             alpha = np.concatenate(([0.0], alpha))
-        column_names = fill_column_names(column_names, self.X.shape[1], intercept)
+        variables = fill_variables(variables, self.X.shape[1], intercept)
         alpha = ["%%.%df" % decimals % a for a in alpha]
         coeff = ["%%.%df" % decimals % a for a in coeff]
         col_len = max(
             8,
-            max(len(s) for s in column_names),
+            max(len(s) for s in variables),
             max(len(a) for a in alpha),
             max(len(a) for a in coeff),
         )
         assert len(alpha) == len(coeff)
-        assert len(alpha) == len(column_names)
+        assert len(alpha) == len(variables)
         print("SLISE Regression")
-        print("Variables:   ", " ".join([f"{s:>{col_len}}" for s in column_names]))
+        print("Variables:   ", " ".join([f"{s:>{col_len}}" for s in variables]))
         print("Coefficients:", " ".join([f"{s:>{col_len}}" for s in coeff]))
         if self.normalise:
             print("Scaled Alpha:", " ".join([f"{s:>{col_len}}" for s in alpha]))
@@ -388,14 +388,14 @@ class SliseRegression:
     def plot_dist(
         self,
         title: str = "SLISE Regression",
-        column_names: list = None,
+        variables: list = None,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
         """Plot the regression with density distributions for the dataset and a barplot for the model.
 
         Args:
             title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-            column_names (list, optional): names for the variables. Defaults to None.
+            variables (list, optional): names for the variables. Defaults to None.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
@@ -407,7 +407,7 @@ class SliseRegression:
             None,
             None,
             title,
-            column_names,
+            variables,
             fig,
         )
 
@@ -628,18 +628,18 @@ class SliseExplainer:
 
     def print(
         self,
-        column_names: Union[List[str], None] = None,
-        class_names: Union[List[str], None] = None,
+        variables: Union[List[str], None] = None,
+        classes: Union[List[str], None] = None,
         decimals: int = 3,
     ) -> SliseExplainer:
         """Print the current explanation
 
         Args:
-            column_names (Union[List[str], None], optional): the names of the features/variables. Defaults to None.
-            class_names (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
+            variables (Union[List[str], None], optional): the names of the (columns/) variables. Defaults to None.
+            classes (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
-        column_names = fill_column_names(column_names, self.X.shape[1], True)[1:]
+        variables = fill_variables(variables, self.X.shape[1], True)[1:]
         alpha = self.alpha[1:]
         unscaled = self.x
         scaled = unscaled
@@ -647,7 +647,7 @@ class SliseExplainer:
             scaled = self.scale.scale_x(unscaled)
             if self.scale.columns is not None:
                 unscaled = unscaled[self.scale.columns]
-                column_names = column_names[self.scale.columns]
+                variables = variables[self.scale.columns]
         impact = scaled * alpha
         alpha = ["%%.%df" % decimals % a for a in alpha]
         impact = ["%%.%df" % decimals % a for a in impact]
@@ -655,7 +655,7 @@ class SliseExplainer:
         col_len = (
             max(
                 8,
-                np.max([len(s) for s in column_names]),
+                np.max([len(s) for s in variables]),
                 np.max([len(a) for a in alpha]),
                 np.max([len(a) for a in impact]),
                 np.max([len(a) for a in unscaled]),
@@ -664,11 +664,11 @@ class SliseExplainer:
         )
         assert len(alpha) == len(impact)
         assert len(alpha) == len(unscaled)
-        assert len(alpha) == len(column_names)
+        assert len(alpha) == len(variables)
         subset = self.subset()
         print("SLISE Explanation")
-        print(fill_prediction_str(self.y, class_names, decimals))
-        print("Variables:", " ".join([f"{s:>{col_len}}" for s in column_names]))
+        print(fill_prediction_str(self.y, self.Y, classes, decimals))
+        print("Variables:", " ".join([f"{s:>{col_len}}" for s in variables]))
         print("Values:   ", " ".join([f"{s:>{col_len}}" for s in unscaled]))
         print("Weights:  ", " ".join([f"{s:>{col_len}}" for s in alpha]))
         print("Impact:   ", " ".join([f"{s:>{col_len}}" for s in impact]))
@@ -677,9 +677,9 @@ class SliseExplainer:
         print(f"Subset:    {subset.mean():>{col_len}.{decimals}f}")
         print(f"Epsilon:   {self.epsilon:>{col_len}.{decimals}f}")
         if self.logit:
-            if isinstance(class_names, list) and len(class_names) == 2:
+            if isinstance(classes, list) and len(classes) == 2:
                 print(
-                    f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% {class_names[0]} / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}% {class_names[1]}"
+                    f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% {classes[0]} / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}% {classes[1]}"
                 )
             else:
                 print(
@@ -771,7 +771,7 @@ class SliseExplainer:
     def plot_dist(
         self,
         title: str = "SLISE Explanation",
-        column_names: list = None,
+        variables: list = None,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
         """Plot the current explanation with density distributions for the dataset and a barplot for the model.
@@ -785,7 +785,7 @@ class SliseExplainer:
 
         Args:
             title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-            column_names (list, optional): names for the variables. Defaults to None.
+            variables (list, optional): names for the variables. Defaults to None.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
@@ -797,6 +797,6 @@ class SliseExplainer:
             self.y,
             self.get_impact(),
             title,
-            column_names,
+            variables,
             fig,
         )
