@@ -267,10 +267,10 @@ def plot_dist(
     # Figures:
     plot = False
     if isinstance(fig, Figure):
-        axs = fig.subplots(len(order), 2)
+        axs = fig.subplots(len(order), 2, squeeze=False)
     else:
         plot = True
-        fig, axs = plt.subplots(len(order), 2)
+        fig, axs = plt.subplots(len(order), 2, squeeze=False)
     fig.suptitle(title)
     # Density plots
 
@@ -288,7 +288,10 @@ def plot_dist(
             n, rotation=0, horizontalalignment="right", verticalalignment="center"
         )
 
-    fill_density(axs[0, 0], Y, y, "Response")
+    if x is None and y is None:
+        fill_density(axs[0, 0], Y, y, "Response")
+    else:
+        fill_density(axs[0, 0], Y, y, "Prediction")
     axs[0, 0].legend()
     axs[0, 0].set_title("Dataset Distribution")
     for i, k, n in zip(range(1, len(order)), order[1:] - 1, variables[1:]):
