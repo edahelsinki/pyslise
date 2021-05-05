@@ -257,16 +257,15 @@ def plot_dist(
         alpha = np.concatenate((np.zeros(1, model.dtype), alpha))
         variables[0] = ""
     order = get_explanation_order(alpha, True)
-    bins = max(10, min(50, len(Y) // 20))
     model = model[order]
     alpha = alpha[order]
     if impact is not None:
         impact = impact[order] / np.max(np.abs(impact)) * np.max(np.abs(alpha))
     variables = [variables[i] for i in order]
-    subset_size = subset.mean()
+    subsize = subset.mean()
     # Figures:
-    plot = False
     if isinstance(fig, Figure):
+        plot = False
         axs = fig.subplots(len(order), 2, squeeze=False)
     else:
         plot = True
@@ -275,11 +274,16 @@ def plot_dist(
     # Density plots
 
     def fill_density(ax, X, x, n):
-        kde1 = gaussian_kde(X, 0.25)
-        kde2 = gaussian_kde(X[subset], 0.25)
+        kde1 = gaussian_kde(X, 0.2)
+        kde2 = gaussian_kde(X[subset], 0.2)
         lim = extended_limits(X, 0.1, 100)
         ax.plot(lim, kde1(lim), color="black", label="Dataset")
-        ax.plot(lim, kde2(lim) * subset_size, color=SLISE_PURPLE, label="Subset")
+        ax.plot(
+            lim,
+            kde2(lim) * subsize,
+            color=SLISE_PURPLE,
+            label=f"Subset: {subsize * 100:.0f}%",
+        )
         if x is not None:
             ax.relim()
             ax.vlines(x, *ax.get_ylim(), color=SLISE_ORANGE, label="Explained Item")
@@ -412,5 +416,50 @@ def plot_image(
         ncol=2,
     )
     fig.tight_layout()
+    if plot:
+        plt.show()
+
+
+def plot_dist_single(
+    data: np.ndarray,
+    subset: np.ndarray,
+    item: Union[float, None] = None,
+    title: str = "Response Distribution",
+    decimals: int = 0,
+    fig: Union[Figure, None] = None,
+):
+    """Plot a density distributions for a single vector of the dataset
+
+    Args:
+        data (np.ndarray): vector
+        subset (np.ndarray): selected subset
+        item (Union[np.ndarray, None], optional): the explained item (if it is an explanation). Defaults to None.
+        title (str, optional): title of the plot. Defaults to "Response Distribution".
+        decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
+        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+    """
+    subsize = subset.mean()
+    if isinstance(fig, Figure):
+        ax = fig.subplots(1, 1)
+        plot = False
+    else:
+        fig, ax = plt.subplots(1, 1)
+        plot = True
+    ax.set_title(title)
+    kde1 = gaussian_kde(data, 0.2)
+    kde2 = gaussian_kde(data[subset], 0.2)
+    lim = extended_limits(data, 0.1, 100)
+    ax.plot(lim, kde1(lim), color="black", label="Dataset")
+    ax.plot(
+        lim,
+        kde2(lim) * subsize,
+        color=SLISE_PURPLE,
+        label=f"Subset: {subsize * 100:.{decimals}f}%",
+    )
+    if item is not None:
+        ax.relim()
+        ax.vlines(item, *ax.get_ylim(), color=SLISE_ORANGE, label="Explained Item")
+    ax.set_yticks([])
+    ax.legend()
     if plot:
         plt.show()

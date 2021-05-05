@@ -114,9 +114,9 @@ def mat_mul_inter(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     """
     alpha = np.atleast_1d(alpha)
     if len(X.shape) == 1:
-        if len(alpha) == len(X):
+        if len(alpha) == X.size:
             return np.sum(alpha[1:] * X)
-        if len(alpha) == len(X) + 1:
+        if len(alpha) == X.size + 1:
             return alpha[0] + np.sum(alpha[1:] * X)
         else:
             X = np.reshape(X, X.shape + (1,))

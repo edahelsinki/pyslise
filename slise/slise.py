@@ -26,6 +26,7 @@ from slise.plot import (
     fill_prediction_str,
     plot_dist,
     plot_image,
+    plot_dist_single,
 )
 
 
@@ -228,6 +229,9 @@ class SliseRegression:
         """
         if len(X.shape) == 1:
             X = np.reshape(X, X.shape + (1,))
+        else:
+            X = X.copy()
+        Y = Y.copy()
         self.X = X
         self.Y = Y
         # Preprocessing
@@ -444,6 +448,21 @@ class SliseRegression:
             fig,
         )
 
+    def plot_subset(
+        self,
+        title: str = "Response Distribution",
+        decimals: int = 0,
+        fig: Union[Figure, None] = None,
+    ):
+        """Plot a density distributions for response and the response of the subset
+
+        Args:
+            title (str, optional): title of the plot. Defaults to "Response Distribution".
+            decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+        """
+        plot_dist_single(self.Y, self.subset(), None, title, decimals, fig)
+
 
 class SliseExplainer:
     """
@@ -510,6 +529,9 @@ class SliseExplainer:
         self.debug = debug
         if len(X.shape) == 1:
             X = np.reshape(X, X.shape + (1,))
+        else:
+            X = X.copy()
+        Y = Y.copy()
         self.X = X
         self.Y = Y
         self.x = None
@@ -551,6 +573,7 @@ class SliseExplainer:
             y = self.Y2[x]
             x = self.X2[x, :]
         else:
+            x = np.atleast_1d(x)
             self.x = x
             self.y = y
             if self.logit:
@@ -854,3 +877,17 @@ class SliseExplainer:
             fig,
         )
 
+    def plot_subset(
+        self,
+        title: str = "Prediction Distribution",
+        decimals: int = 0,
+        fig: Union[Figure, None] = None,
+    ):
+        """Plot a density distributions for predictions and the predictions of the subset
+
+        Args:
+            title (str, optional): title of the plot. Defaults to "Prediction Distribution".
+            decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
+            fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+        """
+        plot_dist_single(self.Y, self.subset(), self.y, title, decimals, fig)

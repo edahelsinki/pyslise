@@ -36,10 +36,12 @@ def test_dist():
     reg.plot_dist(fig=plt.figure())
     exp = explain(X, Y, 0.1, 5, lambda1=0.01, lambda2=0.01)
     exp.plot_dist(fig=plt.figure())
-    Y -= Y.min() - 0.01
+    Y = Y - Y.min() - 0.01
     Y /= Y.max() + 0.01
     exp = explain(X, Y, 1.0, 5, lambda1=0.01, lambda2=0.01, logit=True)
     exp.plot_dist(fig=plt.figure())
+    reg.plot_subset(fig=plt.figure())
+    exp.plot_subset(fig=plt.figure())
     # plt.show()
     plt.close("all")
 
