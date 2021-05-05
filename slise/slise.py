@@ -46,25 +46,32 @@ def regression(
     debug: bool = False,
 ) -> SliseRegression:
     """Use SLISE for robust regression
-        It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
-        This is a wrapper that is equivalent to `SliseRegression(epsilon, **kwargs).fit(X, Y)`
 
-        Args:
-            X (np.ndarray): the data matrix
-            Y (np.ndarray): the response vector
-            epsilon (float): the error tolerance
-            lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
-            lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
-            intercept (bool, optional): add an intercept term. Defaults to True.
-            normalise (bool, optional): should X aclasses not be scaled). Defaults to False.
-            initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes X, Y and gives an initial values for alpha and beta. Defaults to initialise_candidates.
-            beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
-            max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
-            max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
-            debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
+    In robust regression we fit regression models that can handle data that
+    contains outliers. SLISE accomplishes this by fitting a model such that
+    the largest possible subset of the data items have an error less than a
+    given value. All items with an error larger than that are considered
+    potential outliers and do not affect the resulting model.
 
-        Returns:
-            SliseRegression: object containing the regression result
+    It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
+    This is a wrapper that is equivalent to `SliseRegression(epsilon, **kwargs).fit(X, Y)`
+
+    Args:
+        X (np.ndarray): the data matrix
+        Y (np.ndarray): the response vector
+        epsilon (float): the error tolerance
+        lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
+        lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
+        intercept (bool, optional): add an intercept term. Defaults to True.
+        normalise (bool, optional): should X aclasses not be scaled). Defaults to False.
+        initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes X, Y and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+        beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
+        max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
+        debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
+
+    Returns:
+        SliseRegression: object containing the regression result
     """
     return SliseRegression(
         epsilon,
@@ -99,8 +106,19 @@ def explain(
     debug: bool = False,
 ) -> SliseExplainer:
     """Use SLISE for explaining outcomes from black box models.
-        It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
-        This is a wrapper that is equivalent to `SliseExplainer(X, Y, epsilon, **kwargs).explain(x, y)`
+
+    SLISE can also be used to provide local model-agnostic explanations for
+    outcomes from black box models. To do this we replace the ground truth
+    response vector with the predictions from the complex model. Furthermore, we
+    force the model to fit a selected item (making the explanation local). This
+    gives us a local approximation of the complex model with a simpler linear
+    model. In contrast to other methods SLISE creates explanations using real
+    data (not some discretised and randomly sampled data) so we can be sure that
+    all inputs are valid (i.e. in the correct data manifold, and follows the
+    constraints used to generate the data, e.g., the laws of physics).
+
+    It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
+    This is a wrapper that is equivalent to `SliseExplainer(X, Y, epsilon, **kwargs).explain(x, y)`
 
     Args:
         X (np.ndarray): the data matrix
@@ -159,6 +177,13 @@ class SliseRegression:
         debug: bool = False,
     ):
         """Use SLISE for robust regression.
+
+        In robust regression we fit regression models that can handle data that
+        contains outliers. SLISE accomplishes this by fitting a model such that
+        the largest possible subset of the data items have an error less than a
+        given value. All items with an error larger than that are considered
+        potential outliers and do not affect the resulting model.
+
         This constructor prepares the parameters, call `fit` to fit a robust regression to a dataset.
         It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
@@ -192,7 +217,7 @@ class SliseRegression:
         self.scale = None
 
     def fit(self, X: np.ndarray, Y: np.ndarray) -> SliseRegression:
-        """Robustly fit a regression to a dataset
+        """Robustly fit a linear regression to a dataset
 
         Args:
             X (np.ndarray): the data matrix
@@ -444,8 +469,20 @@ class SliseExplainer:
         debug: bool = False,
     ):
         """Use SLISE for explaining outcomes from black box models.
-            This prepares the dataset used for the explanations, call `explain` on this object to explain outcomes.
-            It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
+
+        SLISE can also be used to provide local model-agnostic explanations for
+        outcomes from black box models. To do this we replace the ground truth
+        response vector with the predictions from the complex model.
+        Furthermore, we force the model to fit a selected item (making the
+        explanation local). This gives us a local approximation of the complex
+        model with a simpler linear model. In contrast to other methods SLISE
+        creates explanations using real data (not some discretised and randomly
+        sampled data) so we can be sure that all inputs are valid (i.e. in the
+        correct data manifold, and follows the constraints used to generate the
+        data, e.g., the laws of physics).
+
+        This prepares the dataset used for the explanations, call `explain` on this object to explain outcomes.
+        It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
         Args:
             X (np.ndarray): the data matrix
