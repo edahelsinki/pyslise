@@ -2,6 +2,7 @@
 
 from math import log
 from typing import Tuple
+from warnings import catch_warnings
 import numpy as np
 from slise.utils import random_sample_int
 from slise.data import pca_simple, pca_invert_model
@@ -140,7 +141,8 @@ def __create_candidate2(X: np.ndarray, Y: np.ndarray, max_iterations: int = 300)
     sel = random_sample_int(X.shape[0], 3)
     X = X[sel, :]
     Y = Y[sel]
-    return regularised_regression(X, Y, 1e-8, 0, max_iterations)
+    with catch_warnings():
+        return regularised_regression(X, Y, 1e-8, 0, max_iterations)
 
 
 def initialise_candidates2(

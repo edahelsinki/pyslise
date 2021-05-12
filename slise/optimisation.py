@@ -2,7 +2,7 @@
 
 from math import log
 from typing import Tuple, Union, Callable
-from warnings import warn
+from warnings import warn, catch_warnings
 import numpy as np
 from numba import jit
 from lbfgs import fmin_lbfgs, LBFGSError
@@ -370,16 +370,21 @@ def graduated_optimisation(
     Y = np.asfortranarray(Y, dtype=np.float64)
     beta_max = beta_max / epsilon ** 2
     max_approx = log(max_approx)
-    while beta < beta_max:
-        alpha = optimise_loss(
-            alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations
-        )
-        if debug:
-            debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
-        beta = next_beta((X @ alpha - Y) ** 2, epsilon ** 2, beta, beta_max, max_approx)
+    with catch_warnings(record=True) as w:
+        while beta < beta_max:
+            alpha = optimise_loss(
+                alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations
+            )
+            if debug:
+                debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
+            beta = next_beta(
+                (X @ alpha - Y) ** 2, epsilon ** 2, beta, beta_max, max_approx
+            )
     alpha = optimise_loss(
         alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations * 4
     )
     if debug:
         debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
+        if w:
+            print("Warnings from intermediate steps:", w)
     return alpha
