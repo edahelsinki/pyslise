@@ -21,6 +21,7 @@ from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
 from slise.utils import SliseWarning, mat_mul_inter, limited_logit
 from slise.plot import (
+    print_slise,
     plot_2d,
     fill_column_names,
     fill_prediction_str,
@@ -265,9 +266,11 @@ class SliseRegression:
             if not self.intercept:
                 if np.abs(alpha2[0]) > 1e-8:
                     warn(
-                        "Intercept introduced due to scaling (consider setting scale_*=False, or intercept=True)",
+                        "Intercept introduced due to scaling (consider setting normalise=False, or intercept=True)",
                         SliseWarning,
                     )
+                    self.intercept = True
+                    self.alpha = np.concatenate(([0], self.alpha))
                 else:
                     alpha2 = alpha2[1:]
             self.coefficients = alpha2
@@ -276,16 +279,16 @@ class SliseRegression:
             self.coefficients = self.alpha
         return self
 
-    def get_params(self, scaled: bool = False) -> np.ndarray:
+    def get_params(self, normalised: bool = False) -> np.ndarray:
         """Get the coefficients of the linear model
 
         Args:
-            scaled (bool, optional): if the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
+            normalised (bool, optional): if the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
 
         Returns:
             np.ndarray: the coefficients of the linear model
         """
-        return self.alpha if scaled else self.coefficients
+        return self.alpha if normalised else self.coefficients
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the fitted model to predict new responses
@@ -343,41 +346,25 @@ class SliseRegression:
         Y2 = mat_mul_inter(X, self.coefficients)
         return (Y2 - Y) ** 2 < self.epsilon ** 2
 
-    def print(
-        self, variables: Union[List[str], None] = None, decimals: int = 3
-    ) -> SliseRegression:
+    def print(self, variables: Union[List[str], None] = None, decimals: int = 3):
         """Print the current robust regression result
 
         Args:
             variables ( Union[List[str], None], optional): names of the variables/columns in X. Defaults to None.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
-        intercept = self.intercept or len(self.coefficients) > self.X.shape[1]
-        alpha = self.alpha
-        coeff = self.coefficients
-        if self.normalise and self.scale.columns is not None:
-            alpha = add_constant_columns(alpha, self.scale.columns, self.intercept)
-        if len(alpha) < len(coeff):
-            alpha = np.concatenate(([0.0], alpha))
-        variables = fill_column_names(variables, self.X.shape[1], intercept)
-        alpha = ["%%.%df" % decimals % a for a in alpha]
-        coeff = ["%%.%df" % decimals % a for a in coeff]
-        col_len = max(
-            8,
-            max(len(s) for s in variables),
-            max(len(a) for a in alpha),
-            max(len(a) for a in coeff),
+        print_slise(
+            self.coefficients,
+            self.intercept,
+            self.subset(),
+            self.score(),
+            self.epsilon,
+            variables,
+            "SLISE Regression",
+            decimals,
+            alpha=None if self.scale is None else self.alpha,
+            columns=None if self.scale is None else self.scale.columns,
         )
-        assert len(alpha) == len(coeff)
-        assert len(alpha) == len(variables)
-        print("SLISE Regression")
-        print("Variables:   ", " ".join([f"{s:>{col_len}}" for s in variables]))
-        print("Coefficients:", " ".join([f"{s:>{col_len}}" for s in coeff]))
-        if self.normalise:
-            print("Scaled Alpha:", " ".join([f"{s:>{col_len}}" for s in alpha]))
-        print(f"Loss:         {self.score():>{col_len}.{decimals}f}")
-        print(f"Subset:       {self.subset().mean():>{col_len}.{decimals}f}")
-        print(f"Epsilon:      {self.epsilon:>{col_len}.{decimals}f}")
 
     def plot_2d(
         self,
@@ -609,16 +596,16 @@ class SliseExplainer:
             self.coefficients = alpha
         return self
 
-    def get_params(self, scaled: bool = False) -> np.ndarray:
+    def get_params(self, normalised: bool = False) -> np.ndarray:
         """Get the explanation as the coefficients of a linear model (approximating the black box model)
 
         Args:
-            scaled (bool, optional): if the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
+            normalised (bool, optional): if the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
 
         Returns:
             np.ndarray: the coefficients of the linear model (the first scalar in the vector is the intercept)
         """
-        return self.alpha if scaled else self.coefficients
+        return self.alpha if normalised else self.coefficients
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the approximating linear model to predict new outcomes
@@ -694,12 +681,28 @@ class SliseExplainer:
             res = mat_mul_inter(X, self.coefficients) - Y
             return res ** 2 < self.epsilon ** 2
 
+    def get_impact(
+        self, normalised: bool = True, x: Union[None, np.ndarray] = None
+    ) -> np.ndarray:
+        """Get the "impact" of different variables on the outcome.
+            The impact is the (normalised) model times the (normalised) item.
+
+        Returns:
+            np.ndarray: the impact vector
+        """
+        if x is None:
+            x = self.x
+        if normalised and self.normalise:
+            return add_intercept_column(self.scale.scale_x(x)) * self.alpha
+        else:
+            return add_intercept_column(x) * self.coefficients
+
     def print(
         self,
         variables: Union[List[str], None] = None,
         classes: Union[List[str], None] = None,
         decimals: int = 3,
-    ) -> SliseExplainer:
+    ):
         """Print the current explanation
 
         Args:
@@ -707,64 +710,26 @@ class SliseExplainer:
             classes (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
-        variables = fill_column_names(variables, self.X.shape[1], True)[1:]
-        alpha = self.alpha[1:]
-        unscaled = self.x
-        scaled = unscaled
-        if self.normalise:
-            scaled = self.scale.scale_x(unscaled)
-            if self.scale.columns is not None:
-                unscaled = unscaled[self.scale.columns]
-                variables = variables[self.scale.columns]
-        impact = scaled * alpha
-        alpha = ["%%.%df" % decimals % a for a in alpha]
-        impact = ["%%.%df" % decimals % a for a in impact]
-        unscaled = ["%%.%df" % decimals % a for a in unscaled]
-        col_len = (
-            max(
-                8,
-                np.max([len(s) for s in variables]),
-                np.max([len(a) for a in alpha]),
-                np.max([len(a) for a in impact]),
-                np.max([len(a) for a in unscaled]),
-            )
-            + 1
+        print_slise(
+            self.coefficients,
+            True,
+            self.subset(),
+            self.score(),
+            self.epsilon,
+            variables,
+            "SLISE Explanation",
+            decimals,
+            unscaled=self.x,
+            unscaled_y=self.y,
+            impact=self.get_impact(False),
+            scaled=None if self.scale is None else self.scale.scale_x(self.x),
+            alpha=None if self.scale is None else self.alpha,
+            scaled_impact=None if self.scale is None else self.get_impact(),
+            columns=None if self.scale is None else self.scale.columns,
+            classes=classes,
+            unscaled_preds=self.Y,
+            logit=self.logit,
         )
-        assert len(alpha) == len(impact)
-        assert len(alpha) == len(unscaled)
-        assert len(alpha) == len(variables)
-        subset = self.subset()
-        print("SLISE Explanation")
-        print(fill_prediction_str(self.y, self.Y, classes, decimals))
-        print("Variables:", " ".join([f"{s:>{col_len}}" for s in variables]))
-        print("Values:   ", " ".join([f"{s:>{col_len}}" for s in unscaled]))
-        print("Weights:  ", " ".join([f"{s:>{col_len}}" for s in alpha]))
-        print("Impact:   ", " ".join([f"{s:>{col_len}}" for s in impact]))
-        print(f"Intercept: {self.alpha[0]:>{col_len}.{decimals}f}")
-        print(f"Loss:      {self.score():>{col_len}.{decimals}f}")
-        print(f"Subset:    {subset.mean():>{col_len}.{decimals}f}")
-        print(f"Epsilon:   {self.epsilon:>{col_len}.{decimals}f}")
-        if self.logit:
-            if isinstance(classes, list) and len(classes) == 2:
-                print(
-                    f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% {classes[0]} / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}% {classes[1]}"
-                )
-            else:
-                print(
-                    f"Class Balance: {(self.Y[subset] > 0.0).mean() * 100:>.{decimals}f}% / {(self.Y[subset] < 0.0).mean() * 100:>.{decimals}f}%"
-                )
-
-    def get_impact(self) -> np.ndarray:
-        """Get the "impact" of different variables on the outcome.
-            The impact is the (scaled) model times the (scaled) item.
-
-        Returns:
-            np.ndarray: the impact vector
-        """
-        if self.normalise:
-            return add_intercept_column(self.scale.scale_x(self.x)) * self.alpha
-        else:
-            return add_intercept_column(self.x) * self.coefficients
 
     def plot_2d(
         self,

@@ -2,6 +2,7 @@
     This script contains functions for plotting the results
 """
 
+from collections import OrderedDict
 from typing import List, Union, Tuple
 from warnings import warn
 import numpy as np
@@ -59,7 +60,7 @@ def fill_column_names(
 
 def fill_prediction_str(
     y: float,
-    Y: np.ndarray,
+    Y: Union[np.ndarray, None] = None,
     classes: Union[List[str], str, None] = None,
     decimals: int = 3,
 ) -> str:
@@ -67,7 +68,7 @@ def fill_prediction_str(
 
     Args:
         y (float): the prediction
-        Y (np.ndarray): vector of predictions (used to guess if the predictions are probabilities)
+        Y (Union[np.ndarray, None]): vector of predictions (used to guess if the predictions are probabilities). Defaults to None.
         classes (Union[List[str], str, None], optional): list of class names (starting with the negative class), or singular class name. Defaults to None.
         decimals (int, optional): how many decimals hsould be written. Defaults to 3.
 
@@ -75,7 +76,7 @@ def fill_prediction_str(
         str: description of prediction
     """
     if classes is not None:
-        prob = (0 <= Y.min() < 0.5) and (0.5 < Y.max() <= 1)
+        prob = Y is not None and (0 <= Y.min() < 0.5) and (0.5 < Y.max() <= 1)
         if isinstance(classes, str):
             if prob:
                 return f"Predicted: {y*100:.{decimals}f}% {classes[0]}"
@@ -128,6 +129,100 @@ def get_explanation_order(
             if len(order) > min:
                 order = order[np.abs(alpha[order]) > np.max(np.abs(alpha)) * th]
     return np.flip(order)
+
+
+def print_slise(
+    coefficients: np.ndarray,
+    intercept: bool,
+    subset: np.ndarray,
+    loss: float,
+    epsilon: float,
+    variables: Union[List[str], None] = None,
+    title: str = "SLISE",
+    decimals: int = 3,
+    unscaled: Union[None, np.ndarray] = None,
+    unscaled_y: Union[None, float] = None,
+    impact: Union[None, np.ndarray] = None,
+    scaled: Union[None, np.ndarray] = None,
+    alpha: Union[None, np.ndarray] = None,
+    scaled_impact: Union[None, np.ndarray] = None,
+    columns: Union[None, np.ndarray] = None,
+    classes: Union[List[str], None] = None,
+    unscaled_preds: Union[None, np.ndarray] = None,
+    logit: bool = False,
+):
+    """Print the results from SLISE
+
+    Args:
+        coefficients (np.ndarray): the linear model coefficients
+        intercept (bool): is the first coefficient an intercept
+        subset (np.ndarray): subset mask
+        loss (float): SLISE loss
+        epsilon (float): (unscaled) error tolerance
+        variables (Union[List[str], None], optional): variable names. Defaults to None.
+        title (str, optional): title to print first. Defaults to "SLISE".
+        decimals (int, optional): number of decimals to print. Defaults to 3.
+        unscaled (Union[None, np.ndarray], optional): unscaled x (explained item). Defaults to None.
+        unscaled_y (Union[None, float], optional): unscaled y (explained outcome). Defaults to None.
+        impact (Union[None, np.ndarray], optional): unscaled impact (coefficients * x). Defaults to None.
+        scaled (Union[None, np.ndarray], optional): scaled x (explained item). Defaults to None.
+        alpha (Union[None, np.ndarray], optional): scaled model. Defaults to None.
+        scaled_impact (Union[None, np.ndarray], optional): scaled impact (alpha * scaled_x). Defaults to None.
+        columns (Union[None, np.ndarray], optional): if some columns are filtered then these are kept. Defaults to None.
+        classes (Union[List[str], None], optional): class names (if applicable). Defaults to None.
+        unscaled_preds (Union[None, np.ndarray], optional): unscaled resonse (Y-vector). Defaults to None.
+        logit (bool, optional): a logit transformation has been applied. Defaults to False.
+    """
+    rows = OrderedDict()
+    rows["Variable Names:    "] = fill_column_names(
+        variables, len(coefficients) - intercept, intercept
+    )
+    if unscaled is not None:
+        rows["Explained Item:"] = [""] + ["%%.%df" % decimals % a for a in unscaled]
+        rows["Model Weights:"] = ["%%.%df" % decimals % a for a in coefficients]
+    else:
+        rows["Coefficients:"] = ["%%.%df" % decimals % a for a in coefficients]
+    if impact is not None:
+        rows["Prediction Impact:"] = ["%%.%df" % decimals % a for a in impact]
+    if columns is not None:
+        if intercept:
+            columns = np.concatenate([[0], columns + 1])
+        for k in rows:
+            rows[k] = rows[k][columns]
+    if scaled is not None:
+        rows["Normalised Item:"] = [""] + ["%%.%df" % decimals % a for a in scaled]
+    if alpha is not None:
+        rows["Normalised Weights:"] = ["%%.%df" % decimals % a for a in alpha]
+    if scaled_impact is not None:
+        rows["Normalised Impact:"] = ["%%.%df" % decimals % a for a in scaled_impact]
+    col_len = [
+        max(8, *vs) + 1
+        for vs in zip(*(tuple(len(v) for v in vs) for vs in rows.values()))
+    ]
+    lab_len = max(len(l) for l in rows)
+    print(title)
+    if unscaled_y is not None:
+        print(fill_prediction_str(unscaled_y, unscaled_preds, classes, decimals))
+    for k in rows:
+        print(
+            f"{k:<{lab_len}}", " ".join([f"{s:>{c}}" for s, c in zip(rows[k], col_len)])
+        )
+    loss = f"{loss:.{decimals}f}"
+    epsilon = f"{epsilon:.{decimals}f}"
+    subsize = f"{subset.mean():.{decimals}f}"
+    col_len = max(len(loss), len(epsilon), len(subsize), 8)
+    print(f"Loss:          {loss   :>{col_len}}")
+    print(f"Subset:        {subsize:>{col_len}}")
+    print(f"Epsilon:       {epsilon:>{col_len}}")
+    if logit and unscaled_preds is not None:
+        if isinstance(classes, list) and len(classes) == 2:
+            print(
+                f"Class Balance: {(unscaled_preds[subset] > 0.5).mean() * 100:>.{decimals}f}% {classes[0]} | {(unscaled_preds[subset] < 0.5).mean() * 100:>.{decimals}f}% {classes[1]}"
+            )
+        else:
+            print(
+                f"Class Balance: {(unscaled_preds[subset] > 0.5).mean() * 100:>.{decimals}f}% | {(unscaled_preds[subset] < 0.5).mean() * 100:>.{decimals}f}%"
+            )
 
 
 def plot_2d(
