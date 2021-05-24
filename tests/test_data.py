@@ -21,7 +21,7 @@ from .utils import *
 def test_scaling():
     print("Testing scaling")
     for i in (4, 6, 8):
-        X, Y = data_create(i * 30, i)
+        X, Y = data_create(i * 30, i, 100000)
         X2, center, scale = normalise_robust(X)
         assert np.allclose(scale_same(X, center, scale), X2)
         assert np.allclose(X2[0,], scale_same(X[0,], center, scale))

@@ -13,6 +13,7 @@ from matplotlib.pyplot import Figure
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
 from slise.utils import SliseException, SliseWarning, mat_mul_inter, limited_logit
+from slise.data import add_constant_columns
 
 
 # SLISE colors, for unified identity
@@ -140,6 +141,7 @@ def print_slise(
     variables: Union[List[str], None] = None,
     title: str = "SLISE",
     decimals: int = 3,
+    num_var: int = 10,
     unscaled: Union[None, np.ndarray] = None,
     unscaled_y: Union[None, float] = None,
     impact: Union[None, np.ndarray] = None,
@@ -162,6 +164,7 @@ def print_slise(
         variables (Union[List[str], None], optional): variable names. Defaults to None.
         title (str, optional): title to print first. Defaults to "SLISE".
         decimals (int, optional): number of decimals to print. Defaults to 3.
+        num_var (int, optional): exclude zero weights if there are too many variables. Defaults to 10.
         unscaled (Union[None, np.ndarray], optional): unscaled x (explained item). Defaults to None.
         unscaled_y (Union[None, float], optional): unscaled y (explained outcome). Defaults to None.
         impact (Union[None, np.ndarray], optional): unscaled impact (coefficients * x). Defaults to None.
@@ -184,28 +187,30 @@ def print_slise(
         rows["Coefficients:"] = ["%%.%df" % decimals % a for a in coefficients]
     if impact is not None:
         rows["Prediction Impact:"] = ["%%.%df" % decimals % a for a in impact]
-    if columns is not None:
-        if intercept:
-            columns = np.concatenate([[0], columns + 1])
-        for k in rows:
-            rows[k] = rows[k][columns]
     if scaled is not None:
+        scaled = add_constant_columns(scaled, columns, False)
         rows["Normalised Item:"] = [""] + ["%%.%df" % decimals % a for a in scaled]
     if alpha is not None:
+        alpha = add_constant_columns(alpha, columns, intercept)
         rows["Normalised Weights:"] = ["%%.%df" % decimals % a for a in alpha]
     if scaled_impact is not None:
+        scaled_impact = add_constant_columns(scaled_impact, columns, intercept)
         rows["Normalised Impact:"] = ["%%.%df" % decimals % a for a in scaled_impact]
     col_len = [
         max(8, *vs) + 1
         for vs in zip(*(tuple(len(v) for v in vs) for vs in rows.values()))
     ]
+    if len(coefficients) > num_var:
+        col_len = [l if c != 0 else 0 for l, c in zip(col_len, coefficients)]
     lab_len = max(len(l) for l in rows)
-    print(title)
+    if title:
+        print(title)
     if unscaled_y is not None:
         print(fill_prediction_str(unscaled_y, unscaled_preds, classes, decimals))
     for k in rows:
         print(
-            f"{k:<{lab_len}}", " ".join([f"{s:>{c}}" for s, c in zip(rows[k], col_len)])
+            f"{k:<{lab_len}}",
+            " ".join([f"{s:>{c}}" for s, c in zip(rows[k], col_len) if c > 0]),
         )
     loss = f"{loss:.{decimals}f}"
     epsilon = f"{epsilon:.{decimals}f}"

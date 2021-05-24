@@ -346,11 +346,17 @@ class SliseRegression:
         Y2 = mat_mul_inter(X, self.coefficients)
         return (Y2 - Y) ** 2 < self.epsilon ** 2
 
-    def print(self, variables: Union[List[str], None] = None, decimals: int = 3):
+    def print(
+        self,
+        variables: Union[List[str], None] = None,
+        decimals: int = 3,
+        num_var: int = 10,
+    ):
         """Print the current robust regression result
 
         Args:
             variables ( Union[List[str], None], optional): names of the variables/columns in X. Defaults to None.
+            num_var (int, optional): exclude zero weights if there are too many variables. Defaults to 10.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         print_slise(
@@ -362,6 +368,7 @@ class SliseRegression:
             variables,
             "SLISE Regression",
             decimals,
+            num_var,
             alpha=None if self.scale is None else self.alpha,
             columns=None if self.scale is None else self.scale.columns,
         )
@@ -687,6 +694,10 @@ class SliseExplainer:
         """Get the "impact" of different variables on the outcome.
             The impact is the (normalised) model times the (normalised) item.
 
+        Args:
+            normalised (bool, optional): return the normalised impact (if normalisation is used). Defaults to True.
+            x (Union[None, np.ndarray], optional): the item to calculate the impact for (uses the explained item if None). Defaults to None.
+
         Returns:
             np.ndarray: the impact vector
         """
@@ -701,6 +712,7 @@ class SliseExplainer:
         self,
         variables: Union[List[str], None] = None,
         classes: Union[List[str], None] = None,
+        num_var: int = 10,
         decimals: int = 3,
     ):
         """Print the current explanation
@@ -708,6 +720,7 @@ class SliseExplainer:
         Args:
             variables (Union[List[str], None], optional): the names of the (columns/) variables. Defaults to None.
             classes (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
+            num_var (int, optional): exclude zero weights if there are too many variables. Defaults to 10.
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         print_slise(
@@ -719,6 +732,7 @@ class SliseExplainer:
             variables,
             "SLISE Explanation",
             decimals,
+            num_var,
             unscaled=self.x,
             unscaled_y=self.y,
             impact=self.get_impact(False),

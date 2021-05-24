@@ -1,5 +1,5 @@
 import numpy as np
-from slise.optimisation import loss_smooth, regularised_regression
+from slise.optimisation import loss_smooth
 from slise.data import add_intercept_column, scale_same
 from slise.initialisation import (
     initialise_candidates,
@@ -96,23 +96,6 @@ def test_initialise2():
     assert loss_smooth(alpha, X, Y, 0.1, beta=beta) <= loss_smooth(
         zero, X, Y, 0.1, beta=beta
     )
-
-
-def test_regres():
-    print("Testing regularised regression")
-    X, Y, mod = data_create2(20, 5)
-    alpha = regularised_regression(X, Y, 1e-10, 1e-10)
-    Y2 = X @ alpha
-    assert np.allclose(Y, Y2, atol=0.3), f"regreg Y not close: {Y - Y2}"
-    assert np.allclose(mod, alpha, atol=0.2), f"regreg alpha not close: {mod - alpha}"
-    alpha = regularised_regression(X, Y, 1e-10, 0)
-    Y2 = X @ alpha
-    assert np.allclose(Y, Y2, atol=0.3), f"Lasso Y not close: {Y - Y2}"
-    assert np.allclose(mod, alpha, atol=0.2), f"Lasso alpha not close: {mod - alpha}"
-    alpha = regularised_regression(X, Y, 0, 1e-10)
-    Y2 = X @ alpha
-    assert np.allclose(Y, Y2, atol=0.3), f"Ridge Y not close: {Y - Y2}"
-    assert np.allclose(mod, alpha, atol=0.2), f"Ridge alpha not close: {mod - alpha}"
 
 
 def test_slise_reg():
