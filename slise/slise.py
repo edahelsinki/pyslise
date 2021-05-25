@@ -290,6 +290,10 @@ class SliseRegression:
         """
         return self.alpha if normalised else self.coefficients
 
+    @property
+    def normalised(self):
+        return self.alpha if self.normalise else None
+
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the fitted model to predict new responses
 
@@ -614,6 +618,10 @@ class SliseExplainer:
         """
         return self.alpha if normalised else self.coefficients
 
+    @property
+    def normalised(self):
+        return self.alpha if self.normalise else None
+
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the approximating linear model to predict new outcomes
 
@@ -689,13 +697,13 @@ class SliseExplainer:
             return res ** 2 < self.epsilon ** 2
 
     def get_impact(
-        self, normalised: bool = True, x: Union[None, np.ndarray] = None
+        self, normalised: bool = False, x: Union[None, np.ndarray] = None
     ) -> np.ndarray:
         """Get the "impact" of different variables on the outcome.
             The impact is the (normalised) model times the (normalised) item.
 
         Args:
-            normalised (bool, optional): return the normalised impact (if normalisation is used). Defaults to True.
+            normalised (bool, optional): return the normalised impact (if normalisation is used). Defaults to False.
             x (Union[None, np.ndarray], optional): the item to calculate the impact for (uses the explained item if None). Defaults to None.
 
         Returns:
@@ -738,7 +746,7 @@ class SliseExplainer:
             impact=self.get_impact(False),
             scaled=None if self.scale is None else self.scale.scale_x(self.x),
             alpha=None if self.scale is None else self.alpha,
-            scaled_impact=None if self.scale is None else self.get_impact(),
+            scaled_impact=None if self.scale is None else self.get_impact(True),
             columns=None if self.scale is None else self.scale.columns,
             classes=classes,
             unscaled_preds=self.Y,
@@ -849,7 +857,7 @@ class SliseExplainer:
             alpha,
             self.x,
             self.y,
-            self.get_impact(),
+            self.get_impact(True),
             title,
             variables,
             decimals,
