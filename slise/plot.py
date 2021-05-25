@@ -13,7 +13,6 @@ from matplotlib.pyplot import Figure
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.patches import Patch
 from slise.utils import SliseException, SliseWarning, mat_mul_inter, limited_logit
-from slise.data import add_constant_columns
 
 
 # SLISE colors, for unified identity
@@ -148,7 +147,6 @@ def print_slise(
     scaled: Union[None, np.ndarray] = None,
     alpha: Union[None, np.ndarray] = None,
     scaled_impact: Union[None, np.ndarray] = None,
-    columns: Union[None, np.ndarray] = None,
     classes: Union[List[str], None] = None,
     unscaled_preds: Union[None, np.ndarray] = None,
     logit: bool = False,
@@ -171,7 +169,6 @@ def print_slise(
         scaled (Union[None, np.ndarray], optional): scaled x (explained item). Defaults to None.
         alpha (Union[None, np.ndarray], optional): scaled model. Defaults to None.
         scaled_impact (Union[None, np.ndarray], optional): scaled impact (alpha * scaled_x). Defaults to None.
-        columns (Union[None, np.ndarray], optional): if some columns are filtered then these are kept. Defaults to None.
         classes (Union[List[str], None], optional): class names (if applicable). Defaults to None.
         unscaled_preds (Union[None, np.ndarray], optional): unscaled resonse (Y-vector). Defaults to None.
         logit (bool, optional): a logit transformation has been applied. Defaults to False.
@@ -188,13 +185,10 @@ def print_slise(
     if impact is not None:
         rows["Prediction Impact:"] = ["%%.%df" % decimals % a for a in impact]
     if scaled is not None:
-        scaled = add_constant_columns(scaled, columns, False)
         rows["Normalised Item:"] = [""] + ["%%.%df" % decimals % a for a in scaled]
     if alpha is not None:
-        alpha = add_constant_columns(alpha, columns, intercept)
         rows["Normalised Weights:"] = ["%%.%df" % decimals % a for a in alpha]
     if scaled_impact is not None:
-        scaled_impact = add_constant_columns(scaled_impact, columns, intercept)
         rows["Normalised Impact:"] = ["%%.%df" % decimals % a for a in scaled_impact]
     col_len = [
         max(8, *vs) + 1
@@ -324,6 +318,7 @@ def plot_dist(
     x: Union[np.ndarray, None] = None,
     y: Union[float, None] = None,
     impact: Union[np.ndarray, None] = None,
+    norm_impact: Union[np.ndarray, None] = None,
     title: str = "SLISE Explanation",
     variables: list = None,
     decimals: int = 3,
@@ -339,7 +334,8 @@ def plot_dist(
         alpha (Union[np.ndarray, None]): scaled model. Defaults to None.
         x (Union[np.ndarray, None], optional): the explained item (if it is an explanation). Defaults to None.
         y (Union[float, None], optional): the explained outcome (if it is an explanation). Defaults to None.
-        impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
+        impact (Union[np.ndarray, None], optional): impact vector (unscaled x*alpha), if available. Defaults to None.
+        norm_impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): title of the plot. Defaults to "SLISE Explanation".
         variables (list, optional): names for the (columns/) variables. Defaults to None.
         decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
@@ -348,10 +344,10 @@ def plot_dist(
     # Values and order
     variables = fill_column_names(variables, X.shape[1], True)
     if alpha is None:
-        noticks = False
+        noalpha = True
         alpha = model
     else:
-        noticks = True
+        noalpha = False
     if len(model) == X.shape[1]:
         model = np.concatenate((np.zeros(1, model.dtype), model))
         alpha = np.concatenate((np.zeros(1, model.dtype), alpha))
@@ -360,9 +356,12 @@ def plot_dist(
     model = model[order]
     alpha = alpha[order]
     if impact is not None:
-        impact = impact[order] / np.max(np.abs(impact)) * np.max(np.abs(alpha))
+        impact = impact[order]
+    if norm_impact is not None:
+        norm_impact = norm_impact[order]
     variables = [variables[i] for i in order]
     subsize = subset.mean()
+
     # Figures:
     if isinstance(fig, Figure):
         plot = False
@@ -371,9 +370,12 @@ def plot_dist(
         plot = True
         fig, axs = plt.subplots(len(order), 2, squeeze=False)
     fig.suptitle(title)
+
     # Density plots
 
     def fill_density(ax, X, x, n):
+        if np.var(X) == 0:
+            X = np.random.normal(X[0], 1e-8, len(X))
         kde1 = gaussian_kde(X, 0.2)
         kde2 = gaussian_kde(X[subset], 0.2)
         lim = extended_limits(X, 0.1, 100)
@@ -400,6 +402,7 @@ def plot_dist(
     axs[0, 0].set_title("Dataset Distribution")
     for i, k, n in zip(range(1, len(order)), order[1:] - 1, variables[1:]):
         fill_density(axs[i, 0], X[:, k], x[k] if x is not None else None, n)
+
     # Bar plots
     def text(x, y, v):
         axbig.text(
@@ -424,23 +427,112 @@ def plot_dist(
     axbig.set_yticklabels(variables)
     axbig.set_ylim(bottom=ticks[0] - 0.45, top=ticks[-1] + 0.45)
     axbig.invert_yaxis()
-    if impact is None:
+    if impact is None and noalpha:
         column_color = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
         axbig.barh(ticks, alpha, color=column_color)
-        for y, x, v in zip(ticks, 0 * alpha, model):
-            text(x, y, v)
+        for y, v in zip(ticks, model):
+            text(0, y, v)
+    elif impact is None and not noalpha:
+        axbig.barh(
+            ticks - 0.2,
+            model / np.max(np.abs(model)),
+            height=0.35,
+            color=SLISE_PURPLE,
+            label="Coefficients",
+        )
+        axbig.barh(
+            ticks + 0.2,
+            alpha / np.max(np.abs(alpha)),
+            height=0.35,
+            color=SLISE_ORANGE,
+            label="Normalised",
+        )
+        for y, a, m in zip(ticks, alpha, model):
+            text(0, y, m)
+            text(0, y, a)
+        axbig.set_xticks([])
+        axbig.legend()
+    elif norm_impact is None:
+        axbig.barh(
+            ticks[1:] - 0.2,
+            model[1:] / np.max(np.abs(model)),
+            height=0.35,
+            color=SLISE_PURPLE,
+            label="Linear Model",
+        )
+        axbig.barh(
+            ticks[0], model[0] / np.max(np.abs(model)), height=0.35, color=SLISE_PURPLE,
+        )
+        axbig.barh(
+            ticks[1:] + 0.2,
+            impact[1:] / np.max(np.abs(impact[1:])),
+            height=0.35,
+            color=SLISE_ORANGE,
+            label="Prediction Impact",
+        )
+        for y, a, m in zip(ticks, impact, model):
+            if y == ticks[0]:
+                text(0, y, m)
+                continue
+            text(0, y - 0.2, m)
+            text(0, y + 0.2, a)
+        axbig.set_xticks([])
+        axbig.legend()
     else:
         axbig.barh(
-            ticks - 0.2, alpha, height=0.35, color=SLISE_PURPLE, label="Linear Model"
+            ticks[1:] - 0.33,
+            model[1:] / np.max(np.abs(model)),
+            height=0.2,
+            color=SLISE_PURPLE,
+            label="Linear Model",
         )
-        for y, x, v in zip(ticks - 0.2, 0 * alpha, model):
-            text(x, y, v)
-        axbig.barh(ticks + 0.2, impact, height=0.35, color=SLISE_ORANGE, label="Impact")
-        axbig.legend()
-    if noticks:
+        axbig.barh(
+            ticks[0] - 0.11,
+            model[0] / np.max(np.abs(model)),
+            height=0.2,
+            color=SLISE_PURPLE,
+        )
+        axbig.barh(
+            ticks[1:] - 0.11,
+            alpha[1:] / np.max(np.abs(alpha)),
+            height=0.2,
+            color=SLISE_DARKPURPLE,
+            label="Normalised Model",
+        )
+        axbig.barh(
+            ticks[0] + 0.11,
+            alpha[0] / np.max(np.abs(alpha)),
+            height=0.2,
+            color=SLISE_DARKPURPLE,
+        )
+        axbig.barh(
+            ticks[1:] + 0.11,
+            impact[1:] / np.max(np.abs(impact[1:])),
+            height=0.2,
+            color=SLISE_ORANGE,
+            label="Prediction Impact",
+        )
+        axbig.barh(
+            ticks[1:] + 0.33,
+            norm_impact[1:] / np.max(np.abs(norm_impact[1:])),
+            height=0.2,
+            color=SLISE_DARKORANGE,
+            label="Normalised Impact",
+        )
+        for y, i1, i2, m1, m2 in zip(ticks, impact, norm_impact, model, alpha):
+            if y == ticks[0]:
+                text(0, y - 0.11, m1)
+                text(0, y + 0.11, m2)
+                continue
+            text(0, y - 0.33, m1)
+            text(0, y - 0.11, m2)
+            text(0, y + 0.11, i1)
+            text(0, y + 0.33, i2)
         axbig.set_xticks([])
+        axbig.legend()
     axbig.yaxis.tick_right()
-    # meta
+
+    # Meta:
     fig.tight_layout()
     if plot:
         plt.show()

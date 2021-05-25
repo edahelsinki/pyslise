@@ -136,6 +136,7 @@ def scale_same(
     center: Union[float, np.ndarray],
     scale: Union[float, np.ndarray],
     constant_colums: Union[np.ndarray, None] = None,
+    remove_columns: bool = True,
 ) -> np.ndarray:
     """Scale a matrix or vector the same way as another
 
@@ -143,17 +144,28 @@ def scale_same(
         x (np.ndarray): the matrix/vector to scale
         center (Union[float, np.ndarray]): the center used for the previous scaling
         scale (Union[float, np.ndarray]): the scale used for the previous scaling
-        constant_colums (Union[np.ndarray, None], optional): boolean mask of columns to keep. Defaults to None.
+        constant_colums (Union[np.ndarray, None], optional): boolean mask of constant columns. Defaults to None.
+        remove_columns (bool, optional): remove constant columns. Defaults to True.
 
     Returns:
         np.ndarray: the scaled matrix/vector
     """
     if isinstance(x, float) or len(x.shape) < 2:
         if constant_colums is not None:
+            if not remove_columns:
+                y = np.zeros_like(x)
+                y[constant_colums] = (x[constant_colums] - center) / scale
+                return y
             x = x[constant_colums]
         return (x - center) / scale
     else:
         if constant_colums is not None:
+            if not remove_columns:
+                y = np.zeros_like(x)
+                y[:, constant_colums] = (
+                    x[:, constant_colums] - center[None, :]
+                ) / scale[None, :]
+                return y
             x = x[:, constant_colums]
         return (x - center[None, :]) / scale[None, :]
 
@@ -166,15 +178,15 @@ class DataScaling(NamedTuple):
     y_scale: float
     columns: np.ndarray
 
-    def scale_x(self, x):
+    def scale_x(self, x: np.ndarray, remove_columns: bool = True) -> np.ndarray:
         # Scale a new x vector
-        return scale_same(x, self.x_center, self.x_scale, self.columns)
+        return scale_same(x, self.x_center, self.x_scale, self.columns, remove_columns)
 
-    def scale_y(self, y):
+    def scale_y(self, y: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         # Scale a new y vector
         return scale_same(y, self.y_center, self.y_scale)
 
-    def unscale_model(self, model):
+    def unscale_model(self, model: np.ndarray) -> np.ndarray:
         # Unscale a linear model
         return unscale_model(
             model,

@@ -10,7 +10,7 @@ def data_create(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray):
     return X, Y
 
 
-def data_create2(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray):
+def data_create2(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray, np.ndarray):
     X = npr.normal(npr.normal(size=d)[np.newaxis,], 1.0, [n, d])
     mod = npr.normal(size=d)
     if d > c:

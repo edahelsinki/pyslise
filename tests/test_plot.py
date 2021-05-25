@@ -38,7 +38,7 @@ def test_dist():
     exp.plot_dist(fig=plt.figure())
     Y = Y - Y.min() - 0.01
     Y /= Y.max() + 0.01
-    exp = explain(X, Y, 1.0, 5, lambda1=0.01, lambda2=0.01, logit=True)
+    exp = explain(X, Y, 1.0, 5, lambda1=0.01, lambda2=0.01, normalise=True, logit=True)
     exp.plot_dist(fig=plt.figure())
     reg.plot_subset(fig=plt.figure())
     exp.plot_subset(fig=plt.figure())
@@ -46,7 +46,7 @@ def test_dist():
     plt.close("all")
 
 
-def test_dist():
+def test_img():
     print("Testing image plots")
     X, Y, mod = data_create2(200, 16)
     X[:, 6] = X[:, 9] = X[:, 11] = 0

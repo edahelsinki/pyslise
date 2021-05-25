@@ -248,7 +248,7 @@ class SliseRegression:
         # Initialisation
         alpha, beta = self.initialisation(X, Y, self.epsilon_orig)
         # Optimisation
-        self.alpha = graduated_optimisation(
+        alpha = graduated_optimisation(
             alpha,
             X,
             Y,
@@ -261,22 +261,23 @@ class SliseRegression:
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
+        self.alpha = alpha
         if self.normalise:
             alpha2 = self.scale.unscale_model(alpha)
             if not self.intercept:
                 if np.abs(alpha2[0]) > 1e-8:
                     warn(
-                        "Intercept introduced due to scaling (consider setting normalise=False, or intercept=True)",
+                        "Intercept introduced due to scaling, consider setting intercept=True (or normalise=False)",
                         SliseWarning,
                     )
                     self.intercept = True
-                    self.alpha = np.concatenate(([0], self.alpha))
+                    self.alpha = np.concatenate(([0], alpha))
                 else:
                     alpha2 = alpha2[1:]
             self.coefficients = alpha2
             self.epsilon = self.epsilon_orig * y_scale
         else:
-            self.coefficients = self.alpha
+            self.coefficients = alpha
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
@@ -292,7 +293,10 @@ class SliseRegression:
 
     @property
     def normalised(self):
-        return self.alpha if self.normalise else None
+        if self.normalise:
+            return add_constant_columns(self.alpha, self.scale.columns, self.intercept)
+        else:
+            return None
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the fitted model to predict new responses
@@ -373,8 +377,7 @@ class SliseRegression:
             "SLISE Regression",
             decimals,
             num_var,
-            alpha=None if self.scale is None else self.alpha,
-            columns=None if self.scale is None else self.scale.columns,
+            alpha=self.normalised,
         )
 
     def plot_2d(
@@ -427,16 +430,13 @@ class SliseRegression:
             decimals (int, optional): the number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
-        if self.normalise:
-            alpha = add_constant_columns(self.alpha, self.scale.columns, self.intercept)
-        else:
-            alpha = None
         plot_dist(
             self.X,
             self.Y,
             self.coefficients,
             self.subset(),
-            alpha,
+            self.normalised,
+            None,
             None,
             None,
             None,
@@ -620,7 +620,10 @@ class SliseExplainer:
 
     @property
     def normalised(self):
-        return self.alpha if self.normalise else None
+        if self.normalise:
+            return add_constant_columns(self.alpha, self.scale.columns, True)
+        else:
+            return None
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the approximating linear model to predict new outcomes
@@ -688,13 +691,12 @@ class SliseExplainer:
             np.ndarray: the subset as a boolean mask
         """
         if X is None or Y is None:
-            res = mat_mul_inter(self.X2, self.alpha) - self.Y2
-            return res ** 2 < self.epsilon_orig ** 2
-        else:
-            if self.logit:
-                Y = limited_logit(Y)
-            res = mat_mul_inter(X, self.coefficients) - Y
-            return res ** 2 < self.epsilon ** 2
+            X = self.X
+            Y = self.Y
+        if self.logit:
+            Y = limited_logit(Y)
+        res = mat_mul_inter(X, self.coefficients) - Y
+        return res ** 2 < self.epsilon ** 2
 
     def get_impact(
         self, normalised: bool = False, x: Union[None, np.ndarray] = None
@@ -712,7 +714,11 @@ class SliseExplainer:
         if x is None:
             x = self.x
         if normalised and self.normalise:
-            return add_intercept_column(self.scale.scale_x(x)) * self.alpha
+            return add_constant_columns(
+                add_intercept_column(self.scale.scale_x(x)) * self.alpha,
+                self.scale.columns,
+                True,
+            )
         else:
             return add_intercept_column(x) * self.coefficients
 
@@ -744,10 +750,9 @@ class SliseExplainer:
             unscaled=self.x,
             unscaled_y=self.y,
             impact=self.get_impact(False),
-            scaled=None if self.scale is None else self.scale.scale_x(self.x),
-            alpha=None if self.scale is None else self.alpha,
+            scaled=None if self.scale is None else self.scale.scale_x(self.x, False),
+            alpha=self.normalised,
             scaled_impact=None if self.scale is None else self.get_impact(True),
-            columns=None if self.scale is None else self.scale.columns,
             classes=classes,
             unscaled_preds=self.Y,
             logit=self.logit,
@@ -845,19 +850,16 @@ class SliseExplainer:
             decimals (int, optional): the number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
-        if self.normalise:
-            alpha = add_constant_columns(self.alpha, self.scale.columns, True)
-        else:
-            alpha = None
         plot_dist(
             self.X,
             self.Y,
             self.coefficients,
             self.subset(),
-            alpha,
+            self.normalised,
             self.x,
             self.y,
-            self.get_impact(True),
+            self.get_impact(False),
+            self.get_impact(True) if self.normalise else None,
             title,
             variables,
             decimals,

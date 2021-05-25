@@ -111,12 +111,9 @@ def test_slise_reg():
     Ypn = reg1.scale.scale_y(Yp)
     S = (Y - Yp) ** 2 < reg1.epsilon ** 2
     Sn = (Yn - Ynp) ** 2 < reg1.epsilon_orig ** 2
-    # TODO This for some reason does not always hold:
-    # print(reg1.scale)
-    # print(Ypn, Ynp, Ypn - Ynp)
-    # assert np.allclose(
-    #     Ypn, Ynp,
-    # ), f"The predicted Y's are not the same {np.max(np.abs(Ynp - Ypn))}"
+    assert np.allclose(
+        Ypn, Ynp,
+    ), f"The predicted Y's are not the same {np.max(np.abs(Ynp - Ypn))}"
     assert (
         reg1.score() <= 0
     ), f"SLISE loss should be negative ({reg1.score():.2f}, {reg1.subset().mean():.2f})"
