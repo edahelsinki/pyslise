@@ -352,7 +352,7 @@ def plot_dist(
         model = np.concatenate((np.zeros(1, model.dtype), model))
         alpha = np.concatenate((np.zeros(1, model.dtype), alpha))
         variables[0] = ""
-    order = get_explanation_order(alpha, True)
+    order = get_explanation_order(np.abs(alpha), True)
     model = model[order]
     alpha = alpha[order]
     if impact is not None:
@@ -405,14 +405,15 @@ def plot_dist(
 
     # Bar plots
     def text(x, y, v):
-        axbig.text(
-            x,
-            y,
-            f"{v:.{decimals}f}",
-            ha="center",
-            va="center",
-            bbox=dict(boxstyle="square", fc="white"),
-        )
+        if v != 0:
+            axbig.text(
+                x,
+                y,
+                f"{v:.{decimals}f}",
+                ha="center",
+                va="center",
+                bbox=dict(boxstyle="round", fc="white", ec="grey", alpha=0.75),
+            )
 
     gs = axs[0, 1].get_gridspec()
     for ax in axs[:, 1]:
