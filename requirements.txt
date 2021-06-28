@@ -1,5 +1,5 @@
-numpy
-scipy
-PyLBFGS
-numba
-matplotlib
+numpy>=1.19
+scipy>=1.4
+PyLBFGS>=0.2
+numba=>0.53
+matplotlib>=3.3
