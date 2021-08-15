@@ -22,10 +22,18 @@ SLISE can also be used to provide *local model-agnostic explanations* for outcom
 ## Installation
 
 To install this package just run:
+
+```sh
+pip install slise
+```
+
+Or install the latest version directly from GitHub with:
+
 ```sh
 pip install https://github.com/edahelsinki/pyslise
 ```
-Alternatively you can download the repo and run `python -m build` to build a wheel or `pip install .` to install locally.
+
+Alternatively you can download the repo and run `python -m build` to build a wheel, or `pip install .` to install it locally.
 
 ### Other Languages
 
