@@ -377,7 +377,10 @@ def plot_dist(
         if np.var(X) == 0:
             X = np.random.normal(X[0], 1e-8, len(X))
         kde1 = gaussian_kde(X, 0.2)
-        kde2 = gaussian_kde(X[subset], 0.2)
+        if np.any(subset):
+            kde2 = gaussian_kde(X[subset], 0.2)
+        else:
+            kde2 = lambda x: x * 0
         lim = extended_limits(X, 0.1, 100)
         ax.plot(lim, kde1(lim), color="black", label="Dataset")
         ax.plot(

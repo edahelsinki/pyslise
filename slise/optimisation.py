@@ -188,7 +188,7 @@ def owlqn(
             raise error
         else:
             warn(
-                "An optimisation step reaches the maximum number of iterations.",
+                "LBFGS optimisation reaches the maximum number of iterations.",
                 SliseWarning,
             )
     return x0
