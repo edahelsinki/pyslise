@@ -1,7 +1,7 @@
 # This script contains the optimisations for SLISE (Graduated Optimisation and OWL-QN)
 
 from math import log
-from typing import Tuple, Union, Callable
+from typing import Tuple, Union, Callable, Optional
 from warnings import warn, catch_warnings
 import numpy as np
 from numba import jit
@@ -22,9 +22,10 @@ def loss_smooth(
     X: np.ndarray,
     Y: np.ndarray,
     epsilon: float,
+    beta: float = 100,
     lambda1: float = 0,
     lambda2: float = 0,
-    beta: float = 100,
+    weight: Optional[np.ndarray] = None,
 ) -> float:
     """
         Smoothed (with sigmoid) version of the loss.
@@ -32,8 +33,14 @@ def loss_smooth(
     epsilon *= epsilon
     distances = ((X @ alpha) - Y) ** 2
     subset = sigmoid(beta * (epsilon - distances))
-    residuals = np.minimum(0, distances - epsilon * len(Y))
-    loss = np.sum(subset * residuals) / len(Y)
+    loss = 0.0
+    if weight is None:
+        residuals = np.minimum(0, distances - epsilon * len(Y))
+        loss += np.sum(subset * residuals) / len(Y)
+    else:
+        sumw = np.sum(weight)
+        residuals = np.minimum(0, distances - epsilon * sumw)
+        loss += np.sum(subset * residuals * weight) / sumw
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
     if lambda2 > 0:
@@ -46,19 +53,24 @@ def loss_residuals(
     alpha: np.ndarray,
     residuals2: np.ndarray,
     epsilon2: float,
+    beta: float = 100,
     lambda1: float = 0,
     lambda2: float = 0,
-    beta: float = 100,
+    weight: Optional[np.ndarray] = None,
 ) -> float:
     """
         Smoothed (with sigmoid) version of the loss, that takes already calculated residuals.
         This function is sped up with numba.
+        Assumes that the residuals and epsilon are squared.
     """
-    # Takes squared residuals and epsilons
-    subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))
-    # subset = sigmoid(beta * (epsilon2 - residuals2))
-    residuals = np.minimum(0, residuals2 - epsilon2 * len(residuals2))
-    loss = np.sum(subset * residuals) / len(residuals2)
+    subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))  # Sigmoid
+    if weight is None:
+        residuals = np.minimum(0, residuals2 - epsilon2 * len(residuals2))
+        loss = np.sum(subset * residuals) / len(residuals2)
+    else:
+        sumw = np.sum(weight)
+        residuals = np.minimum(0, residuals2 - epsilon2 * sumw)
+        loss = np.sum(subset * residuals * weight) / sumw
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
     if lambda2 > 0:
@@ -73,13 +85,19 @@ def loss_sharp(
     epsilon: float,
     lambda1: float = 0,
     lambda2: float = 0,
+    weight: Optional[np.ndarray] = None,
 ) -> float:
     """
         Exact (combinatorial) version of the loss.
     """
     epsilon *= epsilon
     distances = (Y - mat_mul_inter(X, alpha)) ** 2
-    loss = np.sum(distances[distances < epsilon] - (epsilon * len(Y))) / len(Y)
+    if weight is None:
+        loss = np.sum(distances[distances <= epsilon] - (epsilon * len(Y))) / len(Y)
+    else:
+        sumw = np.sum(weight)
+        mask = distances <= epsilon
+        loss = np.sum((distances[mask] - (epsilon * sumw)) * weight[mask]) / sumw
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
     if lambda2 > 0:
@@ -93,8 +111,9 @@ def loss_numba(
     X: np.ndarray,
     Y: np.ndarray,
     epsilon: float,
-    lambda2: float,
     beta: float,
+    lambda2: float,
+    weight: Optional[np.ndarray] = None,
 ) -> (float, np.ndarray):
     """
         Smoothed (with sigmoid) version of the loss, that also calculates the gradient.
@@ -103,16 +122,22 @@ def loss_numba(
     epsilon *= epsilon
     distances = (X @ alpha) - Y
     distances2 = distances ** 2
-    n = len(Y)
     # Loss
-    subset = 1 / (1 + np.exp(-beta * (epsilon - distances2)))
+    subset = 1 / (1 + np.exp(-beta * (epsilon - distances2)))  # Sigmoid
+    n = len(Y) if weight is None else np.sum(weight)
     residuals = np.minimum(0, distances2 - (epsilon * n))
-    loss = np.sum(subset * residuals) / n
+    if weight is None:
+        loss = np.sum(subset * residuals) / n
+    else:
+        loss = np.sum(subset * residuals * weight) / n
     # Gradient
     k1 = 2.0 / n
     k2 = (-2.0 * beta / n) * (subset - subset ** 2)
     distances[residuals == 0] = 0.0
-    grad = ((subset * k1) + (residuals * k2)) * distances
+    if weight is None:
+        grad = ((subset * k1) + (residuals * k2)) * distances
+    else:
+        grad = ((subset * k1) + (residuals * k2)) * (distances * weight)
     grad = np.expand_dims(grad, 0) @ X
     # Lambda
     if lambda2 > 0:
@@ -122,30 +147,25 @@ def loss_numba(
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def ols_numba(
-    alpha: np.ndarray, X: np.ndarray, Y: np.ndarray,
-) -> Tuple[float, np.ndarray]:
-    """
-        Ordinary Least Squares regression loss, that also calculates the gradient.
-        This function is sped up with numba.
-    """
-    distances = (X @ alpha) - Y
-    loss = np.sum(distances ** 2) / 2
-    grad = np.expand_dims(distances, 0) @ X
-    return loss, grad
-
-
-@jit(nopython=True, fastmath=True, parallel=True, cache=True)
 def ridge_numba(
-    alpha: np.ndarray, X: np.ndarray, Y: np.ndarray, lambda2: float
+    alpha: np.ndarray,
+    X: np.ndarray,
+    Y: np.ndarray,
+    lambda2: float = 0.0,
+    weight: Optional[np.ndarray] = None,
 ) -> Tuple[float, np.ndarray]:
     """
         Ridge regression (OLS + L2) loss, that also calculates the gradient.
         This function is sped up with numba.
     """
     distances = (X @ alpha) - Y
-    loss = np.sum(distances ** 2) / 2 + lambda2 * np.sum(alpha ** 2) / 2
-    grad = np.expand_dims(distances, 0) @ X + lambda2 * alpha
+    if weight is not None:
+        distances *= weight
+    loss = np.sum(distances ** 2) / 2
+    grad = np.expand_dims(distances, 0) @ X
+    if lambda2 != 0.0:
+        loss += lambda2 * np.sum(alpha ** 2) / 2
+        grad += lambda2 * np.reshape(alpha, grad.shape)
     return loss, grad
 
 
@@ -199,6 +219,7 @@ def regularised_regression(
     Y: np.ndarray,
     lambda1: float = 1e-6,
     lambda2: float = 1e-6,
+    weight: Optional[np.ndarray] = None,
     max_iterations: int = 200,
 ) -> np.ndarray:
     """Train a linear regression model with lasso (L1) and/or ridge (L2) regularisation.
@@ -206,6 +227,7 @@ def regularised_regression(
     Args:
         X (np.ndarray): data matrix
         Y (np.ndarray): response vector
+        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
         lambda1 (float, optional): LASSO/L1 regularisation coefficient. Defaults to 1e-6.
         lambda2 (float, optional): Ridge/L2 regularisation coefficient. Defaults to 1e-6.
         max_iterations (int, optional): maximum number of optimisation steps. Defaults to 200.
@@ -213,20 +235,12 @@ def regularised_regression(
     Returns:
         np.ndarray: the linear model coefficients
     """
-    if lambda2 > 0:
-        return owlqn(
-            lambda alpha: ridge_numba(alpha, X, Y, lambda2),
-            np.zeros(X.shape[1]),
-            lambda1,
-            max_iterations,
-        )
-    else:
-        return owlqn(
-            lambda alpha: ols_numba(alpha, X, Y),
-            np.zeros(X.shape[1]),
-            lambda1,
-            max_iterations,
-        )
+    return owlqn(
+        lambda alpha: ridge_numba(alpha, X, Y, lambda2, weight),
+        np.zeros(X.shape[1]),
+        lambda1,
+        max_iterations,
+    )
 
 
 def optimise_loss(
@@ -234,16 +248,17 @@ def optimise_loss(
     X: np.ndarray,
     Y: np.ndarray,
     epsilon: float = 0.1,
+    beta: float = 100,
     lambda1: float = 0,
     lambda2: float = 0,
-    beta: float = 100,
+    weight: Optional[np.ndarray] = None,
     max_iterations: int = 200,
 ) -> np.ndarray:
     """
         Optimise a smoothed loss with owl-qn
     """
     return owlqn(
-        lambda alpha: loss_numba(alpha, X, Y, epsilon, lambda2, beta),
+        lambda alpha: loss_numba(alpha, X, Y, epsilon, beta, lambda2, weight),
         alpha,
         lambda1,
         max_iterations,
@@ -251,7 +266,11 @@ def optimise_loss(
 
 
 def log_approximation_ratio(
-    residuals2: np.ndarray, epsilon2: float, beta1: float, beta2: float
+    residuals2: np.ndarray,
+    epsilon2: float,
+    beta1: float,
+    beta2: float,
+    weight: Optional[np.ndarray] = None,
 ) -> float:
     """
         Calculate log(K), where K is the approximation ratio between two smoothed losses
@@ -269,7 +288,10 @@ def log_approximation_ratio(
         )
     else:
         log_k = log_f(0, beta1) - log_f(0, beta2)
-    phi = np.maximum(0, epsilon2 - residuals2 / len(residuals2))
+    if weight is None:
+        phi = np.maximum(0, epsilon2 - residuals2 / len(residuals2))
+    else:
+        phi = np.maximum(0, epsilon2 - residuals2 / np.sum(weight)) * weight
     log_K = (
         log_sum_special(log_f(residuals2, beta1), phi)
         - log_k
@@ -282,6 +304,7 @@ def next_beta(
     residuals2: np.ndarray,
     epsilon2: float = 0.01,
     beta: float = 0,
+    weight: Optional[np.ndarray] = None,
     beta_max: float = 2500,
     log_max_approx: float = 0.14,
     min_beta_step: float = 0.0005,
@@ -291,26 +314,38 @@ def next_beta(
     """
     if beta >= beta_max:
         return beta
-    log_approx = log_approximation_ratio(residuals2, epsilon2, beta, beta_max)
+    log_approx = log_approximation_ratio(residuals2, epsilon2, beta, beta_max, weight)
     if log_approx <= log_max_approx:
         return beta_max
     else:
         f = (
-            lambda b: log_approximation_ratio(residuals2, epsilon2, beta, b)
+            lambda b: log_approximation_ratio(residuals2, epsilon2, beta, b, weight)
             - log_max_approx
         )
         beta_min = beta + min_beta_step * (beta_max + beta)
         return max(brentq(f, beta, beta_max), beta_min)
 
 
-def matching_epsilon(residuals2: np.ndarray, epsilon2: float, beta: float) -> float:
+def matching_epsilon(
+    residuals2: np.ndarray,
+    epsilon2: float,
+    beta: float,
+    weight: Optional[np.ndarray] = None,
+) -> float:
     """
         Approximately calculate the epsilon that minimises the approximation ratio to the exact loss
     """
-    residuals2 = np.sort(residuals2)
-    loss = sigmoid(beta * (epsilon2 - residuals2))
-    i = np.argmax(np.arange(len(residuals2)) * loss)
-    return residuals2[i] ** 0.5
+    if weight is None:
+        residuals2 = np.sort(residuals2)
+        loss = sigmoid(beta * (epsilon2 - residuals2))
+        i = np.argmax(np.arange(1, 1 + len(residuals2)) * loss)
+        return residuals2[i] ** 0.5
+    else:
+        order = np.argsort(residuals2)
+        residuals2 = residuals2[order]
+        loss = sigmoid(beta * (epsilon2 - residuals2))
+        i = np.argmax(np.cumsum(weight[order]) * loss)
+        return residuals2[i] ** 0.5
 
 
 def debug_log(
@@ -318,17 +353,20 @@ def debug_log(
     X: np.ndarray,
     Y: np.ndarray,
     epsilon: float = 0.1,
+    beta: float = 0,
     lambda1: float = 0,
     lambda2: float = 0,
-    beta: float = 0,
+    weight: Optional[np.ndarray] = None,
 ):
     """
         Print the log statement for a graduated optimisation step
     """
     residuals = (X @ alpha - Y) ** 2
-    loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2)
-    bloss = loss_residuals(alpha, residuals, epsilon ** 2, lambda1, lambda2, beta)
-    epss = matching_epsilon(residuals, epsilon ** 2, beta)
+    loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2, weight)
+    bloss = loss_residuals(
+        alpha, residuals, epsilon ** 2, beta, lambda1, lambda2, weight
+    )
+    epss = matching_epsilon(residuals, epsilon ** 2, beta, weight)
     beta = beta * epsilon ** 2
     print(
         f"beta: {beta:5.3f}    epsilon*: {epss:.3f}    Loss: {loss:6.2f}    B-Loss: {bloss:6.2f}"
@@ -340,9 +378,10 @@ def graduated_optimisation(
     X: np.ndarray,
     Y: np.ndarray,
     epsilon: float,
+    beta: float = 0,
     lambda1: float = 0,
     lambda2: float = 0,
-    beta: float = 0,
+    weight: Optional[np.ndarray] = None,
     beta_max: float = 20,
     max_approx: float = 1.15,
     max_iterations: int = 200,
@@ -355,9 +394,10 @@ def graduated_optimisation(
         X (np.ndarray): data matrix
         Y (np.ndarray): response vector
         epsilon (float): error tolerance
+        beta (float, optional): initial beta. Defaults to 0.
         lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
         lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
-        beta (float, optional): initial beta. Defaults to 0.
+        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
         beta_max (float, optional): the final beta. Defaults to 20.
         max_approx (float, optional): target approximation ratio when increasing beta. Defaults to 1.15.
         max_iterations (int, optional): maximum number of iterations for owl-qn. Defaults to 200.
@@ -368,23 +408,25 @@ def graduated_optimisation(
     """
     X = np.asfortranarray(X, dtype=np.float64)
     Y = np.asfortranarray(Y, dtype=np.float64)
+    if weight is not None:
+        weight = np.asfortranarray(weight, dtype=np.float64)
     beta_max = beta_max / epsilon ** 2
     max_approx = log(max_approx)
     with catch_warnings(record=True) as w:
         while beta < beta_max:
             alpha = optimise_loss(
-                alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations
+                alpha, X, Y, epsilon, beta, lambda1, lambda2, weight, max_iterations
             )
             if debug:
-                debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
+                debug_log(alpha, X, Y, epsilon, beta, lambda1, lambda2, weight)
             beta = next_beta(
-                (X @ alpha - Y) ** 2, epsilon ** 2, beta, beta_max, max_approx
+                (X @ alpha - Y) ** 2, epsilon ** 2, beta, weight, beta_max, max_approx
             )
     alpha = optimise_loss(
-        alpha, X, Y, epsilon, lambda1, lambda2, beta, max_iterations * 4
+        alpha, X, Y, epsilon, beta, lambda1, lambda2, weight, max_iterations * 4
     )
     if debug:
-        debug_log(alpha, X, Y, epsilon, lambda1, lambda2, beta)
+        debug_log(alpha, X, Y, epsilon, beta, lambda1, lambda2, weight)
         if w:
             print("Warnings from intermediate steps:", w)
     return alpha

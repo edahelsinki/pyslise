@@ -91,23 +91,6 @@ def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
     return xmax + log(xsum)
 
 
-def random_sample_int(n: int, k: int) -> list:
-    """
-        Get k random, but unique, integers from the interval [0,n)
-    """
-    if n < k:
-        raise SliseException("random_sample_int: n must be equal or larger than k")
-    if n == k:
-        return list(range(k))
-    indices = [randrange(0, n)] * k
-    for i in range(1, k):
-        new = randrange(0, n)
-        while new in indices[:k]:
-            new = randrange(0, n)
-        indices[i] = new
-    return indices
-
-
 def mat_mul_inter(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     """
         Matrix multiplication, but check and handle potential intercepts in alpha

@@ -18,3 +18,16 @@ def data_create2(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray, np.ndar
         mod[c] = 0
     Y = X @ mod + npr.normal(size=n, scale=0.05)
     return X, Y, mod
+
+
+def numeric_grad(x: np.ndarray, fn, eps=1e-6) -> np.ndarray:
+    grad = x * 0
+    val0 = fn(x)
+    for i, _ in enumerate(grad):
+        x1 = x.copy()
+        x1[i] += eps
+        val1 = fn(x1)
+        x1[i] = x[i] - eps
+        val2 = fn(x1)
+        grad[i] = (val1 - val2) / (eps * 2)
+    return grad

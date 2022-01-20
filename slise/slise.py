@@ -37,6 +37,7 @@ def regression(
     epsilon: float,
     lambda1: float = 0,
     lambda2: float = 0,
+    weight: Optional[np.ndarray] = None,
     intercept: bool = True,
     normalise: bool = False,
     initialisation: Callable[
@@ -64,6 +65,7 @@ def regression(
         epsilon (float): the error tolerance
         lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
         lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
+        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
         intercept (bool, optional): add an intercept term. Defaults to True.
         normalise (bool, optional): should X aclasses not be scaled). Defaults to False.
         initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes X, Y and gives an initial values for alpha and beta. Defaults to initialise_candidates.
@@ -86,7 +88,7 @@ def regression(
         max_approx,
         max_iterations,
         debug,
-    ).fit(X, Y)
+    ).fit(X, Y, weight)
 
 
 def explain(
@@ -97,8 +99,9 @@ def explain(
     y: Union[float, None] = None,
     lambda1: float = 0,
     lambda2: float = 0,
-    logit: bool = False,
+    weight: Optional[np.ndarray] = None,
     normalise: bool = False,
+    logit: bool = False,
     initialisation: Callable[
         np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
     ] = initialise_candidates,
@@ -130,8 +133,9 @@ def explain(
         y (Union[float, None], optional): the outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
         lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
         lambda2 (float, optional): the L2 regularistaion strength. Defaults to 0.
-        logit (bool, optional): do a logit transformation on the Y vector, this is recommended opnly if Y consists of probabilities. Defaults to False.
+        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
         normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+        logit (bool, optional): do a logit transformation on the Y vector, this is recommended only if Y consists of probabilities. Defaults to False.
         initialisation (Callable[ np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
         beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
         max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
@@ -147,14 +151,14 @@ def explain(
         epsilon,
         lambda1,
         lambda2,
-        logit,
         normalise,
+        logit,
         initialisation,
         beta_max,
         max_approx,
         max_iterations,
         debug,
-    ).explain(x, y)
+    ).explain(x, y, weight)
 
 
 class SliseRegression:
@@ -217,24 +221,33 @@ class SliseRegression:
         self.X = None
         self.Y = None
         self.scale = None
+        self.weight = None
 
-    def fit(self, X: np.ndarray, Y: np.ndarray) -> SliseRegression:
+    def fit(
+        self, X: np.ndarray, Y: np.ndarray, weight: Optional[np.ndarray] = None,
+    ) -> SliseRegression:
         """Robustly fit a linear regression to a dataset
 
         Args:
             X (np.ndarray): the data matrix
             Y (np.ndarray): the response vector
+            weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
 
         Returns:
             SliseRegression: self, containing the regression result
         """
+        X = np.array(X)
+        Y = np.array(Y)
         if len(X.shape) == 1:
-            X = np.reshape(X, X.shape + (1,))
-        else:
-            X = X.copy()
-        Y = Y.copy()
+            X.shape = X.shape + (1,)
+        assert X.shape[0] == Y.shape[0]
         self.X = X
         self.Y = Y
+        if weight is None:
+            self.weight = None
+        else:
+            self.weight = np.array(weight)
+            assert len(self.weight) == len(self.Y)
         # Preprocessing
         if self.normalise:
             X, x_cols = remove_constant_columns(X)
@@ -253,9 +266,10 @@ class SliseRegression:
             X,
             Y,
             epsilon=self.epsilon_orig,
+            beta=beta,
             lambda1=self.lambda1,
             lambda2=self.lambda2,
-            beta=beta,
+            weight=self.weight,
             beta_max=self.beta_max,
             max_approx=self.max_approx,
             max_iterations=self.max_iterations,
@@ -331,7 +345,7 @@ class SliseRegression:
             X = self.scale.scale_x(X)
             Y = self.scale.scale_y(Y)
         return loss_sharp(
-            self.alpha, X, Y, self.epsilon_orig, self.lambda1, self.lambda2
+            self.alpha, X, Y, self.epsilon_orig, self.lambda1, self.lambda2, self.weight
         )
 
     loss = score
@@ -525,15 +539,16 @@ class SliseExplainer:
         self.max_approx = max_approx
         self.max_iterations = max_iterations
         self.debug = debug
+        X = np.array(X)
+        Y = np.array(Y)
         if len(X.shape) == 1:
-            X = np.reshape(X, X.shape + (1,))
-        else:
-            X = X.copy()
-        Y = Y.copy()
+            X.shape = X.shape + (1,)
+        assert X.shape[0] == Y.shape[0]
         self.X = X
         self.Y = Y
         self.x = None
         self.y = None
+        self.weight = None
         self.alpha = None
         self.coefficients = None
         # Preprocess data
@@ -554,24 +569,33 @@ class SliseExplainer:
         self.Y2 = Y
 
     def explain(
-        self, x: Union[np.ndarray, int], y: Union[float, None] = None
+        self,
+        x: Union[np.ndarray, int],
+        y: Union[float, None] = None,
+        weight: Optional[np.ndarray] = None,
     ) -> SliseExplainer:
         """Explain an outcome from a black box model
 
         Args:
             x (Union[np.ndarray, int]): the data item to explain, or an index to get the item from self.X
             y (Union[float, None], optional): the outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
+            weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
 
         Returns:
             SliseExplainer: self, with values set to the explanation
         """
+        if weight is None:
+            self.weight = None
+        else:
+            self.weight = np.array(weight)
+            assert len(self.weight) == len(self.Y)
         if y is None:
             self.y = self.Y[x]
             self.x = self.X[x, :]
             y = self.Y2[x]
             x = self.X2[x, :]
         else:
-            x = np.atleast_1d(x)
+            x = np.atleast_1d(np.array(x))
             self.x = x
             self.y = y
             if self.logit:
@@ -587,9 +611,10 @@ class SliseExplainer:
             X,
             Y,
             epsilon=self.epsilon_orig,
+            beta=beta,
             lambda1=self.lambda1,
             lambda2=self.lambda2,
-            beta=beta,
+            weight=self.weight,
             beta_max=self.beta_max,
             max_approx=self.max_approx,
             max_iterations=self.max_iterations,
@@ -673,7 +698,13 @@ class SliseExplainer:
         X = X - x[None, :]
         Y = Y - y
         return loss_sharp(
-            self.alpha[1:], X, Y, self.epsilon_orig, self.lambda1, self.lambda2,
+            self.alpha[1:],
+            X,
+            Y,
+            self.epsilon_orig,
+            self.lambda1,
+            self.lambda2,
+            self.weight,
         )
 
     loss = score
