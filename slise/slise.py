@@ -205,6 +205,12 @@ class SliseRegression:
             max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
         """
+        assert epsilon > 0.0, "epsilon must be positive"
+        assert lambda1 >= 0.0, "lambda1 must not be negative"
+        assert lambda2 >= 0.0, "lambda2 must not be negative"
+        assert beta_max > 0.0, "beta_max must be positive"
+        assert max_approx > 1.0, "max_approx must be larger than 1.0"
+        assert max_iterations > 0, "max_iterations must be positive"
         self.epsilon_orig = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
@@ -240,14 +246,17 @@ class SliseRegression:
         Y = np.array(Y)
         if len(X.shape) == 1:
             X.shape = X.shape + (1,)
-        assert X.shape[0] == Y.shape[0]
+        assert X.shape[0] == Y.shape[0], "X and Y must have the same number of items"
         self.X = X
         self.Y = Y
         if weight is None:
             self.weight = None
         else:
             self.weight = np.array(weight)
-            assert len(self.weight) == len(self.Y)
+            assert len(self.weight) == len(
+                self.Y
+            ), "weight and Y must have the same number of items"
+            assert np.all(self.weight >= 0.0), "negative weights are not allowed"
         # Preprocessing
         if self.normalise:
             X, x_cols = remove_constant_columns(X)
@@ -529,6 +538,12 @@ class SliseExplainer:
             max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
         """
+        assert epsilon > 0.0, "epsilon must be positive"
+        assert lambda1 >= 0.0, "lambda1 must not be negative"
+        assert lambda2 >= 0.0, "lambda2 must not be negative"
+        assert beta_max > 0.0, "beta_max must be positive"
+        assert max_approx > 1.0, "max_approx must be larger than 1.0"
+        assert max_iterations > 0, "max_iterations must be positive"
         self.epsilon_orig = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
@@ -543,7 +558,7 @@ class SliseExplainer:
         Y = np.array(Y)
         if len(X.shape) == 1:
             X.shape = X.shape + (1,)
-        assert X.shape[0] == Y.shape[0]
+        assert X.shape[0] == Y.shape[0], "X and Y must have the same number of items"
         self.X = X
         self.Y = Y
         self.x = None
@@ -588,8 +603,14 @@ class SliseExplainer:
             self.weight = None
         else:
             self.weight = np.array(weight)
-            assert len(self.weight) == len(self.Y)
+            assert len(self.weight) == len(
+                self.Y
+            ), "weight and Y must have the same number of items"
+            assert np.all(self.weight >= 0.0), "negative weights are not allowed"
         if y is None:
+            assert isinstance(x, int) and (
+                0 <= x < self.Y.shape[0]
+            ), "if y is None then x must be an integer index [0, len(Y)["
             self.y = self.Y[x]
             self.x = self.X[x, :]
             y = self.Y2[x]
