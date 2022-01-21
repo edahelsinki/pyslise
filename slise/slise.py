@@ -3,32 +3,25 @@
 """
 
 from __future__ import annotations
-from typing import Union, Tuple, Callable, List, Optional
+
+from typing import Callable, List, Optional, Tuple, Union
 from warnings import warn
-from matplotlib.pyplot import Figure
+
 import numpy as np
+from matplotlib.pyplot import Figure
 from scipy.special import expit as sigmoid
+
 from slise.data import (
     DataScaling,
     add_constant_columns,
     add_intercept_column,
-    remove_constant_columns,
     normalise_robust,
-    scale_same,
-    unscale_model,
+    remove_constant_columns,
 )
-from slise.optimisation import graduated_optimisation, loss_sharp
 from slise.initialisation import initialise_candidates
-from slise.utils import SliseWarning, mat_mul_inter, limited_logit
-from slise.plot import (
-    print_slise,
-    plot_2d,
-    fill_column_names,
-    fill_prediction_str,
-    plot_dist,
-    plot_image,
-    plot_dist_single,
-)
+from slise.optimisation import graduated_optimisation, loss_sharp
+from slise.plot import plot_2d, plot_dist, plot_dist_single, plot_image, print_slise
+from slise.utils import SliseWarning, limited_logit, mat_mul_inter
 
 
 def regression(
@@ -41,7 +34,7 @@ def regression(
     intercept: bool = True,
     normalise: bool = False,
     initialisation: Callable[
-        np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
+        [np.ndarray, np.ndarray, float], Tuple[np.ndarray, float]
     ] = initialise_candidates,
     beta_max: float = 20,
     max_approx: float = 1.15,
@@ -103,7 +96,7 @@ def explain(
     normalise: bool = False,
     logit: bool = False,
     initialisation: Callable[
-        np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
+        [np.ndarray, np.ndarray, float], Tuple[np.ndarray, float]
     ] = initialise_candidates,
     beta_max: float = 20,
     max_approx: float = 1.15,
@@ -136,7 +129,7 @@ def explain(
         weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
         normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
         logit (bool, optional): do a logit transformation on the Y vector, this is recommended only if Y consists of probabilities. Defaults to False.
-        initialisation (Callable[ np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+        initialisation (Callable[ [np.ndarray, np.ndarray, float], Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
         beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
         max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
@@ -175,7 +168,7 @@ class SliseRegression:
         intercept: bool = True,
         normalise: bool = False,
         initialisation: Callable[
-            np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
+            [np.ndarray, np.ndarray, float], Tuple[np.ndarray, float]
         ] = initialise_candidates,
         beta_max: float = 20,
         max_approx: float = 1.15,
@@ -199,7 +192,7 @@ class SliseRegression:
             lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
             intercept (bool, optional): add an intercept term. Defaults to True.
             normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
-            initialisation (Callable[ np.ndarray, np.ndarray, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            initialisation (Callable[ [np.ndarray, np.ndarray, float] Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
             beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
             max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
@@ -508,7 +501,7 @@ class SliseExplainer:
         logit: bool = False,
         normalise: bool = False,
         initialisation: Callable[
-            np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float]
+            [np.ndarray, np.ndarray, float], Tuple[np.ndarray, float]
         ] = initialise_candidates,
         beta_max: float = 20,
         max_approx: float = 1.15,
@@ -539,7 +532,7 @@ class SliseExplainer:
             lambda2 (float, optional): the L2 regularistaion strength. Defaults to 0.
             logit (bool, optional): do a logit transformation on the Y vector, this is recommended opnly if Y consists of probabilities. Defaults to False.
             normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
-            initialisation (Callable[ np.ndarray, np.ndarray, float, ..., Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            initialisation (Callable[ [np.ndarray, np.ndarray, float], Tuple[np.ndarray, float] ], optional): function that takes (X, Y, epslion) and gives an initial values for alpha and beta. Defaults to initialise_candidates.
             beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
             max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.

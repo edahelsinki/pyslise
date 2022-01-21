@@ -1,19 +1,21 @@
 # This script contains the optimisations for SLISE (Graduated Optimisation and OWL-QN)
 
 from math import log
-from typing import Tuple, Union, Callable, Optional
-from warnings import warn, catch_warnings
+from typing import Callable, Optional, Tuple
+from warnings import catch_warnings, warn
+
 import numpy as np
+from lbfgs import LBFGSError, fmin_lbfgs
 from numba import jit
-from lbfgs import fmin_lbfgs, LBFGSError
 from scipy.optimize import brentq
+
 from slise.utils import (
-    sigmoid,
-    log_sigmoid,
-    dlog_sigmoid,
-    log_sum_special,
     SliseWarning,
+    dlog_sigmoid,
+    log_sigmoid,
+    log_sum_special,
     mat_mul_inter,
+    sigmoid,
 )
 
 
@@ -114,7 +116,7 @@ def loss_numba(
     beta: float,
     lambda2: float,
     weight: Optional[np.ndarray] = None,
-) -> (float, np.ndarray):
+) -> Tuple[float, np.ndarray]:
     """
         Smoothed (with sigmoid) version of the loss, that also calculates the gradient.
         This function is sped up with numba.

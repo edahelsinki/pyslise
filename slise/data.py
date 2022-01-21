@@ -1,8 +1,8 @@
 # This script contains functions for modifying data
 
-from typing import Union, Tuple, NamedTuple
+from typing import NamedTuple, Tuple, Union, Optional
+
 import numpy as np
-from scipy.special import logit, expit as sigmoid
 
 
 def add_intercept_column(X: np.ndarray) -> np.ndarray:
@@ -24,13 +24,13 @@ def remove_intercept_column(X: np.ndarray) -> np.ndarray:
 
 
 def remove_constant_columns(
-    X: np.ndarray, epsilon: Union[float, None] = None
+    X: np.ndarray, epsilon: Optional[float] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Remove columns that are constant from a matrix
 
     Args:
         X (np.ndarray): the matrix
-        epsilon (Union[float, None], optional): treshold for constant (std < epsilon). Defaults to machine epsilon.
+        epsilon (Optional[float], optional): treshold for constant (std < epsilon). Defaults to machine epsilon.
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: A tuple of the reduced matrix and a mask showing which columns where retained
@@ -43,13 +43,13 @@ def remove_constant_columns(
 
 
 def add_constant_columns(
-    X: np.ndarray, mask: Union[np.ndarray, None], intercept: bool = False
+    X: np.ndarray, mask: Optional[np.ndarray], intercept: bool = False
 ) -> np.ndarray:
     """Add (back) contant columns to a matrix
 
     Args:
         X (np.ndarray): the matrix
-        mask (Union[np.ndarray, None]): a boolean array showing which columns are already in the matrix
+        mask (Optional[np.ndarray]): a boolean array showing which columns are already in the matrix
         intercept (bool, optional): does X has an intercept (added to it after constant columns where removed). Defaults to False.
 
     Returns:
@@ -75,7 +75,7 @@ def unscale_model(
     x_scale: np.ndarray,
     y_center: float = 0.0,
     y_scale: float = 1.0,
-    columns: Union[np.ndarray, None] = None,
+    columns: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Scale a linear model such that it matches unnormalised data
 
@@ -85,6 +85,7 @@ def unscale_model(
         x_scale (np.ndarray): the scale used for normalising X
         y_center (float, optional): the scale used for normalising y. Defaults to 0.0.
         y_scale (float, optional): the center used for normalising y. Defaults to 1.0.
+        columns (Optional[np.ndarray], optional): mask of removed columns (see remove_constant_columns). Defaults to None.
 
     Returns:
         np.ndarray: the unscaled model
@@ -102,14 +103,14 @@ def unscale_model(
 
 
 def normalise_robust(
-    x: np.ndarray, epsilon: Union[float, None] = None
+    x: np.ndarray, epsilon: Optional[float] = None
 ) -> Tuple[np.ndarray, Union[float, np.ndarray], Union[float, np.ndarray]]:
     """A robust version of normalisation that uses median and mad (median absolute deviation).
         Any zeros in the scale are replaced by ones to avoid division by zero.
 
     Args:
         x (np.ndarray): the vector or tensor to normalise
-        epsilon (Union[float, None], optional): threshold for the scale being zero. Defaults to machine epsilon.
+        epsilon (Optional[float], optional): threshold for the scale being zero. Defaults to machine epsilon.
 
     Returns:
         Tuple[np.ndarray, Union[float, np.ndarray], Union[float, np.ndarray]]: tuple of normalised x, center and scale
@@ -135,7 +136,7 @@ def scale_same(
     x: Union[np.ndarray, float],
     center: Union[float, np.ndarray],
     scale: Union[float, np.ndarray],
-    constant_colums: Union[np.ndarray, None] = None,
+    constant_colums: Optional[np.ndarray] = None,
     remove_columns: bool = True,
 ) -> np.ndarray:
     """Scale a matrix or vector the same way as another
@@ -144,7 +145,7 @@ def scale_same(
         x (np.ndarray): the matrix/vector to scale
         center (Union[float, np.ndarray]): the center used for the previous scaling
         scale (Union[float, np.ndarray]): the scale used for the previous scaling
-        constant_colums (Union[np.ndarray, None], optional): boolean mask of constant columns. Defaults to None.
+        constant_colums (Optional[np.ndarray], optional): boolean mask of constant columns. Defaults to None.
         remove_columns (bool, optional): remove constant columns. Defaults to True.
 
     Returns:

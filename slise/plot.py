@@ -3,17 +3,18 @@
 """
 
 from collections import OrderedDict
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union, Optional
 from warnings import warn
-import numpy as np
-from scipy.stats import gaussian_kde
-from scipy.special import expit as sigmoid
-from matplotlib import pyplot as plt
-from matplotlib.pyplot import Figure
-from matplotlib.colors import Normalize, LinearSegmentedColormap
-from matplotlib.patches import Patch
-from slise.utils import SliseException, SliseWarning, mat_mul_inter, limited_logit
 
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.patches import Patch
+from matplotlib.pyplot import Figure
+from scipy.special import expit as sigmoid
+from scipy.stats import gaussian_kde
+
+from slise.utils import SliseException, SliseWarning, mat_mul_inter
 
 # SLISE colors, for unified identity
 SLISE_ORANGE = "#fda411"
@@ -27,12 +28,12 @@ BW_COLORMAP = LinearSegmentedColormap.from_list("BW", ["black", "white"])
 
 
 def fill_column_names(
-    names: Union[List[str], None] = None, amount: int = -1, intercept: bool = False
+    names: Optional[List[str]] = None, amount: int = -1, intercept: bool = False
 ) -> List[str]:
     """Make sure the list of column names is of the correct size
 
     Args:
-        names (Union[List[str], None], optional): prefilled list of column names. Defaults to None.
+        names (Optional[List[str]], optional): prefilled list of column names. Defaults to None.
         amount (int, optional): the number of columns. Defaults to -1.
         intercept (bool, optional): should an intercept column be added. Defaults to False.
 
@@ -60,7 +61,7 @@ def fill_column_names(
 
 def fill_prediction_str(
     y: float,
-    Y: Union[np.ndarray, None] = None,
+    Y: Optional[np.ndarray] = None,
     classes: Union[List[str], str, None] = None,
     decimals: int = 3,
 ) -> str:
@@ -68,7 +69,7 @@ def fill_prediction_str(
 
     Args:
         y (float): the prediction
-        Y (Union[np.ndarray, None]): vector of predictions (used to guess if the predictions are probabilities). Defaults to None.
+        Y (Optional[np.ndarray]): vector of predictions (used to guess if the predictions are probabilities). Defaults to None.
         classes (Union[List[str], str, None], optional): list of class names (starting with the negative class), or singular class name. Defaults to None.
         decimals (int, optional): how many decimals hsould be written. Defaults to 3.
 
@@ -111,7 +112,7 @@ def extended_limits(
 
 def get_explanation_order(
     alpha: np.ndarray, intercept: bool = True, min: int = 5, th=1e-6
-) -> (np.ndarray, np.ndarray):
+) -> Tuple[np.ndarray, np.ndarray]:
     """
         Get the order in which to show the values in the plots
     """
@@ -137,18 +138,18 @@ def print_slise(
     subset: np.ndarray,
     loss: float,
     epsilon: float,
-    variables: Union[List[str], None] = None,
+    variables: Optional[List[str]] = None,
     title: str = "SLISE",
     decimals: int = 3,
     num_var: int = 10,
-    unscaled: Union[None, np.ndarray] = None,
+    unscaled: Optional[np.ndarray] = None,
     unscaled_y: Union[None, float] = None,
-    impact: Union[None, np.ndarray] = None,
-    scaled: Union[None, np.ndarray] = None,
-    alpha: Union[None, np.ndarray] = None,
-    scaled_impact: Union[None, np.ndarray] = None,
-    classes: Union[List[str], None] = None,
-    unscaled_preds: Union[None, np.ndarray] = None,
+    impact: Optional[np.ndarray] = None,
+    scaled: Optional[np.ndarray] = None,
+    alpha: Optional[np.ndarray] = None,
+    scaled_impact: Optional[np.ndarray] = None,
+    classes: Optional[List[str]] = None,
+    unscaled_preds: Optional[np.ndarray] = None,
     logit: bool = False,
 ):
     """Print the results from SLISE
@@ -159,18 +160,18 @@ def print_slise(
         subset (np.ndarray): subset mask
         loss (float): SLISE loss
         epsilon (float): (unscaled) error tolerance
-        variables (Union[List[str], None], optional): variable names. Defaults to None.
+        variables (Optional[List[str]], optional): variable names. Defaults to None.
         title (str, optional): title to print first. Defaults to "SLISE".
         decimals (int, optional): number of decimals to print. Defaults to 3.
         num_var (int, optional): exclude zero weights if there are too many variables. Defaults to 10.
-        unscaled (Union[None, np.ndarray], optional): unscaled x (explained item). Defaults to None.
+        unscaled (Optional[np.ndarray], optional): unscaled x (explained item). Defaults to None.
         unscaled_y (Union[None, float], optional): unscaled y (explained outcome). Defaults to None.
-        impact (Union[None, np.ndarray], optional): unscaled impact (coefficients * x). Defaults to None.
-        scaled (Union[None, np.ndarray], optional): scaled x (explained item). Defaults to None.
-        alpha (Union[None, np.ndarray], optional): scaled model. Defaults to None.
-        scaled_impact (Union[None, np.ndarray], optional): scaled impact (alpha * scaled_x). Defaults to None.
-        classes (Union[List[str], None], optional): class names (if applicable). Defaults to None.
-        unscaled_preds (Union[None, np.ndarray], optional): unscaled resonse (Y-vector). Defaults to None.
+        impact (Optional[np.ndarray], optional): unscaled impact (coefficients * x). Defaults to None.
+        scaled (Optional[np.ndarray], optional): scaled x (explained item). Defaults to None.
+        alpha (Optional[np.ndarray], optional): scaled model. Defaults to None.
+        scaled_impact (Optional[np.ndarray], optional): scaled impact (alpha * scaled_x). Defaults to None.
+        classes (Optional[List[str]], optional): class names (if applicable). Defaults to None.
+        unscaled_preds (Optional[np.ndarray], optional): unscaled resonse (Y-vector). Defaults to None.
         logit (bool, optional): a logit transformation has been applied. Defaults to False.
     """
     rows = OrderedDict()
@@ -229,14 +230,14 @@ def plot_2d(
     Y: np.ndarray,
     model: np.ndarray,
     epsilon: float,
-    x: Union[np.ndarray, None] = None,
-    y: Union[float, None] = None,
+    x: Optional[np.ndarray] = None,
+    y: Optional[float] = None,
     logit: bool = False,
     title: str = "SLISE for Robust Regression",
     label_x: str = "x",
     label_y: str = "y",
     decimals: int = 3,
-    fig: Union[Figure, None] = None,
+    fig: Optional[Figure] = None,
 ):
     """Plot the regression/explanation in a 2D scatter plot with a line for the regression model (and the explained item marked)
 
@@ -245,14 +246,14 @@ def plot_2d(
         Y (np.ndarray): response vector
         model (np.ndarray): regression model
         epsilon (float): error tolerance
-        x (Union[np.ndarray, None], optional): explained item. Defaults to None.
-        y (Union[float, None], optional): explained outcome. Defaults to None.
+        x (Optional[np.ndarray], optional): explained item. Defaults to None.
+        y (Optional[float], optional): explained outcome. Defaults to None.
         logit (bool, optional): should Y be logit-transformed. Defaults to False.
         title (str, optional): plot title. Defaults to "SLISE for Robust Regression".
         label_x (str, optional): x-axis label. Defaults to "x".
         label_y (str, optional): y-axis label. Defaults to "y".
         decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+        fig (Optional[Figure], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
 
     Raises:
         SliseException: if the data has too many dimensions
@@ -314,15 +315,15 @@ def plot_dist(
     Y: np.ndarray,
     model: np.ndarray,
     subset: np.ndarray,
-    alpha: Union[np.ndarray, None] = None,
-    x: Union[np.ndarray, None] = None,
-    y: Union[float, None] = None,
-    impact: Union[np.ndarray, None] = None,
-    norm_impact: Union[np.ndarray, None] = None,
+    alpha: Optional[np.ndarray] = None,
+    x: Optional[np.ndarray] = None,
+    y: Optional[float] = None,
+    impact: Optional[np.ndarray] = None,
+    norm_impact: Optional[np.ndarray] = None,
     title: str = "SLISE Explanation",
-    variables: list = None,
+    variables: Optional[List[str]] = None,
     decimals: int = 3,
-    fig: Union[Figure, None] = None,
+    fig: Optional[Figure] = None,
 ):
     """Plot the SLISE result with density distributions for the dataset and barplot for the model
 
@@ -331,15 +332,15 @@ def plot_dist(
         Y (np.ndarray): response vector
         model (np.ndarray): linear model
         subset (np.ndarray): selected subset
-        alpha (Union[np.ndarray, None]): scaled model. Defaults to None.
-        x (Union[np.ndarray, None], optional): the explained item (if it is an explanation). Defaults to None.
-        y (Union[float, None], optional): the explained outcome (if it is an explanation). Defaults to None.
-        impact (Union[np.ndarray, None], optional): impact vector (unscaled x*alpha), if available. Defaults to None.
-        norm_impact (Union[np.ndarray, None], optional): impact vector (scaled x*alpha), if available. Defaults to None.
+        alpha (Optional[np.ndarray]): scaled model. Defaults to None.
+        x (Optional[np.ndarray], optional): the explained item (if it is an explanation). Defaults to None.
+        y (Optional[float], optional): the explained outcome (if it is an explanation). Defaults to None.
+        impact (Optional[np.ndarray], optional): impact vector (unscaled x*alpha), if available. Defaults to None.
+        norm_impact (Optional[np.ndarray], optional): impact vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-        variables (list, optional): names for the (columns/) variables. Defaults to None.
+        variables (Optional[List[str]], optional): names for the (columns/) variables. Defaults to None.
         decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
-        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+        fig (Optional[Figure], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     # Values and order
     variables = fill_column_names(variables, X.shape[1], True)
@@ -553,7 +554,7 @@ def plot_image(
     title: str = "SLISE Explanation",
     classes: Union[List, str, None] = None,
     decimals: int = 3,
-    fig: Union[Figure, None] = None,
+    fig: Optional[Figure] = None,
 ):
     """Plot an explanation for a black and white image (e.g. MNIST)
 
@@ -568,7 +569,7 @@ def plot_image(
         title (str, optional): title of the plot. Defaults to "SLISE Explanation".
         classes (Union[List, str, None], optional): list of class names (first the negative, then the positive), or a single (positive) class name. Defaults to None.
         decimals (int, optional): the number of decimals to write. Defaults to 3.
-        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+        fig (Optional[Figure], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     intercept = model[0]
     model = model[1:]
@@ -619,20 +620,20 @@ def plot_image(
 def plot_dist_single(
     data: np.ndarray,
     subset: np.ndarray,
-    item: Union[float, None] = None,
+    item: Optional[float] = None,
     title: str = "Response Distribution",
     decimals: int = 0,
-    fig: Union[Figure, None] = None,
+    fig: Optional[Figure] = None,
 ):
     """Plot a density distributions for a single vector of the dataset
 
     Args:
         data (np.ndarray): vector
         subset (np.ndarray): selected subset
-        item (Union[np.ndarray, None], optional): the explained item (if it is an explanation). Defaults to None.
+        item (Optional[np.ndarray], optional): the explained item (if it is an explanation). Defaults to None.
         title (str, optional): title of the plot. Defaults to "Response Distribution".
         decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
-        fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
+        fig (Optional[Figure], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
     subsize = subset.mean()
     if isinstance(fig, Figure):

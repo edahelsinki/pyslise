@@ -1,11 +1,9 @@
 # This script contains some utility functions
 
-from random import randrange
-from math import log
 from typing import Union
+
 import numpy as np
 from scipy.special import expit as sigmoid
-from lbfgs import fmin_lbfgs
 
 
 class SliseWarning(RuntimeWarning):
@@ -75,7 +73,7 @@ def log_sum(x: np.ndarray) -> float:
         Computes log(sum(exp(x))) in a numerically stable way
     """
     xmax = np.max(x)
-    return xmax + log(np.sum(np.exp(x - xmax)))
+    return xmax + np.log(np.sum(np.exp(x - xmax)))
 
 
 def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
@@ -88,7 +86,7 @@ def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
     xsum = np.sum(xexp * y)
     if xsum == 0:
         xsum = np.sum(xexp)
-    return xmax + log(xsum)
+    return xmax + np.log(xsum)
 
 
 def mat_mul_inter(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:

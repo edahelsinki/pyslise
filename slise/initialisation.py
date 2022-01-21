@@ -1,12 +1,13 @@
 # This script contains functions for initialising alpha and beta
 
 from math import log
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 from warnings import catch_warnings
+
 import numpy as np
-from slise.data import pca_simple, pca_invert_model
-from slise.optimisation import next_beta, loss_residuals, regularised_regression
-from lbfgs import fmin_lbfgs
+
+from slise.data import pca_invert_model, pca_simple
+from slise.optimisation import loss_residuals, next_beta, regularised_regression
 
 
 def fast_lstsq(
@@ -99,7 +100,7 @@ def __create_candidate(
     weight: Optional[np.ndarray] = None,
     pca_treshold: int = 10,
     max_iterations: int = 300,
-):
+) -> np.ndarray:
     if X.shape[1] <= pca_treshold:
         sel = np.random.choice(X.shape[0], X.shape[1], False, weight)
         return fast_lstsq(X[sel, :], Y[sel], None, max_iterations)
@@ -161,7 +162,7 @@ def __create_candidate2(
     Y: np.ndarray,
     weight: Optional[np.ndarray] = None,
     max_iterations: int = 300,
-):
+) -> np.ndarray:
     sel = np.random.choice(X.shape[0], 3, False, weight)
     X = X[sel, :]
     Y = Y[sel]
