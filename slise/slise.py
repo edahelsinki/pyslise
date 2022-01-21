@@ -3,7 +3,7 @@
 """
 
 from __future__ import annotations
-from typing import Union, Tuple, Callable, List
+from typing import Union, Tuple, Callable, List, Optional
 from warnings import warn
 from matplotlib.pyplot import Figure
 import numpy as np
@@ -211,23 +211,22 @@ class SliseRegression:
         assert beta_max > 0.0, "beta_max must be positive"
         assert max_approx > 1.0, "max_approx must be larger than 1.0"
         assert max_iterations > 0, "max_iterations must be positive"
-        self.epsilon_orig = epsilon
+        self.epsilon = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        self.intercept = intercept
-        self.normalise = normalise
-        self.initialisation = initialisation
+        self.init_fn = initialisation
         self.beta_max = beta_max
         self.max_approx = max_approx
         self.max_iterations = max_iterations
         self.debug = debug
-        self.alpha = None
-        self.coefficients = None
-        self.epsilon = epsilon
-        self.X = None
-        self.Y = None
-        self.scale = None
-        self.weight = None
+        self._intercept = intercept
+        self._normalise = normalise
+        self._scale = None
+        self._X = None
+        self._Y = None
+        self._weight = None
+        self._alpha = None
+        self._coefficients = None
 
     def fit(
         self, X: np.ndarray, Y: np.ndarray, weight: Optional[np.ndarray] = None,
@@ -247,60 +246,59 @@ class SliseRegression:
         if len(X.shape) == 1:
             X.shape = X.shape + (1,)
         assert X.shape[0] == Y.shape[0], "X and Y must have the same number of items"
-        self.X = X
-        self.Y = Y
+        self._X = X
+        self._Y = Y
         if weight is None:
-            self.weight = None
+            self._weight = None
         else:
-            self.weight = np.array(weight)
-            assert len(self.weight) == len(
-                self.Y
+            self._weight = np.array(weight)
+            assert len(self._weight) == len(
+                self._Y
             ), "weight and Y must have the same number of items"
-            assert np.all(self.weight >= 0.0), "negative weights are not allowed"
+            assert np.all(self._weight >= 0.0), "negative weights are not allowed"
         # Preprocessing
-        if self.normalise:
+        if self._normalise:
             X, x_cols = remove_constant_columns(X)
-            if self.X.shape[1] == X.shape[1]:
+            if self._X.shape[1] == X.shape[1]:
                 x_cols = None
             X, x_center, x_scale = normalise_robust(X)
             Y, y_center, y_scale = normalise_robust(Y)
-            self.scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
-        if self.intercept:
+            self._scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
+        if self._intercept:
             X = add_intercept_column(X)
         # Initialisation
-        alpha, beta = self.initialisation(X, Y, self.epsilon_orig)
+        alpha, beta = self.init_fn(X, Y, self.epsilon)
         # Optimisation
         alpha = graduated_optimisation(
             alpha,
             X,
             Y,
-            epsilon=self.epsilon_orig,
+            epsilon=self.epsilon,
             beta=beta,
             lambda1=self.lambda1,
             lambda2=self.lambda2,
-            weight=self.weight,
+            weight=self._weight,
             beta_max=self.beta_max,
             max_approx=self.max_approx,
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
-        self.alpha = alpha
-        if self.normalise:
-            alpha2 = self.scale.unscale_model(alpha)
-            if not self.intercept:
+        self._alpha = alpha
+        if self._normalise:
+            alpha2 = self._scale.unscale_model(alpha)
+            if not self._intercept:
                 if np.abs(alpha2[0]) > 1e-8:
                     warn(
                         "Intercept introduced due to scaling, consider setting intercept=True (or normalise=False)",
                         SliseWarning,
                     )
-                    self.intercept = True
-                    self.alpha = np.concatenate(([0], alpha))
+                    self._intercept = True
+                    self._alpha = np.concatenate(([0], alpha))
                 else:
                     alpha2 = alpha2[1:]
-            self.coefficients = alpha2
-            self.epsilon = self.epsilon_orig * y_scale
+            self._coefficients = alpha2
         else:
-            self.coefficients = alpha
+            self._coefficients = alpha
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
@@ -312,14 +310,23 @@ class SliseRegression:
         Returns:
             np.ndarray: the coefficients of the linear model
         """
-        return self.alpha if normalised else self.coefficients
+        return self._alpha if normalised else self._coefficients
 
     @property
     def normalised(self):
-        if self.normalise:
-            return add_constant_columns(self.alpha, self.scale.columns, self.intercept)
+        if self._normalise:
+            return add_constant_columns(
+                self._alpha, self._scale.columns, self._intercept
+            )
         else:
             return None
+
+    @property
+    def scaled_epsilon(self):
+        if self._normalise:
+            return self.epsilon * self._scale.y_scale
+        else:
+            return self.epsilon
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the fitted model to predict new responses
@@ -331,9 +338,9 @@ class SliseRegression:
             np.ndarray: the predicted response
         """
         if X is None:
-            return mat_mul_inter(self.X, self.coefficients)
+            return mat_mul_inter(self._X, self._coefficients)
         else:
-            return mat_mul_inter(X, self.coefficients)
+            return mat_mul_inter(X, self._coefficients)
 
     def score(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -348,13 +355,13 @@ class SliseRegression:
             float: the loss
         """
         if X is None or Y is None:
-            X = self.X
-            Y = self.Y
-        if self.normalise:
-            X = self.scale.scale_x(X)
-            Y = self.scale.scale_y(Y)
+            X = self._X
+            Y = self._Y
+        if self._normalise:
+            X = self._scale.scale_x(X)
+            Y = self._scale.scale_y(Y)
         return loss_sharp(
-            self.alpha, X, Y, self.epsilon_orig, self.lambda1, self.lambda2, self.weight
+            self._alpha, X, Y, self.epsilon, self.lambda1, self.lambda2, self._weight
         )
 
     loss = score
@@ -372,10 +379,10 @@ class SliseRegression:
             np.ndarray: the selected subset as a boolean mask
         """
         if X is None or Y is None:
-            X = self.X
-            Y = self.Y
-        Y2 = mat_mul_inter(X, self.coefficients)
-        return (Y2 - Y) ** 2 < self.epsilon ** 2
+            X = self._X
+            Y = self._Y
+        Y2 = mat_mul_inter(X, self._coefficients)
+        return (Y2 - Y) ** 2 < self.scaled_epsilon ** 2
 
     def print(
         self,
@@ -391,11 +398,11 @@ class SliseRegression:
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         print_slise(
-            self.coefficients,
-            self.intercept,
+            self._coefficients,
+            self._intercept,
             self.subset(),
             self.score(),
-            self.epsilon,
+            self.scaled_epsilon,
             variables,
             "SLISE Regression",
             decimals,
@@ -424,10 +431,10 @@ class SliseRegression:
             SliseException: if the data has too many dimensions
         """
         plot_2d(
-            self.X,
-            self.Y,
-            self.coefficients,
-            self.epsilon,
+            self._X,
+            self._Y,
+            self._coefficients,
+            self.scaled_epsilon,
             None,
             None,
             False,
@@ -454,9 +461,9 @@ class SliseRegression:
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
-            self.X,
-            self.Y,
-            self.coefficients,
+            self._X,
+            self._Y,
+            self._coefficients,
             self.subset(),
             self.normalised,
             None,
@@ -482,7 +489,7 @@ class SliseRegression:
             decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
-        plot_dist_single(self.Y, self.subset(), None, title, decimals, fig)
+        plot_dist_single(self._Y, self.subset(), None, title, decimals, fig)
 
 
 class SliseExplainer:
@@ -544,12 +551,10 @@ class SliseExplainer:
         assert beta_max > 0.0, "beta_max must be positive"
         assert max_approx > 1.0, "max_approx must be larger than 1.0"
         assert max_iterations > 0, "max_iterations must be positive"
-        self.epsilon_orig = epsilon
+        self.epsilon = epsilon
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        self.logit = logit
-        self.normalise = normalise
-        self.initialisation = initialisation
+        self.init_fn = initialisation
         self.beta_max = beta_max
         self.max_approx = max_approx
         self.max_iterations = max_iterations
@@ -559,29 +564,29 @@ class SliseExplainer:
         if len(X.shape) == 1:
             X.shape = X.shape + (1,)
         assert X.shape[0] == Y.shape[0], "X and Y must have the same number of items"
-        self.X = X
-        self.Y = Y
-        self.x = None
-        self.y = None
-        self.weight = None
-        self.alpha = None
-        self.coefficients = None
+        self._logit = logit
+        self._normalise = normalise
+        self._X = X
+        self._Y = Y
+        self._x = None
+        self._y = None
+        self._weight = None
+        self._alpha = None
+        self._coefficients = None
         # Preprocess data
         if logit:
             Y = limited_logit(Y)
-        if self.normalise:
+        if normalise:
             X2, x_cols = remove_constant_columns(X)
             if X.shape[1] == X2.shape[1]:
                 x_cols = None
             X, x_center, x_scale = normalise_robust(X2)
             Y, y_center, y_scale = normalise_robust(Y)
-            self.scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
-            self.epsilon = epsilon * y_scale
+            self._scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
         else:
-            self.scale = None
-            self.epsilon = epsilon
-        self.X2 = X
-        self.Y2 = Y
+            self._scale = None
+        self._X2 = X
+        self._Y2 = Y
 
     def explain(
         self,
@@ -600,42 +605,42 @@ class SliseExplainer:
             SliseExplainer: self, with values set to the explanation
         """
         if weight is None:
-            self.weight = None
+            self._weight = None
         else:
-            self.weight = np.array(weight)
-            assert len(self.weight) == len(
-                self.Y
+            self._weight = np.array(weight)
+            assert len(self._weight) == len(
+                self._Y
             ), "weight and Y must have the same number of items"
-            assert np.all(self.weight >= 0.0), "negative weights are not allowed"
+            assert np.all(self._weight >= 0.0), "negative weights are not allowed"
         if y is None:
             assert isinstance(x, int) and (
-                0 <= x < self.Y.shape[0]
+                0 <= x < self._Y.shape[0]
             ), "if y is None then x must be an integer index [0, len(Y)["
-            self.y = self.Y[x]
-            self.x = self.X[x, :]
-            y = self.Y2[x]
-            x = self.X2[x, :]
+            self._y = self._Y[x]
+            self._x = self._X[x, :]
+            y = self._Y2[x]
+            x = self._X2[x, :]
         else:
             x = np.atleast_1d(np.array(x))
-            self.x = x
-            self.y = y
-            if self.logit:
+            self._x = x
+            self._y = y
+            if self._logit:
                 y = limited_logit(y)
-            if self.normalise:
-                x = self.scale.scale_x(x)
-                y = self.scale.scale_y(y)
-        X = self.X2 - x[None, :]
-        Y = self.Y2 - y
-        alpha, beta = self.initialisation(X, Y, self.epsilon_orig)
+            if self._normalise:
+                x = self._scale.scale_x(x)
+                y = self._scale.scale_y(y)
+        X = self._X2 - x[None, :]
+        Y = self._Y2 - y
+        alpha, beta = self.init_fn(X, Y, self.epsilon)
         alpha = graduated_optimisation(
             alpha,
             X,
             Y,
-            epsilon=self.epsilon_orig,
+            epsilon=self.epsilon,
             beta=beta,
             lambda1=self.lambda1,
             lambda2=self.lambda2,
-            weight=self.weight,
+            weight=self._weight,
             beta_max=self.beta_max,
             max_approx=self.max_approx,
             max_iterations=self.max_iterations,
@@ -644,13 +649,13 @@ class SliseExplainer:
         alpha = np.concatenate(
             (y - np.sum(alpha * x, dtype=x.dtype, keepdims=True), alpha)
         )
-        self.alpha = alpha
-        if self.normalise:
-            alpha2 = self.scale.unscale_model(alpha)
-            alpha2[0] = self.y - np.sum(self.x * alpha2[1:])
-            self.coefficients = alpha2
+        self._alpha = alpha
+        if self._normalise:
+            alpha2 = self._scale.unscale_model(alpha)
+            alpha2[0] = self._y - np.sum(self._x * alpha2[1:])
+            self._coefficients = alpha2
         else:
-            self.coefficients = alpha
+            self._coefficients = alpha
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
@@ -662,14 +667,21 @@ class SliseExplainer:
         Returns:
             np.ndarray: the coefficients of the linear model (the first scalar in the vector is the intercept)
         """
-        return self.alpha if normalised else self.coefficients
+        return self._alpha if normalised else self._coefficients
 
     @property
     def normalised(self):
-        if self.normalise:
-            return add_constant_columns(self.alpha, self.scale.columns, True)
+        if self._normalise:
+            return add_constant_columns(self._alpha, self._scale.columns, True)
         else:
             return None
+
+    @property
+    def scaled_epsilon(self):
+        if self._normalise:
+            return self.epsilon * self._scale.y_scale
+        else:
+            return self.epsilon
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
         """Use the approximating linear model to predict new outcomes
@@ -681,9 +693,9 @@ class SliseExplainer:
             np.ndarray: prediction vector
         """
         if X is None:
-            Y = mat_mul_inter(self.X, self.coefficients)
+            Y = mat_mul_inter(self._X, self._coefficients)
         else:
-            Y = mat_mul_inter(X, self.coefficients)
+            Y = mat_mul_inter(X, self._coefficients)
         if self.scaler.logit:
             Y = sigmoid(Y)
         return Y
@@ -700,32 +712,32 @@ class SliseExplainer:
         Returns:
             float: the loss
         """
-        x = self.x
-        y = self.y
-        if self.logit:
+        x = self._x
+        y = self._y
+        if self._logit:
             y = limited_logit(y)
-        if self.normalise:
-            x = self.scale.scale_x(x)
-            y = self.scale.scale_y(y)
+        if self._normalise:
+            x = self._scale.scale_x(x)
+            y = self._scale.scale_y(y)
         if X is None or Y is None:
-            X = self.X2
-            Y = self.Y2
+            X = self._X2
+            Y = self._Y2
         else:
-            if self.logit:
+            if self._logit:
                 Y = limited_logit(Y)
-            if self.normalise:
-                X = self.scale.scale_x(X)
-                Y = self.scale.scale_y(Y)
+            if self._normalise:
+                X = self._scale.scale_x(X)
+                Y = self._scale.scale_y(Y)
         X = X - x[None, :]
         Y = Y - y
         return loss_sharp(
-            self.alpha[1:],
+            self._alpha[1:],
             X,
             Y,
-            self.epsilon_orig,
+            self.epsilon,
             self.lambda1,
             self.lambda2,
-            self.weight,
+            self._weight,
         )
 
     loss = score
@@ -743,12 +755,12 @@ class SliseExplainer:
             np.ndarray: the subset as a boolean mask
         """
         if X is None or Y is None:
-            X = self.X
-            Y = self.Y
-        if self.logit:
+            X = self._X
+            Y = self._Y
+        if self._logit:
             Y = limited_logit(Y)
-        res = mat_mul_inter(X, self.coefficients) - Y
-        return res ** 2 < self.epsilon ** 2
+        res = mat_mul_inter(X, self._coefficients) - Y
+        return res ** 2 < self.scaled_epsilon ** 2
 
     def get_impact(
         self, normalised: bool = False, x: Union[None, np.ndarray] = None
@@ -764,15 +776,15 @@ class SliseExplainer:
             np.ndarray: the impact vector
         """
         if x is None:
-            x = self.x
-        if normalised and self.normalise:
+            x = self._x
+        if normalised and self._normalise:
             return add_constant_columns(
-                add_intercept_column(self.scale.scale_x(x)) * self.alpha,
-                self.scale.columns,
+                add_intercept_column(self._scale.scale_x(x)) * self._alpha,
+                self._scale.columns,
                 True,
             )
         else:
-            return add_intercept_column(x) * self.coefficients
+            return add_intercept_column(x) * self._coefficients
 
     def print(
         self,
@@ -790,24 +802,24 @@ class SliseExplainer:
             decimals (int, optional): the precision to use for printing. Defaults to 3.
         """
         print_slise(
-            self.coefficients,
+            self._coefficients,
             True,
             self.subset(),
             self.score(),
-            self.epsilon,
+            self.scaled_epsilon,
             variables,
             "SLISE Explanation",
             decimals,
             num_var,
-            unscaled=self.x,
-            unscaled_y=self.y,
+            unscaled=self._x,
+            unscaled_y=self._y,
             impact=self.get_impact(False),
-            scaled=None if self.scale is None else self.scale.scale_x(self.x, False),
+            scaled=None if self._scale is None else self._scale.scale_x(self._x, False),
             alpha=self.normalised,
-            scaled_impact=None if self.scale is None else self.get_impact(True),
+            scaled_impact=None if self._scale is None else self.get_impact(True),
             classes=classes,
-            unscaled_preds=self.Y,
-            logit=self.logit,
+            unscaled_preds=self._Y,
+            logit=self._logit,
         )
 
     def plot_2d(
@@ -831,13 +843,13 @@ class SliseExplainer:
             SliseException: if the data has too many dimensions
         """
         plot_2d(
-            self.X,
-            self.Y,
-            self.coefficients,
-            self.epsilon,
-            self.x,
-            self.y,
-            self.logit,
+            self._X,
+            self._Y,
+            self._coefficients,
+            self.scaled_epsilon,
+            self._x,
+            self._y,
+            self._logit,
             title,
             label_x,
             label_y,
@@ -867,10 +879,10 @@ class SliseExplainer:
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_image(
-            self.x,
-            self.y,
-            self.Y,
-            self.coefficients,
+            self._x,
+            self._y,
+            self._Y,
+            self._coefficients,
             width,
             height,
             saturated,
@@ -903,15 +915,15 @@ class SliseExplainer:
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
-            self.X,
-            self.Y,
-            self.coefficients,
+            self._X,
+            self._Y,
+            self._coefficients,
             self.subset(),
             self.normalised,
-            self.x,
-            self.y,
+            self._x,
+            self._y,
             self.get_impact(False),
-            self.get_impact(True) if self.normalise else None,
+            self.get_impact(True) if self._normalise else None,
             title,
             variables,
             decimals,
@@ -931,4 +943,4 @@ class SliseExplainer:
             decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
-        plot_dist_single(self.Y, self.subset(), self.y, title, decimals, fig)
+        plot_dist_single(self._Y, self.subset(), self._y, title, decimals, fig)

@@ -113,10 +113,10 @@ def test_slise_reg():
         X, Y, epsilon=0.1, lambda1=1e-4, lambda2=1e-4, intercept=True, normalise=True,
     )
     reg1.print()
-    Yp = mat_mul_inter(X, reg1.coefficients)
-    Yn = reg1.scale.scale_y(Y)
-    Ynp = mat_mul_inter(reg1.scale.scale_x(X), reg1.alpha)
-    Ypn = reg1.scale.scale_y(Yp)
+    Yp = mat_mul_inter(X, reg1.get_params())
+    Yn = reg1._scale.scale_y(Y)
+    Ynp = mat_mul_inter(reg1._scale.scale_x(X), reg1._alpha)
+    Ypn = reg1._scale.scale_y(Yp)
     # S = (Y - Yp) ** 2 < reg1.epsilon ** 2
     # Sn = (Yn - Ynp) ** 2 < reg1.epsilon_orig ** 2
     assert np.allclose(
