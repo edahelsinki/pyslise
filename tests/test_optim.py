@@ -5,7 +5,7 @@ from slise.utils import (
     sigmoid,
     log_sigmoid,
     sparsity,
-    log_sum,
+    log_sum_exp,
     log_sum_special,
 )
 from slise.optimisation import (
@@ -19,9 +19,6 @@ from slise.optimisation import (
     next_beta,
     log_approximation_ratio,
 )
-from slise.data import add_intercept_column
-from slise.initialisation import initialise_candidates
-from slise.slise import regression, explain
 
 from .utils import *
 
@@ -32,10 +29,10 @@ def test_utils():
     assert np.allclose(np.log(sigmoid(x)), log_sigmoid(x))
     assert sparsity(x) == len(x) - 1
     assert sparsity(x, 1.2) == len(x) - 3
-    assert log_sum(x) == np.log(np.sum(np.exp(x)))
-    assert log_sum(x) == log_sum_special(x, 0)
-    assert log_sum(x) == log_sum_special(x, 1)
-    assert log_sum(x) + np.log(2) == log_sum_special(x, 2)
+    assert log_sum_exp(x) == np.log(np.sum(np.exp(x)))
+    assert log_sum_exp(x) == log_sum_special(x, 0)
+    assert log_sum_exp(x) == log_sum_special(x, 1)
+    assert log_sum_exp(x) + np.log(2) == log_sum_special(x, 2)
 
 
 def test_loss():
@@ -260,6 +257,6 @@ def test_weights():
     assert np.allclose(
         regularised_regression(X2, Y2, 1e-4, 1e-4, weight=w1),
         regularised_regression(X, Y, 1e-4, 1e-4, weight=w3),
-        1e-4,
+        atol=1e-4,
     )
 

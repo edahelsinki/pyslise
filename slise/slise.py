@@ -54,23 +54,23 @@ def regression(
     This is a wrapper that is equivalent to `SliseRegression(epsilon, **kwargs).fit(X, Y)`
 
     Args:
-        X (np.ndarray): the data matrix
-        Y (np.ndarray): the response vector
-        epsilon (float): the error tolerance
-        lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
-        lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
-        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
-        intercept (bool, optional): add an intercept term. Defaults to True.
-        normalise (bool, optional): should X aclasses not be scaled). Defaults to False.
-        init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): use this alpha (and beta) value instead of the initialisation function. Defaults to None.
-        initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
-        beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
-        max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
-        max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
-        debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float): Error tolerance.
+        lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
+        lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        intercept (bool, optional): Add an intercept term. Defaults to True.
+        normalise (bool, optional): Should X aclasses not be scaled). Defaults to False.
+        init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): Use this alpha (and beta) value instead of the initialisation function. Defaults to None.
+        initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): Function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+        beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
+        debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
 
     Returns:
-        SliseRegression: object containing the regression result
+        SliseRegression: Object containing the regression result.
     """
     return SliseRegression(
         epsilon,
@@ -122,25 +122,25 @@ def explain(
     This is a wrapper that is equivalent to `SliseExplainer(X, Y, epsilon, **kwargs).explain(x, y)`
 
     Args:
-        X (np.ndarray): the data matrix
-        Y (np.ndarray): the vector of predictions
-        epsilon (float): the error tolerance
-        x (Union[np.ndarray, int]): the data item to explain, or an index to get the item from self.X
-        y (Union[float, None], optional): the outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
-        lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
-        lambda2 (float, optional): the L2 regularistaion strength. Defaults to 0.
-        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
-        normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
-        logit (bool, optional): do a logit transformation on the Y vector, this is recommended only if Y consists of probabilities. Defaults to False.
-        init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): use this alpha (and beta) value instead of the initialisation function. Defaults to None.
-        initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
-        beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
-        max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
-        max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
-        debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Vector of predictions.
+        epsilon (float): Error tolerance.
+        x (Union[np.ndarray, int]): The data item to explain, or an index to get the item from self.X
+        y (Union[float, None], optional): The outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
+        lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
+        lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        normalise (bool, optional): Should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+        logit (bool, optional): Do a logit transformation on the Y vector, this is recommended only if Y consists of probabilities. Defaults to False.
+        init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): Use this alpha (and beta) value instead of the initialisation function. Defaults to None.
+        initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): Function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+        beta_max (float, optional): The final sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
+        debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
 
     Returns:
-        SliseExplainer: object containing the explanation
+        SliseExplainer: Object containing the explanation.
     """
     return SliseExplainer(
         X,
@@ -192,16 +192,16 @@ class SliseRegression:
         It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
         Args:
-            epsilon (float): the error tolerance
-            lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
-            lambda2 (float, optional): the L2 regularisation strength. Defaults to 0.
-            intercept (bool, optional): add an intercept term. Defaults to True.
-            normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
-            initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
-            beta_max (float, optional): the stopping sigmoid steepness. Defaults to 20.
-            max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
-            max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
-            debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
+            epsilon (float): Error tolerance.
+            lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
+            lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
+            intercept (bool, optional): Add an intercept term. Defaults to True.
+            normalise (bool, optional): Should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+            initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): Function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+            max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+            max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
+            debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
         """
         assert epsilon > 0.0, "epsilon must be positive"
         assert lambda1 >= 0.0, "lambda1 must not be negative"
@@ -236,13 +236,13 @@ class SliseRegression:
         """Robustly fit a linear regression to a dataset
 
         Args:
-            X (np.ndarray): the data matrix
-            Y (np.ndarray): the response vector
-            weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
-            init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): use this alpha (and beta) value instead of the initialisation function. Defaults to None.
+            X (np.ndarray): Data matrix.
+            Y (np.ndarray): Response vector.
+            weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+            init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): Use this alpha (and beta) value instead of the initialisation function. Defaults to None.
 
         Returns:
-            SliseRegression: self, containing the regression result
+            SliseRegression: `self` (containing the regression result).
         """
         X = np.array(X)
         Y = np.array(Y)
@@ -308,13 +308,13 @@ class SliseRegression:
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
-        """Get the coefficients of the linear model
+        """Get the coefficients of the linear model.
 
         Args:
-            normalised (bool, optional): if the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
+            normalised (bool, optional): If the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
 
         Returns:
-            np.ndarray: the coefficients of the linear model
+            np.ndarray: The coefficients of the linear model.
         """
         return self._alpha if normalised else self._coefficients
 
@@ -335,13 +335,13 @@ class SliseRegression:
             return self.epsilon
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
-        """Use the fitted model to predict new responses
+        """Use the fitted model to predict new responses.
 
         Args:
-            X (Union[np.ndarray, None], optional): data matrix to predict, or None for using the fitted dataset. Defaults to None.
+            X (Union[np.ndarray, None], optional): Data matrix to predict, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray: the predicted response
+            np.ndarray: Predicted response.
         """
         if X is None:
             return mat_mul_inter(self._X, self._coefficients)
@@ -351,14 +351,14 @@ class SliseRegression:
     def score(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
     ) -> float:
-        """Calculate the loss. Lower is better and it should usually be negative (unless the regularisation is very (/too?) strong).
+        """Calculate the loss. Lower is better and it should usually be negative (unless the regularisation is very (too?) strong).
 
         Args:
-            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
-            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
+            X (Union[np.ndarray, None], optional): Data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): Response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            float: the loss
+            float: The loss.
         """
         if X is None or Y is None:
             X = self._X
@@ -375,14 +375,14 @@ class SliseRegression:
     def subset(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
     ) -> np.ndarray:
-        """Get the subset (of non-outliers) used for the robust regression model
+        """Get the subset (of non-outliers) used for the robust regression model.
 
         Args:
-            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
-            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
+            X (Union[np.ndarray, None], optional): Data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): Response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray: the selected subset as a boolean mask
+            np.ndarray: The selected subset as a boolean mask.
         """
         if X is None or Y is None:
             X = self._X
@@ -396,12 +396,12 @@ class SliseRegression:
         decimals: int = 3,
         num_var: int = 10,
     ):
-        """Print the current robust regression result
+        """Print the current robust regression result.
 
         Args:
-            variables ( Union[List[str], None], optional): names of the variables/columns in X. Defaults to None.
-            num_var (int, optional): exclude zero weights if there are too many variables. Defaults to 10.
-            decimals (int, optional): the precision to use for printing. Defaults to 3.
+            variables (Union[List[str], None], optional): Names of the variables/columns in X. Defaults to None.
+            num_var (int, optional): Exclude zero weights if there are too many variables. Defaults to 10.
+            decimals (int, optional): Precision to use for printing. Defaults to 3.
         """
         print_slise(
             self._coefficients,
@@ -424,17 +424,17 @@ class SliseRegression:
         decimals: int = 3,
         fig: Union[Figure, None] = None,
     ) -> SliseRegression:
-        """Plot the regression in a 2D scatter plot with a line for the regression model
+        """Plot the regression in a 2D scatter plot with a line for the regression model.
 
         Args:
-            title (str, optional): plot title. Defaults to "SLISE Regression".
-            label_x (str, optional): x-axis label. Defaults to "x".
-            label_y (str, optional): y-axis label. Defaults to "y".
-            decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
+            title (str, optional): Title of the plot. Defaults to "SLISE Regression".
+            label_x (str, optional): X-axis label. Defaults to "x".
+            label_y (str, optional): Y-axis label. Defaults to "y".
+            decimals (int, optional): Number of decimals when writing numbers. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
-            SliseException: if the data has too many dimensions
+            SliseException: If the data has too many dimensions.
         """
         plot_2d(
             self._X,
@@ -461,9 +461,9 @@ class SliseRegression:
         """Plot the regression with density distributions for the dataset and a barplot for the model.
 
         Args:
-            title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-            variables (list, optional): names for the variables. Defaults to None.
-            decimals (int, optional): the number of decimals to write. Defaults to 3.
+            title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
+            variables (list, optional): Names for the variables. Defaults to None.
+            decimals (int, optional): Number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
@@ -491,8 +491,8 @@ class SliseRegression:
         """Plot a density distributions for response and the response of the subset
 
         Args:
-            title (str, optional): title of the plot. Defaults to "Response Distribution".
-            decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
+            title (str, optional): Title of the plot. Defaults to "Response Distribution".
+            decimals (int, optional): Number of decimals when writing the subset size. Defaults to 0.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist_single(self._Y, self.subset(), None, title, decimals, fig)
@@ -539,18 +539,18 @@ class SliseExplainer:
         It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
 
         Args:
-            X (np.ndarray): the data matrix
-            Y (np.ndarray): the vector of predictions
-            epsilon (float): the error tolerance
-            lambda1 (float, optional): the L1 regularistaion strength. Defaults to 0.
-            lambda2 (float, optional): the L2 regularistaion strength. Defaults to 0.
-            logit (bool, optional): do a logit transformation on the Y vector, this is recommended opnly if Y consists of probabilities. Defaults to False.
-            normalise (bool, optional): should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
-            initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
-            beta_max (float, optional): the final sigmoid steepness. Defaults to 20.
-            max_approx (float, optional): approximation ratio when selecting the next beta. Defaults to 1.15.
-            max_iterations (int, optional): maximum number of OWL-QN iterations. Defaults to 300.
-            debug (bool, optional): print debug statements each graduated optimisation step. Defaults to False.
+            X (np.ndarray): Data matrix.
+            Y (np.ndarray): Vector of predictions.
+            epsilon (float): Error tolerance.
+            lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
+            lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
+            logit (bool, optional): Do a logit transformation on the Y vector, this is recommended opnly if Y consists of probabilities. Defaults to False.
+            normalise (bool, optional): Should X and Y be normalised (note that epsilon will not be scaled). Defaults to False.
+            initialisation (Callable[ [np.ndarray, np.ndarray, float, Optional[np.ndarray]], Tuple[np.ndarray, float] ], optional): Function that takes `(X, Y, epsilon, weight)` and gives an initial values for alpha and beta. Defaults to initialise_candidates.
+            beta_max (float, optional): The final sigmoid steepness. Defaults to 20.
+            max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+            max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
+            debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
         """
         assert epsilon > 0.0, "epsilon must be positive"
         assert lambda1 >= 0.0, "lambda1 must not be negative"
@@ -605,13 +605,13 @@ class SliseExplainer:
         """Explain an outcome from a black box model
 
         Args:
-            x (Union[np.ndarray, int]): the data item to explain, or an index to get the item from self.X
-            y (Union[float, None], optional): the outcome to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
-            weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
-            init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): use this alpha (and beta) value instead of the initialisation function. Defaults to None.
+            x (Union[np.ndarray, int]): Data item to explain, or an index to get the item from self.X
+            y (Union[float, None], optional): Prediction to explain. If x is an index then this should be None (y is taken from self.Y). Defaults to None.
+            weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+            init (Union[None, np.ndarray, Tuple[np.ndarray, float]], optional): Use this alpha (and beta) value instead of the initialisation function. Defaults to None.
 
         Returns:
-            SliseExplainer: self, with values set to the explanation
+            SliseExplainer: `self` (containing the explanation).
         """
         if weight is None:
             self._weight = None
@@ -671,13 +671,13 @@ class SliseExplainer:
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
-        """Get the explanation as the coefficients of a linear model (approximating the black box model)
+        """Get the explanation as the coefficients of a linear model (approximating the black box model).
 
         Args:
-            normalised (bool, optional): if the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
+            normalised (bool, optional): If the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
 
         Returns:
-            np.ndarray: the coefficients of the linear model (the first scalar in the vector is the intercept)
+            np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
         """
         return self._alpha if normalised else self._coefficients
 
@@ -696,13 +696,13 @@ class SliseExplainer:
             return self.epsilon
 
     def predict(self, X: Union[np.ndarray, None] = None) -> np.ndarray:
-        """Use the approximating linear model to predict new outcomes
+        """Use the approximating linear model to predict new outcomes.
 
         Args:
-            X (Union[np.ndarray, None], optional): data matrix to predict, or None for using the fitted dataset. Defaults to None.
+            X (Union[np.ndarray, None], optional): Sata matrix to predict, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray: prediction vector
+            np.ndarray: Prediction vector.
         """
         if X is None:
             Y = mat_mul_inter(self._X, self._coefficients)
@@ -718,11 +718,11 @@ class SliseExplainer:
         """Calculate the loss. Lower is better and it should usually be negative (unless the regularisation is very (/too?) strong).
 
         Args:
-            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
-            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
+            X (Union[np.ndarray, None], optional): Data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): Response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            float: the loss
+            float: The loss.
         """
         x = self._x
         y = self._y
@@ -757,14 +757,14 @@ class SliseExplainer:
     def subset(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
     ) -> np.ndarray:
-        """Get the subset / neighbourhood used for the approximation (explanation)
+        """Get the subset / neighbourhood used for the approximation (explanation).
 
         Args:
-            X (Union[np.ndarray, None], optional): data matrix, or None for using the fitted dataset. Defaults to None.
-            Y (Union[np.ndarray, None], optional): response vector, or None for using the fitted dataset. Defaults to None.
+            X (Union[np.ndarray, None], optional): Data matrix, or None for using the fitted dataset. Defaults to None.
+            Y (Union[np.ndarray, None], optional): Response vector, or None for using the fitted dataset. Defaults to None.
 
         Returns:
-            np.ndarray: the subset as a boolean mask
+            np.ndarray: The subset as a boolean mask.
         """
         if X is None or Y is None:
             X = self._X
@@ -781,11 +781,11 @@ class SliseExplainer:
             The impact is the (normalised) model times the (normalised) item.
 
         Args:
-            normalised (bool, optional): return the normalised impact (if normalisation is used). Defaults to False.
-            x (Union[None, np.ndarray], optional): the item to calculate the impact for (uses the explained item if None). Defaults to None.
+            normalised (bool, optional): Return the normalised impact (if normalisation is used). Defaults to False.
+            x (Union[None, np.ndarray], optional): The item to calculate the impact for (uses the explained item if None). Defaults to None.
 
         Returns:
-            np.ndarray: the impact vector
+            np.ndarray: The impact vector.
         """
         if x is None:
             x = self._x
@@ -805,13 +805,13 @@ class SliseExplainer:
         num_var: int = 10,
         decimals: int = 3,
     ):
-        """Print the current explanation
+        """Print the current explanation.
 
         Args:
-            variables (Union[List[str], None], optional): the names of the (columns/) variables. Defaults to None.
-            classes (Union[List[str], None], optional): the names of the classes, if explaining a classifier. Defaults to None.
-            num_var (int, optional): exclude zero weights if there are too many variables. Defaults to 10.
-            decimals (int, optional): the precision to use for printing. Defaults to 3.
+            variables (Union[List[str], None], optional): Names of the (columns/) variables. Defaults to None.
+            classes (Union[List[str], None], optional): Names of the classes, if explaining a classifier. Defaults to None.
+            num_var (int, optional): Exclude zero weights if there are too many variables. Defaults to 10.
+            decimals (int, optional): Precision to use for printing. Defaults to 3.
         """
         print_slise(
             self._coefficients,
@@ -845,14 +845,14 @@ class SliseExplainer:
         """Plot the explanation in a 2D scatter plot (where the explained item is marked) with a line for the approximating model.
 
         Args:
-            title (str, optional): plot title. Defaults to "SLISE Explanation".
+            title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
             label_x (str, optional): x-axis label. Defaults to "x".
-            label_y (str, optional): y-axis label. Defaults to "y".
-            decimals (int, optional): number of decimals when writing numbers. Defaults to 3.
+            label_y (str, optional): Y-axis label. Defaults to "y".
+            decimals (int, optional): Number of decimals when writing numbers. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
 
         Raises:
-            SliseException: if the data has too many dimensions
+            SliseException: If the data has too many dimensions.
         """
         plot_2d(
             self._X,
@@ -879,15 +879,15 @@ class SliseExplainer:
         decimals: int = 3,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
-        """Plot the current explanation for a black and white image (e.g. MNIST)
+        """Plot the current explanation for a black and white image (e.g. MNIST).
 
         Args:
-            width (int): the width of the image
-            height (int): the height of the image
-            saturated (bool, optional): should the explanation be more saturated. Defaults to True.
-            title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-            classes (Union[List, str, None], optional): list of class names (first the negative, then the positive), or a single (positive) class name. Defaults to None.
-            decimals (int, optional): the number of decimals to write. Defaults to 3.
+            width (int): Width of the image.
+            height (int): Height of the image.
+            saturated (bool, optional): Should the explanation be more saturated. Defaults to True.
+            title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
+            classes (Union[List, str, None], optional): List of class names (first the negative, then the positive), or a single (positive) class name. Defaults to None.
+            decimals (int, optional): Number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_image(
@@ -921,9 +921,9 @@ class SliseExplainer:
         weight times a negative value actually supports a positive prediction).
 
         Args:
-            title (str, optional): title of the plot. Defaults to "SLISE Explanation".
-            variables (list, optional): names for the variables. Defaults to None.
-            decimals (int, optional): the number of decimals to write. Defaults to 3.
+            title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
+            variables (list, optional): Names for the variables. Defaults to None.
+            decimals (int, optional): Number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
@@ -951,8 +951,8 @@ class SliseExplainer:
         """Plot a density distributions for predictions and the predictions of the subset
 
         Args:
-            title (str, optional): title of the plot. Defaults to "Prediction Distribution".
-            decimals (int, optional): number of decimals when writing the subset size. Defaults to 0.
+            title (str, optional): Title of the plot. Defaults to "Prediction Distribution".
+            decimals (int, optional): Number of decimals when writing the subset size. Defaults to 0.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist_single(self._Y, self.subset(), self._y, title, decimals, fig)

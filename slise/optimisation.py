@@ -30,7 +30,7 @@ def loss_smooth(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Smoothed (with sigmoid) version of the loss.
+        Smoothed version of the loss.
     """
     epsilon *= epsilon
     distances = ((X @ alpha) - Y) ** 2
@@ -61,7 +61,7 @@ def loss_residuals(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Smoothed (with sigmoid) version of the loss, that takes already calculated residuals.
+        Smoothed version of the loss, that takes already calculated residuals.
         This function is sped up with numba.
         Assumes that the residuals and epsilon are squared.
     """
@@ -90,7 +90,7 @@ def loss_sharp(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Exact (combinatorial) version of the loss.
+        Exact version of the loss.
     """
     epsilon *= epsilon
     distances = (Y - mat_mul_inter(X, alpha)) ** 2
@@ -118,7 +118,7 @@ def loss_numba(
     weight: Optional[np.ndarray] = None,
 ) -> Tuple[float, np.ndarray]:
     """
-        Smoothed (with sigmoid) version of the loss, that also calculates the gradient.
+        Smoothed version of the loss, that also calculates the gradient.
         This function is sped up with numba.
     """
     epsilon *= epsilon
@@ -179,7 +179,7 @@ def owlqn(
     **kwargs,
 ) -> np.ndarray:
     """
-        Wrapper around owlqn that converts max_iter errors to warnings
+        Wrapper around owlqn that converts max_iter errors to warnings (see `fmin_lbfgs`).
     """
 
     def f(x: np.ndarray, gradient: np.ndarray) -> float:
@@ -227,15 +227,15 @@ def regularised_regression(
     """Train a linear regression model with lasso (L1) and/or ridge (L2) regularisation.
 
     Args:
-        X (np.ndarray): data matrix
-        Y (np.ndarray): response vector
-        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
         lambda1 (float, optional): LASSO/L1 regularisation coefficient. Defaults to 1e-6.
         lambda2 (float, optional): Ridge/L2 regularisation coefficient. Defaults to 1e-6.
-        max_iterations (int, optional): maximum number of optimisation steps. Defaults to 200.
+        max_iterations (int, optional): Maximum number of optimisation steps. Defaults to 200.
 
     Returns:
-        np.ndarray: the linear model coefficients
+        np.ndarray: The coefficients of the linear model.
     """
     return owlqn(
         lambda alpha: ridge_numba(alpha, X, Y, lambda2, weight),
@@ -257,7 +257,7 @@ def optimise_loss(
     max_iterations: int = 200,
 ) -> np.ndarray:
     """
-        Optimise a smoothed loss with owl-qn
+        Optimise a smoothed SLISE loss with `owl-qn`.
     """
     return owlqn(
         lambda alpha: loss_numba(alpha, X, Y, epsilon, beta, lambda2, weight),
@@ -275,7 +275,7 @@ def log_approximation_ratio(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Calculate log(K), where K is the approximation ratio between two smoothed losses
+        Calculate log(K), where K is the approximation ratio between two smoothed losses.
     """
     if beta1 >= beta2:
         return 0
@@ -312,7 +312,7 @@ def next_beta(
     min_beta_step: float = 0.0005,
 ) -> float:
     """
-        Calculate the next beta for the graduated optimisation
+        Calculate the next beta for the graduated optimisation.
     """
     if beta >= beta_max:
         return beta
@@ -335,7 +335,7 @@ def matching_epsilon(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Approximately calculate the epsilon that minimises the approximation ratio to the exact loss
+        Approximately calculate the epsilon that minimises the approximation ratio to the exact loss.
     """
     if weight is None:
         residuals2 = np.sort(residuals2)
@@ -361,7 +361,7 @@ def debug_log(
     weight: Optional[np.ndarray] = None,
 ):
     """
-        Print the log statement for a graduated optimisation step
+        Print the log statement for a graduated optimisation step.
     """
     residuals = (X @ alpha - Y) ** 2
     loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2, weight)
@@ -389,24 +389,24 @@ def graduated_optimisation(
     max_iterations: int = 200,
     debug: bool = False,
 ) -> np.ndarray:
-    """Optimise alpha using graduated optimisation
+    """Optimise alpha using graduated optimisation.
 
     Args:
-        alpha (np.ndarray): initial alpha
-        X (np.ndarray): data matrix
-        Y (np.ndarray): response vector
-        epsilon (float): error tolerance
-        beta (float, optional): initial beta. Defaults to 0.
+        alpha (np.ndarray): Initial alpha.
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float): Error tolerance.
+        beta (float, optional): Initial beta. Defaults to 0.
         lambda1 (float, optional): L1 regularisation strength. Defaults to 0.
         lambda2 (float, optional): L2 regularisation strength. Defaults to 0.
-        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
-        beta_max (float, optional): the final beta. Defaults to 20.
-        max_approx (float, optional): target approximation ratio when increasing beta. Defaults to 1.15.
-        max_iterations (int, optional): maximum number of iterations for owl-qn. Defaults to 200.
-        debug (bool, optional): print debug logs after each optimisation step. Defaults to False.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        beta_max (float, optional): Maximum sigmoid steepness (the final beta). Defaults to 20.
+        max_approx (float, optional): Target approximation ratio when increasing beta. Defaults to 1.15.
+        max_iterations (int, optional): Maximum number of iterations for owl-qn. Defaults to 200.
+        debug (bool, optional): Print debug logs after each optimisation step. Defaults to False.
 
     Returns:
-        np.ndarray: the optimised alpha
+        np.ndarray: Optimised alpha.
     """
     X = np.asfortranarray(X, dtype=np.float64)
     Y = np.asfortranarray(Y, dtype=np.float64)

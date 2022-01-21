@@ -19,10 +19,10 @@ def fast_lstsq(
     """A fast version of least squares that falls back to optimisation if the input size gest too large.
 
     Args:
-        x (np.ndarray): the data matrix
-        y (np.ndarray): the response vector
-        weight (Optional[np.ndarray], optional): weight vector for the data items. Defaults to None.
-        max_iterations (int, optional): the number of iterations to use in case of optimisation. Defaults to 300.
+        x (np.ndarray): Data matrix.
+        y (np.ndarray): Response vector.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        max_iterations (int, optional): The number of iterations to use in case of optimisation. Defaults to 300.
 
     Returns:
         np.ndarray: vector of coefficients
@@ -41,8 +41,17 @@ def initialise_lasso(
     max_iterations: int = 300,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """
-        Initialise alpha and beta to be equivalent to LASSO
+    """Initialise alpha and beta to be equivalent to LASSO.
+
+    Args:
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float, optional): The error tolerance. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        max_iterations (int, optional): The number of iterations to use in case of optimisation. Defaults to 300.
+
+    Returns:
+        Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     return fast_lstsq(X, Y, weight, max_iterations), 0.0
 
@@ -59,8 +68,21 @@ def initialise_ols(
     min_beta_step: float = 1e-8,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """
-        Initialise alpha to OLS and beta to `next_beta`
+    """Initialise alpha to OLS and beta to `next_beta`.
+
+    Args:
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float, optional): The error tolerance. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        max_iterations (int, optional): The number of iterations to use in case of optimisation. Defaults to 300.
+        beta_max_init (float, optional): Maximum beta. Defaults to 2.5.
+        min_beta_step (float, optional): Minimum beta. Defaults to 1e-8.
+
+    Returns:
+        Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     alpha = fast_lstsq(X, Y, weight, max_iterations)
     epsilon = epsilon ** 2
@@ -83,8 +105,20 @@ def initialise_zeros(
     min_beta_step: float = 1e-8,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """
-        Initialise alpha to 0 and beta to `next_beta`
+    """Initialise alpha to 0 and beta to `next_beta`.
+
+    Args:
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float, optional): The error tolerance. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        beta_max_init (float, optional): Maximum beta. Defaults to 2.5.
+        min_beta_step (float, optional): Minimum beta. Defaults to 1e-8.
+
+    Returns:
+        Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     epsilon = epsilon ** 2
     beta_max = min(beta_max, beta_max_init) / epsilon
@@ -105,6 +139,22 @@ def initialise_fixed(
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
 ):
+    """Initialise alpha and beta to the given values (or `next_beta` if beta is not given).
+
+    Args:
+        init (Union[np.ndarray, Tuple[np.ndarray, float]]): The fixed alpha, and optional beta.
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float, optional): The error tolerance. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        beta_max_init (float, optional): Maximum beta. Defaults to 2.5.
+        min_beta_step (float, optional): Minimum beta. Defaults to 1e-8.
+
+    Returns:
+        [type]: [description]
+    """
     if isinstance(init, tuple):
         alpha, beta = init
     else:
@@ -148,9 +198,24 @@ def initialise_candidates(
     min_beta_step: float = 1e-8,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """
-        Generate a number (num_init) of candidates, using PCA to shrink the random subsets.
+    """Generate a number (num_init) of candidates, using PCA to shrink the random subsets.
         Then select the best one to be alpha and beta to be the corresponding `next_beta`
+
+    Args:
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float, optional): The error tolerance. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        pca_treshold (int, optional): Treshold number of dimension to use PCA. Defaults to 10.
+        num_init (int, optional): Number of candidates to generate. Defaults to 500.
+        max_iterations (int, optional): The number of iterations to use in case of optimisation. Defaults to 300.
+        beta_max_init (float, optional): Maximum beta. Defaults to 2.5.
+        min_beta_step (float, optional): Minimum beta. Defaults to 1e-8.
+
+    Returns:
+        Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     # Prepare parameters
     epsilon = epsilon ** 2
@@ -207,9 +272,23 @@ def initialise_candidates2(
     min_beta_step: float = 1e-8,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """
-        Generate a number (num_init) of candidates, using LASSO to shrink the random subsets.
+    """Generate a number (num_init) of candidates, using LASSO to shrink the random subsets.
         Then select the best one to be alpha and beta to be the corresponding `next_beta`
+
+    Args:
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float, optional): The error tolerance. Defaults to 0.
+        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
+        beta_max (float, optional): The stopping sigmoid steepness. Defaults to 20.
+        max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
+        num_init (int, optional): Number of candidates to generate. Defaults to 500.
+        max_iterations (int, optional): The number of iterations to use in case of optimisation. Defaults to 300.
+        beta_max_init (float, optional): Maximum beta. Defaults to 2.5.
+        min_beta_step (float, optional): Minimum beta. Defaults to 1e-8.
+
+    Returns:
+        Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     # Prepare parameters
     epsilon = epsilon ** 2

@@ -68,7 +68,7 @@ def sparsity(x: Union[np.ndarray, float], treshold: float = 0) -> int:
         return np.count_nonzero(x)
 
 
-def log_sum(x: np.ndarray) -> float:
+def log_sum_exp(x: np.ndarray) -> float:
     """
         Computes log(sum(exp(x))) in a numerically stable way
     """
