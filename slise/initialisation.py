@@ -1,7 +1,7 @@
 # This script contains functions for initialising alpha and beta
 
 from math import log
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 from warnings import catch_warnings
 
 import numpy as np
@@ -92,6 +92,29 @@ def initialise_zeros(
         Y ** 2, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step
     )
     return np.zeros(X.shape[1]), beta
+
+
+def initialise_fixed(
+    init: Union[np.ndarray, Tuple[np.ndarray, float]],
+    X: np.ndarray,
+    Y: np.ndarray,
+    epsilon: float,
+    weight: Optional[np.ndarray] = None,
+    beta_max: float = 20,
+    max_approx: float = 1.15,
+    beta_max_init: float = 2.5,
+    min_beta_step: float = 1e-8,
+):
+    if isinstance(init, tuple):
+        alpha, beta = init
+    else:
+        epsilon = epsilon ** 2
+        beta_max = min(beta_max, beta_max_init) / epsilon
+        alpha = init
+        beta = next_beta(
+            (X @ alpha - Y) ** 2, epsilon, 0, weight, beta_max, log(max_approx),
+        )
+    return alpha, beta
 
 
 def __create_candidate(

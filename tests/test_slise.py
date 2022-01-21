@@ -7,6 +7,7 @@ from slise.data import add_intercept_column, scale_same
 from slise.initialisation import (
     initialise_candidates,
     initialise_candidates2,
+    initialise_fixed,
     initialise_lasso,
     initialise_ols,
     initialise_zeros,
@@ -31,6 +32,14 @@ def test_initialise_simple():
     assert len(alpha) == 5
     alpha, beta = initialise_ols(X, Y, 0.1, w)
     alpha, beta = initialise_ols(X, Y, 0.1)
+    assert beta > 0
+    assert len(alpha) == 5
+    alpha, beta = initialise_fixed(alpha, X, Y, 0.1, w)
+    alpha, beta = initialise_fixed(alpha, X, Y, 0.1)
+    assert beta > 0
+    assert len(alpha) == 5
+    alpha, beta = initialise_fixed((alpha, beta), X, Y, 0.1, w)
+    alpha, beta = initialise_fixed((alpha, beta), X, Y, 0.1)
     assert beta > 0
     assert len(alpha) == 5
 
