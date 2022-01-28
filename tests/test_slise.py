@@ -1,9 +1,10 @@
 from warnings import catch_warnings
-import numpy as np
-from scipy.special import expit as sigmoid
 
-from slise.optimisation import loss_smooth
-from slise.data import add_intercept_column, scale_same
+import numpy as np
+from pytest import approx
+from scipy.special import expit as sigmoid
+from slise import explain, regression
+from slise.data import add_intercept_column
 from slise.initialisation import (
     initialise_candidates,
     initialise_candidates2,
@@ -12,7 +13,7 @@ from slise.initialisation import (
     initialise_ols,
     initialise_zeros,
 )
-from slise import regression, explain
+from slise.optimisation import loss_smooth
 from slise.utils import mat_mul_inter
 
 from .utils import *
@@ -170,6 +171,7 @@ def test_slise_reg():
 
 def test_slise_exp():
     print("Testing slise explanation")
+    np.random.seed(49)
     X, Y, mod = data_create2(100, 5)
     Y2 = sigmoid(Y)
     w = np.random.uniform(size=100) + 0.5
@@ -178,31 +180,39 @@ def test_slise_exp():
     reg = explain(X, Y, 0.1, x, y, lambda1=1e-4, lambda2=1e-4, normalise=True)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert y == approx(reg.predict(x))
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, 0.1, 19, lambda1=0.01, lambda2=0.01, normalise=True)
+    reg = explain(X, Y, 0.1, 17, lambda1=0.01, lambda2=0.01, normalise=True)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert Y[17] == approx(reg.predict(X[17]))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, x, y, lambda1=0.01, lambda2=0.01, normalise=False)
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert y == approx(reg.predict(x))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, x, y, lambda1=0, lambda2=0, normalise=False)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert y == approx(reg.predict(x))
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y, 0.1, 19, lambda1=0.01, lambda2=0.01, normalise=False)
+    reg = explain(X, Y, 0.1, 18, lambda1=0.01, lambda2=0.01, normalise=False)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert Y[18] == approx(reg.predict(X[18]))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, 19, lambda1=0, lambda2=0, normalise=False)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert Y[19] == approx(reg.predict(X[19]))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, 19, lambda1=0.01, lambda2=0.01, weight=w, normalise=False)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert Y[19] == approx(reg.predict(X[19]))
     assert 1.0 >= reg.subset().mean() > 0.0
-    reg = explain(X, Y2, 0.5, 19, weight=w, normalise=True, logit=True)
+    reg = explain(X, Y2, 0.5, 20, weight=w, normalise=True, logit=True)
     reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
+    assert Y2[20] == approx(reg.predict(X[20]))
     assert 1.0 >= reg.subset().mean() > 0.0

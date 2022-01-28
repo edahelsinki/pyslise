@@ -396,7 +396,7 @@ def plot_dist(
         if np.var(X) == 0:
             X = np.random.normal(X[0], 1e-8, len(X))
         kde1 = gaussian_kde(X, 0.2)
-        if np.any(subset):
+        if np.sum(subset) > 1:
             kde2 = gaussian_kde(X[subset], 0.2)
         else:
             kde2 = lambda x: x * 0

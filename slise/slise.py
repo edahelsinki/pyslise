@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
-from matplotlib.pyplot import Figure
+from matplotlib.pyplot import Figure, yscale
 from scipy.special import expit as sigmoid
 
 from slise.data import (
@@ -73,17 +73,17 @@ def regression(
         SliseRegression: Object containing the regression result.
     """
     return SliseRegression(
-        epsilon,
-        lambda1,
-        lambda2,
-        intercept,
-        normalise,
-        initialisation,
-        beta_max,
-        max_approx,
-        max_iterations,
-        debug,
-    ).fit(X, Y, weight, init)
+        epsilon=epsilon,
+        lambda1=lambda1,
+        lambda2=lambda2,
+        intercept=intercept,
+        normalise=normalise,
+        initialisation=initialisation,
+        beta_max=beta_max,
+        max_approx=max_approx,
+        max_iterations=max_iterations,
+        debug=debug,
+    ).fit(X=X, Y=Y, weight=weight, init=init)
 
 
 def explain(
@@ -143,19 +143,19 @@ def explain(
         SliseExplainer: Object containing the explanation.
     """
     return SliseExplainer(
-        X,
-        Y,
-        epsilon,
-        lambda1,
-        lambda2,
-        normalise,
-        logit,
-        initialisation,
-        beta_max,
-        max_approx,
-        max_iterations,
-        debug,
-    ).explain(x, y, weight, init)
+        X=X,
+        Y=Y,
+        epsilon=epsilon,
+        lambda1=lambda1,
+        lambda2=lambda2,
+        normalise=normalise,
+        logit=logit,
+        initialisation=initialisation,
+        beta_max=beta_max,
+        max_approx=max_approx,
+        max_iterations=max_iterations,
+        debug=debug,
+    ).explain(x=x, y=y, weight=weight, init=init)
 
 
 class SliseRegression:
@@ -276,9 +276,9 @@ class SliseRegression:
             alpha, beta = initialise_fixed(init, X, Y, self.epsilon, self._weight)
         # Optimisation
         alpha = graduated_optimisation(
-            alpha,
-            X,
-            Y,
+            alpha=alpha,
+            X=X,
+            Y=Y,
             epsilon=self.epsilon,
             beta=beta,
             lambda1=self.lambda1,
@@ -588,7 +588,10 @@ class SliseExplainer:
             if X.shape[1] == X2.shape[1]:
                 x_cols = None
             X, x_center, x_scale = normalise_robust(X2)
-            Y, y_center, y_scale = normalise_robust(Y)
+            if logit:
+                (y_center, y_scale) = (0, 1)
+            else:
+                Y, y_center, y_scale = normalise_robust(Y)
             self._scale = DataScaling(x_center, x_scale, y_center, y_scale, x_cols)
         else:
             self._scale = None
@@ -645,9 +648,9 @@ class SliseExplainer:
         else:
             alpha, beta = initialise_fixed(init, X, Y, self.epsilon, self._weight)
         alpha = graduated_optimisation(
-            alpha,
-            X,
-            Y,
+            alpha=alpha,
+            X=X,
+            Y=Y,
             epsilon=self.epsilon,
             beta=beta,
             lambda1=self.lambda1,
@@ -663,8 +666,11 @@ class SliseExplainer:
         )
         self._alpha = alpha
         if self._normalise:
+            y = self._y
+            if self._logit:
+                y = limited_logit(y)
             alpha2 = self._scale.unscale_model(alpha)
-            alpha2[0] = self._y - np.sum(self._x * alpha2[1:])
+            alpha2[0] = y - np.sum(self._x * alpha2[1:])
             self._coefficients = alpha2
         else:
             self._coefficients = alpha
@@ -708,7 +714,7 @@ class SliseExplainer:
             Y = mat_mul_inter(self._X, self._coefficients)
         else:
             Y = mat_mul_inter(X, self._coefficients)
-        if self.scaler.logit:
+        if self._logit:
             Y = sigmoid(Y)
         return Y
 
