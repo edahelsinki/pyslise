@@ -1,11 +1,9 @@
 # This script contains some utility functions
 
-from random import randrange
-from math import log
 from typing import Union
+
 import numpy as np
 from scipy.special import expit as sigmoid
-from lbfgs import fmin_lbfgs
 
 
 class SliseWarning(RuntimeWarning):
@@ -70,12 +68,12 @@ def sparsity(x: Union[np.ndarray, float], treshold: float = 0) -> int:
         return np.count_nonzero(x)
 
 
-def log_sum(x: np.ndarray) -> float:
+def log_sum_exp(x: np.ndarray) -> float:
     """
         Computes log(sum(exp(x))) in a numerically stable way
     """
     xmax = np.max(x)
-    return xmax + log(np.sum(np.exp(x - xmax)))
+    return xmax + np.log(np.sum(np.exp(x - xmax)))
 
 
 def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
@@ -88,24 +86,7 @@ def log_sum_special(x: np.ndarray, y: np.ndarray) -> float:
     xsum = np.sum(xexp * y)
     if xsum == 0:
         xsum = np.sum(xexp)
-    return xmax + log(xsum)
-
-
-def random_sample_int(n: int, k: int) -> list:
-    """
-        Get k random, but unique, integers from the interval [0,n)
-    """
-    if n < k:
-        raise SliseException("random_sample_int: n must be equal or larger than k")
-    if n == k:
-        return list(range(k))
-    indices = [randrange(0, n)] * k
-    for i in range(1, k):
-        new = randrange(0, n)
-        while new in indices[:k]:
-            new = randrange(0, n)
-        indices[i] = new
-    return indices
+    return xmax + np.log(xsum)
 
 
 def mat_mul_inter(X: np.ndarray, alpha: np.ndarray) -> np.ndarray:

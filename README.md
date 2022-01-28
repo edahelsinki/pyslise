@@ -1,17 +1,20 @@
-![Example of Robust Regression](examples/pyslise_banner.png)
+![PySLISE Banner Image](examples/pyslise_banner.png)
 # SLISE - Sparse Linear Subset Explanations
 
-Python implementation of the SLISE algorithm. The SLISE algorithm can be used for
-both robust regression and to explain outcomes from black box models.
-For more details see [the paper](https://rdcu.be/bVbda), alternatively for a more informal
-overview see [the presentation](https://github.com/edahelsinki/slise/raw/master/vignettes/presentation.pdf),
-or [the poster](https://github.com/edahelsinki/slise/raw/master/vignettes/poster.pdf).
+Python implementation of the SLISE algorithm. The SLISE algorithm can be used for both robust regression and to explain outcomes from black box models.
+For more details see [the original paper](https://rdcu.be/bVbda) or the [robust regression paper](https://rdcu.be/cFRHD).
+Alternatively for a more informal overview see [the presentation](https://github.com/edahelsinki/slise/raw/master/vignettes/presentation.pdf), or [the poster](https://github.com/edahelsinki/slise/raw/master/vignettes/poster.pdf).
 
-> **Björklund A., Henelius A., Oikarinen E., Kallonen K., Puolamäki K.**  
-> *Sparse Robust Regression for Explaining Classifiers.*  
+> *Björklund A., Henelius A., Oikarinen E., Kallonen K., Puolamäki K.* (2019)  
+> **Sparse Robust Regression for Explaining Classifiers.**  
 > Discovery Science (DS 2019).  
 > Lecture Notes in Computer Science, vol 11828, Springer.  
-> https://doi.org/10.1007/978-3-030-33778-0_27
+> https://doi.org/10.1007/978-3-030-33778-0_27  
+
+> *Björklund A., Henelius A., Oikarinen E., Kallonen K., Puolamäki K.* (2022).  
+> **Robust regression via error tolerance.**  
+> Data Mining and Knowledge Discovery.  
+> https://doi.org/10.1007/s10618-022-00819-2  
 
 ## The idea
 
@@ -47,12 +50,12 @@ Here are two quick examples of SLISE in action. For more detailed examples, with
 > SLISE is a robust regression algorithm, which means that it is able to handle outliers. This is in contrast to, e.g., ordinary least-squares regression, which gives skewed results when outliers are present.
 
 &nbsp;
-> ![Example of Robust Regression](examples/ex2.png)  
+> ![Example of Explanation](examples/ex2.png)  
 > SLISE can also be used to explain outcomes from black box models by locally approximating the complex models with a simpler linear model.
 
 ## Dependencies
 
-This implementation is requires Python 3 and the following packages:
+This implementation requires Python 3 and the following packages:
 
 - matplotlib
 - numba
