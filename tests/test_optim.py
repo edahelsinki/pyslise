@@ -1,24 +1,19 @@
 import numpy as np
 import pytest
 from pytest import approx
-from slise.utils import (
-    sigmoid,
-    log_sigmoid,
-    sparsity,
-    log_sum_exp,
-    log_sum_special,
-)
 from slise.optimisation import (
-    loss_smooth,
-    loss_sharp,
-    loss_numba,
-    optimise_loss,
+    check_threading_layer,
     graduated_optimisation,
-    regularised_regression,
+    log_approximation_ratio,
+    loss_numba,
+    loss_sharp,
+    loss_smooth,
     matching_epsilon,
     next_beta,
-    log_approximation_ratio,
+    optimise_loss,
+    regularised_regression,
 )
+from slise.utils import log_sigmoid, log_sum_exp, log_sum_special, sigmoid, sparsity
 
 from .utils import *
 
@@ -260,3 +255,6 @@ def test_weights():
         atol=1e-4,
     )
 
+
+def test_check_threading_layer():
+    check_threading_layer()

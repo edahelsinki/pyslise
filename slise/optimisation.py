@@ -6,7 +6,7 @@ from warnings import catch_warnings, warn
 
 import numpy as np
 from lbfgs import LBFGSError, fmin_lbfgs
-from numba import jit
+from numba import jit, get_num_threads, set_num_threads, threading_layer
 from scipy.optimize import brentq
 
 from slise.utils import (
@@ -373,6 +373,33 @@ def debug_log(
     print(
         f"beta: {beta:5.3f}    epsilon*: {epss:.3f}    Loss: {loss:6.2f}    B-Loss: {bloss:6.2f}"
     )
+
+
+def set_threads(num: int = -1) -> int:
+    """Set the number of numba threads
+
+    Args:
+        num (int, optional): The number of threads. Defaults to -1.
+
+    Returns:
+        int: The old number of theads (or -1 if unchanged).
+    """
+    if num > 0:
+        old = get_num_threads()
+        set_num_threads(num)
+        return old
+    return -1
+
+
+def check_threading_layer():
+    """Check which numba threading_layer is active, and warn if it is "workqueue".
+    """
+    loss_residuals(np.ones(1), np.ones(1), 1)
+    if threading_layer() == "workqueue":
+        warn(
+            'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
+            SliseWarning,
+        )
 
 
 def graduated_optimisation(

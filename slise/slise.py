@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
-from matplotlib.pyplot import Figure, yscale
+from matplotlib.pyplot import Figure
 from scipy.special import expit as sigmoid
 
 from slise.data import (
@@ -19,7 +19,12 @@ from slise.data import (
     remove_constant_columns,
 )
 from slise.initialisation import initialise_candidates, initialise_fixed
-from slise.optimisation import graduated_optimisation, loss_sharp
+from slise.optimisation import (
+    check_threading_layer,
+    graduated_optimisation,
+    loss_sharp,
+    set_threads,
+)
 from slise.plot import plot_2d, plot_dist, plot_dist_single, plot_image, print_slise
 from slise.utils import SliseWarning, limited_logit, mat_mul_inter
 
@@ -41,6 +46,7 @@ def regression(
     max_approx: float = 1.15,
     max_iterations: int = 300,
     debug: bool = False,
+    num_threads: int = -1,
 ) -> SliseRegression:
     """Use SLISE for robust regression
 
@@ -68,6 +74,7 @@ def regression(
         max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
         debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+        num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
 
     Returns:
         SliseRegression: Object containing the regression result.
@@ -83,6 +90,7 @@ def regression(
         max_approx=max_approx,
         max_iterations=max_iterations,
         debug=debug,
+        num_threads=num_threads,
     ).fit(X=X, Y=Y, weight=weight, init=init)
 
 
@@ -105,6 +113,7 @@ def explain(
     max_approx: float = 1.15,
     max_iterations: int = 300,
     debug: bool = False,
+    num_threads: int = -1,
 ) -> SliseExplainer:
     """Use SLISE for explaining outcomes from black box models.
 
@@ -138,6 +147,7 @@ def explain(
         max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
         debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+        num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
 
     Returns:
         SliseExplainer: Object containing the explanation.
@@ -155,6 +165,7 @@ def explain(
         max_approx=max_approx,
         max_iterations=max_iterations,
         debug=debug,
+        num_threads=num_threads,
     ).explain(x=x, y=y, weight=weight, init=init)
 
 
@@ -179,6 +190,7 @@ class SliseRegression:
         max_approx: float = 1.15,
         max_iterations: int = 300,
         debug: bool = False,
+        num_threads: int = -1,
     ):
         """Use SLISE for robust regression.
 
@@ -202,6 +214,7 @@ class SliseRegression:
             max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+            num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
         """
         assert epsilon > 0.0, "`epsilon` must be positive!"
         assert lambda1 >= 0.0, "`lambda1` must not be negative!"
@@ -225,6 +238,8 @@ class SliseRegression:
         self._weight = None
         self._alpha = None
         self._coefficients = None
+        self.num_threads = num_threads
+        check_threading_layer()
 
     def fit(
         self,
@@ -270,6 +285,7 @@ class SliseRegression:
         if self._intercept:
             X = add_intercept_column(X)
         # Initialisation
+        threads = set_threads(self.num_threads)
         if init is None:
             alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
         else:
@@ -289,6 +305,7 @@ class SliseRegression:
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
+        set_threads(threads)
         self._alpha = alpha
         if self._normalise:
             alpha2 = self._scale.unscale_model(alpha)
@@ -316,19 +333,46 @@ class SliseRegression:
         Returns:
             np.ndarray: The coefficients of the linear model.
         """
+        warn("Use `coefficients` instead of `get_params()`.", SliseWarning)
         return self._alpha if normalised else self._coefficients
 
     @property
-    def normalised(self):
+    def coefficients(self) -> np.ndarray:
+        """Get the coefficients of the linear model.
+
+        Returns:
+            np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
+        """
+        if self._coefficients is None:
+            warn("Fit the model before retrieving coefficients", SliseWarning)
+        return self._coefficients
+
+    def normalised(self, all_columns: bool = True) -> Optional[np.ndarray]:
+        """Get coefficients for normalised data (if the data is normalised within SLISE).
+
+        Args:
+            all_columns (bool, optional): Add coefficients for constant columns. Defaults to True.
+
+        Returns:
+            Optional[np.ndarray]: The normalised coefficients or None.
+        """
+        if self._alpha is None:
+            warn("Fit the model before retrieving coefficients", SliseWarning)
         if self._normalise:
-            return add_constant_columns(
-                self._alpha, self._scale.columns, self._intercept
-            )
+            if all_columns:
+                return add_constant_columns(self._alpha, self._scale.columns, True)
+            else:
+                return self._alpha
         else:
             return None
 
     @property
-    def scaled_epsilon(self):
+    def scaled_epsilon(self) -> float:
+        """Espilon fitting unnormalised data (if the data is normalised).
+
+        Returns:
+            float: Scaled epsilon.
+        """
         if self._normalise:
             return self.epsilon * self._scale.y_scale
         else:
@@ -344,9 +388,9 @@ class SliseRegression:
             np.ndarray: Predicted response.
         """
         if X is None:
-            return mat_mul_inter(self._X, self._coefficients)
+            return mat_mul_inter(self._X, self.coefficients)
         else:
-            return mat_mul_inter(X, self._coefficients)
+            return mat_mul_inter(X, self.coefficients)
 
     def score(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -360,6 +404,8 @@ class SliseRegression:
         Returns:
             float: The loss.
         """
+        if self._alpha is None:
+            warn("Fit the model before calculating the score", SliseWarning)
         if X is None or Y is None:
             X = self._X
             Y = self._Y
@@ -371,6 +417,7 @@ class SliseRegression:
         )
 
     loss = score
+    value = score
 
     def subset(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -387,7 +434,7 @@ class SliseRegression:
         if X is None or Y is None:
             X = self._X
             Y = self._Y
-        Y2 = mat_mul_inter(X, self._coefficients)
+        Y2 = mat_mul_inter(X, self.coefficients)
         return (Y2 - Y) ** 2 < self.scaled_epsilon ** 2
 
     def print(
@@ -404,7 +451,7 @@ class SliseRegression:
             decimals (int, optional): Precision to use for printing. Defaults to 3.
         """
         print_slise(
-            self._coefficients,
+            self.coefficients,
             self._intercept,
             self.subset(),
             self.score(),
@@ -413,7 +460,7 @@ class SliseRegression:
             "SLISE Regression",
             decimals,
             num_var,
-            alpha=self.normalised,
+            alpha=self.normalised(),
         )
 
     def plot_2d(
@@ -439,7 +486,7 @@ class SliseRegression:
         plot_2d(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.scaled_epsilon,
             None,
             None,
@@ -469,9 +516,9 @@ class SliseRegression:
         plot_dist(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.subset(),
-            self.normalised,
+            self.normalised(),
             None,
             None,
             None,
@@ -521,6 +568,7 @@ class SliseExplainer:
         max_approx: float = 1.15,
         max_iterations: int = 300,
         debug: bool = False,
+        num_threads: int = -1,
     ):
         """Use SLISE for explaining outcomes from black box models.
 
@@ -551,6 +599,7 @@ class SliseExplainer:
             max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+            num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
         """
         assert epsilon > 0.0, "`epsilon` must be positive!"
         assert lambda1 >= 0.0, "`lambda1` must not be negative!"
@@ -597,6 +646,8 @@ class SliseExplainer:
             self._scale = None
         self._X2 = X
         self._Y2 = Y
+        self.num_threads = num_threads
+        check_threading_layer()
 
     def explain(
         self,
@@ -643,6 +694,7 @@ class SliseExplainer:
                 y = self._scale.scale_y(y)
         X = self._X2 - x[None, :]
         Y = self._Y2 - y
+        threads = set_threads(self.num_threads)
         if init is None:
             alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
         else:
@@ -661,6 +713,7 @@ class SliseExplainer:
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
+        set_threads(threads)
         alpha = np.concatenate(
             (y - np.sum(alpha * x, dtype=x.dtype, keepdims=True), alpha)
         )
@@ -685,17 +738,46 @@ class SliseExplainer:
         Returns:
             np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
         """
+        warn("Use `coefficients` instead of `get_params().", SliseWarning)
         return self._alpha if normalised else self._coefficients
 
     @property
-    def normalised(self):
+    def coefficients(self) -> np.ndarray:
+        """Get the explanation as the coefficients of a linear model (approximating the black box model).
+
+        Returns:
+            np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
+        """
+        if self._coefficients is None:
+            warn("Fit an explanation before retrieving coefficients", SliseWarning)
+        return self._coefficients
+
+    def normalised(self, all_columns: bool = True) -> Optional[np.ndarray]:
+        """Get coefficients for normalised data (if the data is normalised within SLISE).
+
+        Args:
+            all_columns (bool, optional): Add coefficients for constant columns. Defaults to True.
+
+        Returns:
+            Optional[np.ndarray]: The normalised coefficients or None.
+        """
+        if self._alpha is None:
+            warn("Fit an explanation before retrieving coefficients", SliseWarning)
         if self._normalise:
-            return add_constant_columns(self._alpha, self._scale.columns, True)
+            if all_columns:
+                return add_constant_columns(self._alpha, self._scale.columns, True)
+            else:
+                return self._alpha
         else:
             return None
 
     @property
-    def scaled_epsilon(self):
+    def scaled_epsilon(self) -> float:
+        """Espilon fitting unnormalised data (if the data is normalised).
+
+        Returns:
+            float: Scaled epsilon.
+        """
         if self._normalise:
             return self.epsilon * self._scale.y_scale
         else:
@@ -711,9 +793,9 @@ class SliseExplainer:
             np.ndarray: Prediction vector.
         """
         if X is None:
-            Y = mat_mul_inter(self._X, self._coefficients)
+            Y = mat_mul_inter(self._X, self.coefficients)
         else:
-            Y = mat_mul_inter(X, self._coefficients)
+            Y = mat_mul_inter(X, self.coefficients)
         if self._logit:
             Y = sigmoid(Y)
         return Y
@@ -730,6 +812,8 @@ class SliseExplainer:
         Returns:
             float: The loss.
         """
+        if self._alpha is None:
+            warn("Fit an explanation before calculating the score", SliseWarning)
         x = self._x
         y = self._y
         if self._logit:
@@ -759,6 +843,7 @@ class SliseExplainer:
         )
 
     loss = score
+    value = score
 
     def subset(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -777,7 +862,7 @@ class SliseExplainer:
             Y = self._Y
         if self._logit:
             Y = limited_logit(Y)
-        res = mat_mul_inter(X, self._coefficients) - Y
+        res = mat_mul_inter(X, self.coefficients) - Y
         return res ** 2 < self.scaled_epsilon ** 2
 
     def get_impact(
@@ -796,13 +881,10 @@ class SliseExplainer:
         if x is None:
             x = self._x
         if normalised and self._normalise:
-            return add_constant_columns(
-                add_intercept_column(self._scale.scale_x(x)) * self._alpha,
-                self._scale.columns,
-                True,
-            )
+            x = add_constant_columns(self._scale.scale_x(x), self._scale.columns, False)
+            return add_intercept_column(x) * self.coefficients
         else:
-            return add_intercept_column(x) * self._coefficients
+            return add_intercept_column(x) * self.coefficients
 
     def print(
         self,
@@ -820,7 +902,7 @@ class SliseExplainer:
             decimals (int, optional): Precision to use for printing. Defaults to 3.
         """
         print_slise(
-            self._coefficients,
+            self.coefficients,
             True,
             self.subset(),
             self.score(),
@@ -833,7 +915,7 @@ class SliseExplainer:
             unscaled_y=self._y,
             impact=self.get_impact(False),
             scaled=None if self._scale is None else self._scale.scale_x(self._x, False),
-            alpha=self.normalised,
+            alpha=self.normalised(),
             scaled_impact=None if self._scale is None else self.get_impact(True),
             classes=classes,
             unscaled_preds=self._Y,
@@ -863,7 +945,7 @@ class SliseExplainer:
         plot_2d(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.scaled_epsilon,
             self._x,
             self._y,
@@ -900,7 +982,7 @@ class SliseExplainer:
             self._x,
             self._y,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             width,
             height,
             saturated,
@@ -935,9 +1017,9 @@ class SliseExplainer:
         plot_dist(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.subset(),
-            self.normalised,
+            self.normalised(),
             self._x,
             self._y,
             self.get_impact(False),
