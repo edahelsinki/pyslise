@@ -333,31 +333,46 @@ class SliseRegression:
         Returns:
             np.ndarray: The coefficients of the linear model.
         """
-        warn("Use `coefficients()` instead of `get_params()`.", SliseWarning)
-        return self._alpha if normalised else self._coefficients
-
-    def coefficients(self, normalised: bool = False) -> np.ndarray:
-        """Get the coefficients of the linear model.
-
-        Args:
-            normalised (bool, optional): If the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
-
-        Returns:
-            np.ndarray: The coefficients of the linear model.
-        """
+        warn("Use `coefficients` instead of `get_params()`.", SliseWarning)
         return self._alpha if normalised else self._coefficients
 
     @property
-    def normalised(self):
+    def coefficients(self) -> np.ndarray:
+        """Get the coefficients of the linear model.
+
+        Returns:
+            np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
+        """
+        if self._coefficients is None:
+            warn("Fit the model before retrieving coefficients", SliseWarning)
+        return self._coefficients
+
+    def normalised(self, all_columns: bool = True) -> Optional[np.ndarray]:
+        """Get coefficients for normalised data (if the data is normalised within SLISE).
+
+        Args:
+            all_columns (bool, optional): Add coefficients for constant columns. Defaults to True.
+
+        Returns:
+            Optional[np.ndarray]: The normalised coefficients or None.
+        """
+        if self._alpha is None:
+            warn("Fit the model before retrieving coefficients", SliseWarning)
         if self._normalise:
-            return add_constant_columns(
-                self._alpha, self._scale.columns, self._intercept
-            )
+            if all_columns:
+                return add_constant_columns(self._alpha, self._scale.columns, True)
+            else:
+                return self._alpha
         else:
             return None
 
     @property
-    def scaled_epsilon(self):
+    def scaled_epsilon(self) -> float:
+        """Espilon fitting unnormalised data (if the data is normalised).
+
+        Returns:
+            float: Scaled epsilon.
+        """
         if self._normalise:
             return self.epsilon * self._scale.y_scale
         else:
@@ -373,9 +388,9 @@ class SliseRegression:
             np.ndarray: Predicted response.
         """
         if X is None:
-            return mat_mul_inter(self._X, self._coefficients)
+            return mat_mul_inter(self._X, self.coefficients)
         else:
-            return mat_mul_inter(X, self._coefficients)
+            return mat_mul_inter(X, self.coefficients)
 
     def score(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -389,6 +404,8 @@ class SliseRegression:
         Returns:
             float: The loss.
         """
+        if self._alpha is None:
+            warn("Fit the model before calculating the score", SliseWarning)
         if X is None or Y is None:
             X = self._X
             Y = self._Y
@@ -400,6 +417,7 @@ class SliseRegression:
         )
 
     loss = score
+    value = score
 
     def subset(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -416,7 +434,7 @@ class SliseRegression:
         if X is None or Y is None:
             X = self._X
             Y = self._Y
-        Y2 = mat_mul_inter(X, self._coefficients)
+        Y2 = mat_mul_inter(X, self.coefficients)
         return (Y2 - Y) ** 2 < self.scaled_epsilon ** 2
 
     def print(
@@ -433,7 +451,7 @@ class SliseRegression:
             decimals (int, optional): Precision to use for printing. Defaults to 3.
         """
         print_slise(
-            self._coefficients,
+            self.coefficients,
             self._intercept,
             self.subset(),
             self.score(),
@@ -442,7 +460,7 @@ class SliseRegression:
             "SLISE Regression",
             decimals,
             num_var,
-            alpha=self.normalised,
+            alpha=self.normalised(),
         )
 
     def plot_2d(
@@ -468,7 +486,7 @@ class SliseRegression:
         plot_2d(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.scaled_epsilon,
             None,
             None,
@@ -498,9 +516,9 @@ class SliseRegression:
         plot_dist(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.subset(),
-            self.normalised,
+            self.normalised(),
             None,
             None,
             None,
@@ -720,29 +738,46 @@ class SliseExplainer:
         Returns:
             np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
         """
-        warn("Use `coefficients()` instead of `get_params().", SliseWarning)
+        warn("Use `coefficients` instead of `get_params().", SliseWarning)
         return self._alpha if normalised else self._coefficients
 
-    def coefficients(self, normalised: bool = False) -> np.ndarray:
+    @property
+    def coefficients(self) -> np.ndarray:
         """Get the explanation as the coefficients of a linear model (approximating the black box model).
-
-        Args:
-            normalised (bool, optional): If the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
 
         Returns:
             np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
         """
-        return self._alpha if normalised else self._coefficients
+        if self._coefficients is None:
+            warn("Fit an explanation before retrieving coefficients", SliseWarning)
+        return self._coefficients
 
-    @property
-    def normalised(self):
+    def normalised(self, all_columns: bool = True) -> Optional[np.ndarray]:
+        """Get coefficients for normalised data (if the data is normalised within SLISE).
+
+        Args:
+            all_columns (bool, optional): Add coefficients for constant columns. Defaults to True.
+
+        Returns:
+            Optional[np.ndarray]: The normalised coefficients or None.
+        """
+        if self._alpha is None:
+            warn("Fit an explanation before retrieving coefficients", SliseWarning)
         if self._normalise:
-            return add_constant_columns(self._alpha, self._scale.columns, True)
+            if all_columns:
+                return add_constant_columns(self._alpha, self._scale.columns, True)
+            else:
+                return self._alpha
         else:
             return None
 
     @property
-    def scaled_epsilon(self):
+    def scaled_epsilon(self) -> float:
+        """Espilon fitting unnormalised data (if the data is normalised).
+
+        Returns:
+            float: Scaled epsilon.
+        """
         if self._normalise:
             return self.epsilon * self._scale.y_scale
         else:
@@ -758,9 +793,9 @@ class SliseExplainer:
             np.ndarray: Prediction vector.
         """
         if X is None:
-            Y = mat_mul_inter(self._X, self._coefficients)
+            Y = mat_mul_inter(self._X, self.coefficients)
         else:
-            Y = mat_mul_inter(X, self._coefficients)
+            Y = mat_mul_inter(X, self.coefficients)
         if self._logit:
             Y = sigmoid(Y)
         return Y
@@ -777,6 +812,8 @@ class SliseExplainer:
         Returns:
             float: The loss.
         """
+        if self._alpha is None:
+            warn("Fit an explanation before calculating the score", SliseWarning)
         x = self._x
         y = self._y
         if self._logit:
@@ -806,6 +843,7 @@ class SliseExplainer:
         )
 
     loss = score
+    value = score
 
     def subset(
         self, X: Union[np.ndarray, None] = None, Y: Union[np.ndarray, None] = None
@@ -824,7 +862,7 @@ class SliseExplainer:
             Y = self._Y
         if self._logit:
             Y = limited_logit(Y)
-        res = mat_mul_inter(X, self._coefficients) - Y
+        res = mat_mul_inter(X, self.coefficients) - Y
         return res ** 2 < self.scaled_epsilon ** 2
 
     def get_impact(
@@ -843,13 +881,10 @@ class SliseExplainer:
         if x is None:
             x = self._x
         if normalised and self._normalise:
-            return add_constant_columns(
-                add_intercept_column(self._scale.scale_x(x)) * self._alpha,
-                self._scale.columns,
-                True,
-            )
+            x = add_constant_columns(self._scale.scale_x(x), self._scale.columns, False)
+            return add_intercept_column(x) * self.coefficients
         else:
-            return add_intercept_column(x) * self._coefficients
+            return add_intercept_column(x) * self.coefficients
 
     def print(
         self,
@@ -867,7 +902,7 @@ class SliseExplainer:
             decimals (int, optional): Precision to use for printing. Defaults to 3.
         """
         print_slise(
-            self._coefficients,
+            self.coefficients,
             True,
             self.subset(),
             self.score(),
@@ -880,7 +915,7 @@ class SliseExplainer:
             unscaled_y=self._y,
             impact=self.get_impact(False),
             scaled=None if self._scale is None else self._scale.scale_x(self._x, False),
-            alpha=self.normalised,
+            alpha=self.normalised(),
             scaled_impact=None if self._scale is None else self.get_impact(True),
             classes=classes,
             unscaled_preds=self._Y,
@@ -910,7 +945,7 @@ class SliseExplainer:
         plot_2d(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.scaled_epsilon,
             self._x,
             self._y,
@@ -947,7 +982,7 @@ class SliseExplainer:
             self._x,
             self._y,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             width,
             height,
             saturated,
@@ -982,9 +1017,9 @@ class SliseExplainer:
         plot_dist(
             self._X,
             self._Y,
-            self._coefficients,
+            self.coefficients,
             self.subset(),
-            self.normalised,
+            self.normalised(),
             self._x,
             self._y,
             self.get_impact(False),
