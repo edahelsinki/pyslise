@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
-from matplotlib.pyplot import Figure, yscale
+from matplotlib.pyplot import Figure
 from scipy.special import expit as sigmoid
 
 from slise.data import (
@@ -308,6 +308,18 @@ class SliseRegression:
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
+        """Get the coefficients of the linear model.
+
+        Args:
+            normalised (bool, optional): If the data is normalised within SLISE, return a linear model ftting the normalised data. Defaults to False.
+
+        Returns:
+            np.ndarray: The coefficients of the linear model.
+        """
+        warn("Use `coefficients()` instead of `get_params()`.", SliseWarning)
+        return self._alpha if normalised else self._coefficients
+
+    def coefficients(self, normalised: bool = False) -> np.ndarray:
         """Get the coefficients of the linear model.
 
         Args:
@@ -677,6 +689,18 @@ class SliseExplainer:
         return self
 
     def get_params(self, normalised: bool = False) -> np.ndarray:
+        """Get the explanation as the coefficients of a linear model (approximating the black box model).
+
+        Args:
+            normalised (bool, optional): If the data is normalised within SLISE, return a linear model fitting the normalised data. Defaults to False.
+
+        Returns:
+            np.ndarray: The coefficients of the linear model (the first scalar in the vector is the intercept).
+        """
+        warn("Use `coefficients()` instead of `get_params().", SliseWarning)
+        return self._alpha if normalised else self._coefficients
+
+    def coefficients(self, normalised: bool = False) -> np.ndarray:
         """Get the explanation as the coefficients of a linear model (approximating the black box model).
 
         Args:
