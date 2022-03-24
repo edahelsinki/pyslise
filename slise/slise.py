@@ -19,7 +19,12 @@ from slise.data import (
     remove_constant_columns,
 )
 from slise.initialisation import initialise_candidates, initialise_fixed
-from slise.optimisation import graduated_optimisation, loss_sharp
+from slise.optimisation import (
+    check_threading_layer,
+    graduated_optimisation,
+    loss_sharp,
+    set_threads,
+)
 from slise.plot import plot_2d, plot_dist, plot_dist_single, plot_image, print_slise
 from slise.utils import SliseWarning, limited_logit, mat_mul_inter
 
@@ -41,6 +46,7 @@ def regression(
     max_approx: float = 1.15,
     max_iterations: int = 300,
     debug: bool = False,
+    num_threads: int = -1,
 ) -> SliseRegression:
     """Use SLISE for robust regression
 
@@ -68,6 +74,7 @@ def regression(
         max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
         debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+        num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
 
     Returns:
         SliseRegression: Object containing the regression result.
@@ -83,6 +90,7 @@ def regression(
         max_approx=max_approx,
         max_iterations=max_iterations,
         debug=debug,
+        num_threads=num_threads,
     ).fit(X=X, Y=Y, weight=weight, init=init)
 
 
@@ -105,6 +113,7 @@ def explain(
     max_approx: float = 1.15,
     max_iterations: int = 300,
     debug: bool = False,
+    num_threads: int = -1,
 ) -> SliseExplainer:
     """Use SLISE for explaining outcomes from black box models.
 
@@ -138,6 +147,7 @@ def explain(
         max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
         debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+        num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
 
     Returns:
         SliseExplainer: Object containing the explanation.
@@ -155,6 +165,7 @@ def explain(
         max_approx=max_approx,
         max_iterations=max_iterations,
         debug=debug,
+        num_threads=num_threads,
     ).explain(x=x, y=y, weight=weight, init=init)
 
 
@@ -179,6 +190,7 @@ class SliseRegression:
         max_approx: float = 1.15,
         max_iterations: int = 300,
         debug: bool = False,
+        num_threads: int = -1,
     ):
         """Use SLISE for robust regression.
 
@@ -202,6 +214,7 @@ class SliseRegression:
             max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+            num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
         """
         assert epsilon > 0.0, "`epsilon` must be positive!"
         assert lambda1 >= 0.0, "`lambda1` must not be negative!"
@@ -225,6 +238,8 @@ class SliseRegression:
         self._weight = None
         self._alpha = None
         self._coefficients = None
+        self.num_threads = num_threads
+        check_threading_layer()
 
     def fit(
         self,
@@ -270,6 +285,7 @@ class SliseRegression:
         if self._intercept:
             X = add_intercept_column(X)
         # Initialisation
+        threads = set_threads(self.num_threads)
         if init is None:
             alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
         else:
@@ -289,6 +305,7 @@ class SliseRegression:
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
+        set_threads(threads)
         self._alpha = alpha
         if self._normalise:
             alpha2 = self._scale.unscale_model(alpha)
@@ -533,6 +550,7 @@ class SliseExplainer:
         max_approx: float = 1.15,
         max_iterations: int = 300,
         debug: bool = False,
+        num_threads: int = -1,
     ):
         """Use SLISE for explaining outcomes from black box models.
 
@@ -563,6 +581,7 @@ class SliseExplainer:
             max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
+            num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
         """
         assert epsilon > 0.0, "`epsilon` must be positive!"
         assert lambda1 >= 0.0, "`lambda1` must not be negative!"
@@ -609,6 +628,8 @@ class SliseExplainer:
             self._scale = None
         self._X2 = X
         self._Y2 = Y
+        self.num_threads = num_threads
+        check_threading_layer()
 
     def explain(
         self,
@@ -655,6 +676,7 @@ class SliseExplainer:
                 y = self._scale.scale_y(y)
         X = self._X2 - x[None, :]
         Y = self._Y2 - y
+        threads = set_threads(self.num_threads)
         if init is None:
             alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
         else:
@@ -673,6 +695,7 @@ class SliseExplainer:
             max_iterations=self.max_iterations,
             debug=self.debug,
         )
+        set_threads(threads)
         alpha = np.concatenate(
             (y - np.sum(alpha * x, dtype=x.dtype, keepdims=True), alpha)
         )
