@@ -120,20 +120,9 @@ def test_slise_reg():
     print("Testing slise regression")
     X, Y, mod = data_create2(40, 5)
     w = np.random.uniform(size=40) + 0.5
-    threads = numba.get_num_threads()
     reg1 = regression(
-        X,
-        Y,
-        epsilon=0.1,
-        lambda1=1e-4,
-        lambda2=1e-4,
-        intercept=True,
-        normalise=True,
-        num_threads=1,
+        X, Y, epsilon=0.1, lambda1=1e-4, lambda2=1e-4, intercept=True, normalise=True
     )
-    assert (
-        threads == numba.get_num_threads()
-    ), "Numba threads not reset correctly after optimisation"
     reg1.print()
     Yp = mat_mul_inter(X, reg1.get_params())
     Yn = reg1._scale.scale_y(Y)
@@ -228,3 +217,35 @@ def test_slise_exp():
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert Y2[20] == approx(reg.predict(X[20]))
     assert 1.0 >= reg.subset().mean() > 0.0
+
+
+def test_normalised():
+    np.random.seed(49)
+    X, Y, mod = data_create2(40, 5)
+    x = np.random.normal(size=5)
+    y = np.random.normal()
+    reg = explain(X, Y, 0.1, x, y, lambda1=1e-4, lambda2=1e-4, normalise=True)
+    assert reg.coefficients.shape == reg.normalised(True).shape
+    assert reg.coefficients.shape[0] > reg.normalised(False).shape[0]
+    assert np.allclose(
+        reg.coefficients, reg._scale.unscale_model(reg.normalised(False))
+    )
+    threads = numba.get_num_threads()
+    reg1 = regression(
+        X,
+        Y,
+        epsilon=0.1,
+        lambda1=1e-4,
+        lambda2=1e-4,
+        intercept=True,
+        normalise=True,
+        num_threads=1,
+    )
+    assert (
+        threads == numba.get_num_threads()
+    ), "Numba threads not reset correctly after optimisation"
+    assert reg.coefficients.shape == reg.normalised(True).shape
+    assert reg.coefficients.shape[0] > reg.normalised(False).shape[0]
+    assert np.allclose(
+        reg.coefficients, reg._scale.unscale_model(reg.normalised(False))
+    )

@@ -1,8 +1,9 @@
+from typing import Tuple
 import numpy as np
 import numpy.random as npr
 
 
-def data_create(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray):
+def data_create(n: int, d: int, c: int = 2) -> Tuple[np.ndarray, np.ndarray]:
     X = npr.normal(npr.normal(size=d)[np.newaxis,], 1.0, [n, d])
     if d > c:
         X[:, c] = 0
@@ -10,7 +11,9 @@ def data_create(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray):
     return X, Y
 
 
-def data_create2(n: int, d: int, c: int = 2) -> (np.ndarray, np.ndarray, np.ndarray):
+def data_create2(
+    n: int, d: int, c: int = 2
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     X = npr.normal(npr.normal(size=d)[np.newaxis,], 1.0, [n, d])
     mod = npr.normal(size=d)
     if d > c:
