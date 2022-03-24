@@ -397,7 +397,7 @@ def check_threading_layer():
     loss_residuals(np.ones(1), np.ones(1), 1)
     if threading_layer() == "workqueue":
         warn(
-            'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow!',
+            'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
             SliseWarning,
         )
 
