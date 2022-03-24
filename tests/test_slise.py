@@ -1,5 +1,6 @@
 from warnings import catch_warnings
 
+import numba
 import numpy as np
 from pytest import approx
 from scipy.special import expit as sigmoid
@@ -119,9 +120,20 @@ def test_slise_reg():
     print("Testing slise regression")
     X, Y, mod = data_create2(40, 5)
     w = np.random.uniform(size=40) + 0.5
+    threads = numba.get_num_threads()
     reg1 = regression(
-        X, Y, epsilon=0.1, lambda1=1e-4, lambda2=1e-4, intercept=True, normalise=True,
+        X,
+        Y,
+        epsilon=0.1,
+        lambda1=1e-4,
+        lambda2=1e-4,
+        intercept=True,
+        normalise=True,
+        num_threads=1,
     )
+    assert (
+        threads == numba.get_num_threads()
+    ), "Numba threads not reset correctly after optimisation"
     reg1.print()
     Yp = mat_mul_inter(X, reg1.get_params())
     Yn = reg1._scale.scale_y(Y)
