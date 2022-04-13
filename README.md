@@ -30,7 +30,7 @@ To install this package just run:
 pip install slise
 ```
 
-Or install the latest version directly from GitHub with:
+Or install the latest version directly from GitHub:
 
 ```sh
 pip install https://github.com/edahelsinki/pyslise
@@ -38,9 +38,17 @@ pip install https://github.com/edahelsinki/pyslise
 
 Alternatively you can download the repo and run `python -m build` to build a wheel, or `pip install .` to install it locally.
 
-### Other Languages
+### Numba
 
-The (original) R implementation can be found [here](https://github.com/edahelsinki/slise).
+SLISE uses [Numba](https://numba.pydata.org/) to speed up the calculations. You might want to install the following optional libraries to get the most out of Numba:
+
+```sh
+pip install tbb icc_rt
+```
+
+## Other implementations
+
+The (original) **R** implementation can be found [here](https://github.com/edahelsinki/slise).
 
 ## Examples
 
