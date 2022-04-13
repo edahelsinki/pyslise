@@ -30,7 +30,7 @@ def loss_smooth(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Smoothed version of the loss.
+    Smoothed version of the loss.
     """
     epsilon *= epsilon
     distances = ((X @ alpha) - Y) ** 2
@@ -50,7 +50,14 @@ def loss_smooth(
     return loss
 
 
-@jit(nopython=True, fastmath=True, parallel=True, cache=True)
+@jit(
+    nopython=True,
+    fastmath=True,
+    parallel=True,
+    cache=True,
+    nogil=True,
+    boundscheck=False,
+)
 def loss_residuals(
     alpha: np.ndarray,
     residuals2: np.ndarray,
@@ -61,9 +68,9 @@ def loss_residuals(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Smoothed version of the loss, that takes already calculated residuals.
-        This function is sped up with numba.
-        Assumes that the residuals and epsilon are squared.
+    Smoothed version of the loss, that takes already calculated residuals.
+    This function is sped up with numba.
+    Assumes that the residuals and epsilon are squared.
     """
     subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))  # Sigmoid
     if weight is None:
@@ -90,7 +97,7 @@ def loss_sharp(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Exact version of the loss.
+    Exact version of the loss.
     """
     epsilon *= epsilon
     distances = (Y - mat_mul_inter(X, alpha)) ** 2
@@ -107,7 +114,14 @@ def loss_sharp(
     return loss
 
 
-@jit(nopython=True, fastmath=True, parallel=True, cache=True)
+@jit(
+    nopython=True,
+    fastmath=True,
+    parallel=True,
+    cache=True,
+    nogil=True,
+    boundscheck=False,
+)
 def loss_numba(
     alpha: np.ndarray,
     X: np.ndarray,
@@ -118,12 +132,12 @@ def loss_numba(
     weight: Optional[np.ndarray] = None,
 ) -> Tuple[float, np.ndarray]:
     """
-        Smoothed version of the loss, that also calculates the gradient.
-        This function is sped up with numba.
+    Smoothed version of the loss, that also calculates the gradient.
+    This function is sped up with numba.
     """
     epsilon *= epsilon
     distances = (X @ alpha) - Y
-    distances2 = distances ** 2
+    distances2 = distances**2
     # Loss
     subset = 1 / (1 + np.exp(-beta * (epsilon - distances2)))  # Sigmoid
     n = len(Y) if weight is None else np.sum(weight)
@@ -134,7 +148,7 @@ def loss_numba(
         loss = np.sum(subset * residuals * weight) / n
     # Gradient
     k1 = 2.0 / n
-    k2 = (-2.0 * beta / n) * (subset - subset ** 2)
+    k2 = (-2.0 * beta / n) * (subset - subset**2)
     distances[residuals == 0] = 0.0
     if weight is None:
         grad = ((subset * k1) + (residuals * k2)) * distances
@@ -157,16 +171,16 @@ def ridge_numba(
     weight: Optional[np.ndarray] = None,
 ) -> Tuple[float, np.ndarray]:
     """
-        Ridge regression (OLS + L2) loss, that also calculates the gradient.
-        This function is sped up with numba.
+    Ridge regression (OLS + L2) loss, that also calculates the gradient.
+    This function is sped up with numba.
     """
     distances = (X @ alpha) - Y
     if weight is not None:
         distances *= weight
-    loss = np.sum(distances ** 2) / 2
+    loss = np.sum(distances**2) / 2
     grad = np.expand_dims(distances, 0) @ X
     if lambda2 != 0.0:
-        loss += lambda2 * np.sum(alpha ** 2) / 2
+        loss += lambda2 * np.sum(alpha**2) / 2
         grad += lambda2 * np.reshape(alpha, grad.shape)
     return loss, grad
 
@@ -179,7 +193,7 @@ def owlqn(
     **kwargs,
 ) -> np.ndarray:
     """
-        Wrapper around owlqn that converts max_iter errors to warnings (see `fmin_lbfgs`).
+    Wrapper around owlqn that converts max_iter errors to warnings (see `fmin_lbfgs`).
     """
 
     def f(x: np.ndarray, gradient: np.ndarray) -> float:
@@ -257,7 +271,7 @@ def optimise_loss(
     max_iterations: int = 200,
 ) -> np.ndarray:
     """
-        Optimise a smoothed SLISE loss with `owl-qn`.
+    Optimise a smoothed SLISE loss with `owl-qn`.
     """
     return owlqn(
         lambda alpha: loss_numba(alpha, X, Y, epsilon, beta, lambda2, weight),
@@ -275,7 +289,7 @@ def log_approximation_ratio(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Calculate log(K), where K is the approximation ratio between two smoothed losses.
+    Calculate log(K), where K is the approximation ratio between two smoothed losses.
     """
     if beta1 >= beta2:
         return 0
@@ -312,7 +326,7 @@ def next_beta(
     min_beta_step: float = 0.0005,
 ) -> float:
     """
-        Calculate the next beta for the graduated optimisation.
+    Calculate the next beta for the graduated optimisation.
     """
     if beta >= beta_max:
         return beta
@@ -335,7 +349,7 @@ def matching_epsilon(
     weight: Optional[np.ndarray] = None,
 ) -> float:
     """
-        Approximately calculate the epsilon that minimises the approximation ratio to the exact loss.
+    Approximately calculate the epsilon that minimises the approximation ratio to the exact loss.
     """
     if weight is None:
         residuals2 = np.sort(residuals2)
@@ -361,15 +375,15 @@ def debug_log(
     weight: Optional[np.ndarray] = None,
 ):
     """
-        Print the log statement for a graduated optimisation step.
+    Print the log statement for a graduated optimisation step.
     """
     residuals = (X @ alpha - Y) ** 2
     loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2, weight)
     bloss = loss_residuals(
-        alpha, residuals, epsilon ** 2, beta, lambda1, lambda2, weight
+        alpha, residuals, epsilon**2, beta, lambda1, lambda2, weight
     )
-    epss = matching_epsilon(residuals, epsilon ** 2, beta, weight)
-    beta = beta * epsilon ** 2
+    epss = matching_epsilon(residuals, epsilon**2, beta, weight)
+    beta = beta * epsilon**2
     print(
         f"beta: {beta:5.3f}    epsilon*: {epss:.3f}    Loss: {loss:6.2f}    B-Loss: {bloss:6.2f}"
     )
@@ -392,7 +406,8 @@ def set_threads(num: int = -1) -> int:
 
 
 def check_threading_layer():
-    """Check which numba threading_layer is active, and warn if it is "workqueue".
+    """
+    Check which numba threading_layer is active, and warn if it is "workqueue".
     """
     loss_residuals(np.ones(1), np.ones(1), 1)
     if threading_layer() == "workqueue":
@@ -439,7 +454,7 @@ def graduated_optimisation(
     Y = np.asfortranarray(Y, dtype=np.float64)
     if weight is not None:
         weight = np.asfortranarray(weight, dtype=np.float64)
-    beta_max = beta_max / epsilon ** 2
+    beta_max = beta_max / epsilon**2
     max_approx = log(max_approx)
     with catch_warnings(record=True) as w:
         while beta < beta_max:
@@ -449,7 +464,7 @@ def graduated_optimisation(
             if debug:
                 debug_log(alpha, X, Y, epsilon, beta, lambda1, lambda2, weight)
             beta = next_beta(
-                (X @ alpha - Y) ** 2, epsilon ** 2, beta, weight, beta_max, max_approx
+                (X @ alpha - Y) ** 2, epsilon**2, beta, weight, beta_max, max_approx
             )
     alpha = optimise_loss(
         alpha, X, Y, epsilon, beta, lambda1, lambda2, weight, max_iterations * 4
