@@ -431,6 +431,7 @@ def check_threading_layer():
         warn(f"Numba: {e}", SliseWarning)
 
 
+@np.errstate(over="ignore")
 def graduated_optimisation(
     alpha: np.ndarray,
     X: np.ndarray,
