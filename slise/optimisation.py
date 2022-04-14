@@ -400,21 +400,35 @@ def set_threads(num: int = -1) -> int:
     """
     if num > 0:
         old = get_num_threads()
-        set_num_threads(num)
+        if old != num:
+            set_num_threads(num)
         return old
     return -1
+
+
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
+def _dummy_numba(
+    x: np.ndarray,
+) -> np.ndarray:
+    """
+    A dummy function to check the numba compilation (see check_threading_layer).
+    """
+    return x * x
 
 
 def check_threading_layer():
     """
     Check which numba threading_layer is active, and warn if it is "workqueue".
     """
-    loss_residuals(np.ones(1), np.ones(1), 1)
-    if threading_layer() == "workqueue":
-        warn(
-            'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
-            SliseWarning,
-        )
+    _dummy_numba(np.ones(1))
+    try:
+        if threading_layer() == "workqueue":
+            warn(
+                'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
+                SliseWarning,
+            )
+    except ValueError as e:
+        warn(f"Numba: {e}", SliseWarning)
 
 
 def graduated_optimisation(
