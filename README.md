@@ -33,7 +33,7 @@ pip install slise
 Or install the latest version directly from GitHub:
 
 ```sh
-pip install https://github.com/edahelsinki/pyslise
+pip install git+https://github.com/edahelsinki/pyslise
 ```
 
 Alternatively you can download the repo and run `python -m build` to build a wheel, or `pip install .` to install it locally.
