@@ -33,6 +33,7 @@ nav:
   - Documentation: docs/
   - Links:
     - GitHub: https://github.com/edahelsinki/pyslise
+    - PyPI: https://pypi.org/project/slise/
     - Original paper: https://rdcu.be/bVbda
     - Robust regression paper: https://rdcu.be/cFRHD
     - Examples: https://github.com/edahelsinki/pyslise/tree/master/examples

@@ -1,11 +1,3 @@
 pytest
 black[jupyter]
 pylint
-
-# Dependencies for the documentation generation
-mkdocs
-mkdocs-material
-mkdocs-include-markdown-plugin
-mkdocstrings[python]
-mkdocs-gen-files
-mkdocs-literate-nav

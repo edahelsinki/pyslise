@@ -5,9 +5,10 @@ name: Test Python Package
 
 on:
   push:
-    branches: [ master ]
+    branches: [master, main]
+    paths: ['slise/*.py', 'tests/*.py']
   pull_request:
-    branches: [ master ]
+    paths: ['slise/*.py', 'tests/*.py']
 
 jobs:
   build:
