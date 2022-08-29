@@ -1,10 +1,16 @@
-![PySLISE Banner Image](docs/pyslise_banner.webp)
+![PySLISE Banner Image](docs/pyslise_banner.webp)  
+[![PyPI](https://img.shields.io/pypi/v/slise)](https://pypi.org/project/slise/)
+[![Documentation](https://github.com/edahelsinki/pyslise/actions/workflows/python-docs.yml/badge.svg)](https://edahelsinki.github.io/pyslise/docs/slise/)
+[![Tests](https://github.com/edahelsinki/pyslise/actions/workflows/python-pytest.yml/badge.svg)](https://github.com/edahelsinki/pyslise/actions/workflows/python-pytest.yml)
+[![GitHub license](https://img.shields.io/github/license/edahelsinki/pyslise)](https://github.com/edahelsinki/pyslise/blob/master/LICENSE)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/edahelsinki/pyslise/HEAD?labpath=examples)
+
 # SLISE - Sparse Linear Subset Explanations
 
 Python implementation of the SLISE algorithm. The SLISE algorithm can be used for both robust regression and to explain outcomes from black box models.
 For more details see [the original paper](https://rdcu.be/bVbda) or [the robust regression paper](https://rdcu.be/cFRHD).
 Alternatively for a more informal overview see [the presentation](https://github.com/edahelsinki/slise/raw/master/vignettes/presentation.pdf), or [the poster](https://github.com/edahelsinki/slise/raw/master/vignettes/poster.pdf).
-Finally, for learning to use the python package there are several [examples](https://github.com/edahelsinki/pyslise/tree/master/examples) and [the documentation](https://edahelsinki.github.io/pyslise/docs/slise).
+Finally, for learning to use the python package there are several [examples](https://github.com/edahelsinki/pyslise/tree/master/examples/) and [the documentation](https://edahelsinki.github.io/pyslise/docs/slise/).
 
 > *Björklund A., Henelius A., Oikarinen E., Kallonen K., Puolamäki K.* (2019)  
 > **Sparse Robust Regression for Explaining Classifiers.**  
