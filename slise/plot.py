@@ -1,5 +1,5 @@
 """
-    This script contains functions for plotting the results
+    This script contains functions for plotting SLISE solutions.
 """
 
 from collections import OrderedDict
@@ -484,7 +484,10 @@ def plot_dist(
             label="Linear Model",
         )
         axbig.barh(
-            ticks[0], model[0] / np.max(np.abs(model)), height=0.35, color=SLISE_PURPLE,
+            ticks[0],
+            model[0] / np.max(np.abs(model)),
+            height=0.35,
+            color=SLISE_PURPLE,
         )
         axbig.barh(
             ticks[1:] + 0.2,
@@ -589,7 +592,7 @@ def plot_image(
         decimals (int, optional): The number of decimals to write. Defaults to 3.
         fig (Optional[Figure], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
     """
-    intercept = model[0]
+    # intercept = model[0]
     model = model[1:]
     model.shape = (width, height)
     x.shape = (width, height)

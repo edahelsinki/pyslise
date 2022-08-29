@@ -1,7 +1,9 @@
 """
-    __ SLISE - Sparse Linear Subset Explanations __
+    SLISE - Sparse Linear Subset Explanations
+    -----------------------------------------
 
     The SLISE algorithm can be used for both robust regression and to explain outcomes from black box models.
+    See [slise.slise.regression][] and [slise.slise.explain][] for referense.
 
 
     In robust regression we fit regression models that can handle data that

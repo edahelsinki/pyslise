@@ -1,4 +1,6 @@
-# This script contains functions for modifying data
+"""
+    This script contains functions for modifying data, mainly normalisation and PCA.
+"""
 
 from typing import NamedTuple, Tuple, Union, Optional
 
@@ -6,8 +8,13 @@ import numpy as np
 
 
 def add_intercept_column(X: np.ndarray) -> np.ndarray:
-    """
-        Add a constant column of ones to the matrix.
+    """Add a constant column of ones to the matrix.
+
+    Args:
+        X (np.ndarray): Matrix or vector.
+
+    Returns:
+        np.ndarray: Matrix / vector where the first column / value is one.
     """
     if len(X.shape) == 1:
         return np.concatenate(([1.0], X))
@@ -15,8 +22,14 @@ def add_intercept_column(X: np.ndarray) -> np.ndarray:
 
 
 def remove_intercept_column(X: np.ndarray) -> np.ndarray:
-    """
-        Remove the first column.
+    """Remove the first column.
+    Used to revert [slise.data.add_intercept_column][].
+
+    Args:
+        X (np.ndarray): Matrix or vector.
+
+    Returns:
+        np.ndarray: Matrix / vector without the first column / value.
     """
     if len(X.shape) == 1:
         return X[1:]
@@ -27,6 +40,7 @@ def remove_constant_columns(
     X: np.ndarray, epsilon: Optional[float] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Remove columns that are constant from a matrix.
+    Used to revert [slise.data.add_constant_columns][].
 
     Args:
         X (np.ndarray): Data matrix.
@@ -172,7 +186,10 @@ def scale_same(
 
 
 class DataScaling(NamedTuple):
-    # Container class for scaling information
+    """
+    Container class for scaling information
+    """
+
     x_center: np.ndarray
     x_scale: np.ndarray
     y_center: float
@@ -180,15 +197,40 @@ class DataScaling(NamedTuple):
     columns: np.ndarray
 
     def scale_x(self, x: np.ndarray, remove_columns: bool = True) -> np.ndarray:
-        # Scale a new x vector
+        """Scale a x matrix / vector using the stored scaling information.
+        See [slise.data.scale_same][].
+
+        Args:
+            x (np.ndarray): New x matrix / vector.
+            remove_columns (bool, optional): Remove columns according to the stored information. Defaults to True.
+
+        Returns:
+            np.ndarray: Scaled matrix / vector.
+        """
         return scale_same(x, self.x_center, self.x_scale, self.columns, remove_columns)
 
     def scale_y(self, y: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        # Scale a new y vector
+        """Scale a y vector / scalar using the stored scaling information.
+        See [slise.data.scale_same][].
+
+        Args:
+            y (np.ndarray): New y vector / scalar.
+
+        Returns:
+            np.ndarray: Scaled y vector / scalar.
+        """
         return scale_same(y, self.y_center, self.y_scale)
 
     def unscale_model(self, model: np.ndarray) -> np.ndarray:
-        # Unscale a linear model
+        """Unscale a linear model.
+        See [slise.data.unscale_model][].
+
+        Args:
+            model (np.ndarray): Linear model operating on scaled data.
+
+        Returns:
+            np.ndarray: Linear model operating on unscaled data.
+        """
         return unscale_model(
             model,
             self.x_center,
@@ -205,7 +247,7 @@ def pca_simple(
     """Fit and use PCA for dimensionality reduction.
 
     Args:
-        X (np.ndarray): Matrix to reduce.
+        x (np.ndarray): Matrix to reduce.
         dimensions (int, optional): The number of dimensions to return. Defaults to 10.
         tolerance (float, optional): Threshold for variance being zero. Defaults to 1e-10.
 
@@ -222,9 +264,10 @@ def pca_simple(
 
 def pca_rotate(x: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Use a trained PCA for dimensionality reduction.
+    See [slise.data.pca_simple][] for how to obtain a rotation matrix.
 
     Args:
-        X (np.ndarray): Matrix to reduce.
+        x (np.ndarray): Matrix to reduce.
         v (np.ndarray): PCA rotation matrix.
 
     Returns:
@@ -235,9 +278,10 @@ def pca_rotate(x: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def pca_invert(x: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Revert a PCA dimensionality reduction.
+    See [slise.data.pca_simple][] for how to obtain a rotation matrix.
 
     Args:
-        X (np.ndarray): Matrix to expand.
+        x (np.ndarray): Matrix to expand.
         v (np.ndarray): PCA rotation matrix.
 
     Returns:
@@ -248,6 +292,7 @@ def pca_invert(x: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def pca_rotate_model(model: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Transform a linear model to work in PCA reduced space.
+    See [slise.data.pca_simple][] for how to obtain a rotation matrix.
 
     Args:
         model (np.ndarray): Linear model coefficients.
@@ -263,6 +308,7 @@ def pca_rotate_model(model: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def pca_invert_model(model: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Transform a linear model from PCA space to "normal" space.
+    See [slise.data.pca_simple][] for how to obtain a rotation matrix.
 
     Args:
         model (np.ndarray): Linear model coefficients (in PCA space).
