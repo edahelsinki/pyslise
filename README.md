@@ -2,7 +2,7 @@
 [![PyPI](https://img.shields.io/pypi/v/slise)](https://pypi.org/project/slise/)
 [![Documentation](https://github.com/edahelsinki/pyslise/actions/workflows/python-docs.yml/badge.svg)](https://edahelsinki.github.io/pyslise/docs/slise/)
 [![Tests](https://github.com/edahelsinki/pyslise/actions/workflows/python-pytest.yml/badge.svg)](https://github.com/edahelsinki/pyslise/actions/workflows/python-pytest.yml)
-[![GitHub license](https://img.shields.io/github/license/edahelsinki/pyslise)](https://github.com/edahelsinki/pyslise/blob/master/LICENSE)
+[![License: MIT](https://img.shields.io/github/license/edahelsinki/pyslise)](https://github.com/edahelsinki/pyslise/blob/master/LICENSE)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/edahelsinki/pyslise/HEAD?labpath=examples)
 
 # SLISE - Sparse Linear Subset Explanations
