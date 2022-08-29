@@ -199,7 +199,7 @@ def initialise_candidates(
     beta_max: float = 20,
     max_approx: float = 1.15,
     pca_treshold: int = 10,
-    num_init: int = 500,
+    num_init: Optional[int] = None,
     max_iterations: int = 300,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
@@ -224,6 +224,8 @@ def initialise_candidates(
     Returns:
         Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
+    if num_init is None:
+        num_init = min(500, 3 * 4 ** X.shape[1])
     # Prepare parameters
     epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
@@ -273,7 +275,7 @@ def initialise_candidates2(
     weight: Optional[np.ndarray] = None,
     beta_max: float = 20,
     max_approx: float = 1.15,
-    num_init: int = 500,
+    num_init: Optional[int] = None,
     max_iterations: int = 300,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
@@ -297,6 +299,8 @@ def initialise_candidates2(
     Returns:
         Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
+    if num_init is None:
+        num_init = min(500, 3 * 4 ** X.shape[1])
     # Prepare parameters
     epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
