@@ -1,0 +1,6 @@
+tensorflow
+wordcloud
+nltk
+slise
+tbb
+icc_rt
