@@ -8,6 +8,7 @@ theme:
   icon:
     logo: material/book-open
   favicon: pyslise_icon.webp
+  font: false
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
