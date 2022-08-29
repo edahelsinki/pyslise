@@ -1,5 +1,9 @@
 """
-    This script contains the main slise functions, and classes
+    This script contains the main SLISE functions, and classes.
+
+    The library can both be used "sk-learn" style with `SliseRegression(...).fit(X, y)`
+    and `SliseExplanation(...).explain(index)`, or in a more functional style with
+    `regression(...)` and `explain(...)`.
 """
 
 from __future__ import annotations
@@ -57,7 +61,7 @@ def regression(
     potential outliers and do not affect the resulting model.
 
     It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
-    This is a wrapper that is equivalent to `SliseRegression(epsilon, **kwargs).fit(X, Y)`
+    This is a wrapper around [slise.slise.SliseRegression][] that is equivalent to `SliseRegression(epsilon, **kwargs).fit(X, Y)`
 
     Args:
         X (np.ndarray): Data matrix.
@@ -128,7 +132,7 @@ def explain(
     constraints used to generate the data, e.g., the laws of physics).
 
     It is highly recommended that you normalise the data, either before using SLISE or by setting normalise = TRUE.
-    This is a wrapper that is equivalent to `SliseExplainer(X, Y, epsilon, **kwargs).explain(x, y)`
+    This is a wrapper around [slise.slise.SliseExplainer][] that is equivalent to `SliseExplainer(X, Y, epsilon, **kwargs).explain(x, y)`
 
     Args:
         X (np.ndarray): Data matrix.
@@ -171,8 +175,8 @@ def explain(
 
 class SliseRegression:
     """
-        Class for holding the result from using SLISE for regression.
-        Can also be used sklearn-style to do regression.
+    Class for holding the result from using SLISE for regression.
+    Can also be used sklearn-style to do regression.
     """
 
     def __init__(
@@ -435,7 +439,7 @@ class SliseRegression:
             X = self._X
             Y = self._Y
         Y2 = mat_mul_inter(X, self.coefficients)
-        return (Y2 - Y) ** 2 < self.scaled_epsilon ** 2
+        return (Y2 - Y) ** 2 < self.scaled_epsilon**2
 
     def print(
         self,
@@ -547,8 +551,8 @@ class SliseRegression:
 
 class SliseExplainer:
     """
-        Class for holding the result from using SLISE as an explainer.
-        Can also be used sklearn-style to create explanations.
+    Class for holding the result from using SLISE as an explainer.
+    Can also be used sklearn-style to create explanations.
     """
 
     def __init__(
@@ -863,7 +867,7 @@ class SliseExplainer:
         if self._logit:
             Y = limited_logit(Y)
         res = mat_mul_inter(X, self.coefficients) - Y
-        return res ** 2 < self.scaled_epsilon ** 2
+        return res**2 < self.scaled_epsilon**2
 
     def get_impact(
         self, normalised: bool = False, x: Union[None, np.ndarray] = None

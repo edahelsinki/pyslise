@@ -1,0 +1,50 @@
+site_name: SLISE
+site_url: https://edahelsinki.github.io/pyslise
+repo_url: https://github.com/edahelsinki/pyslise
+edit_uri: ""
+
+theme:
+  name: material
+  icon:
+    logo: material/book-open
+  favicon: pyslise_icon.webp
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep orange
+      toggle:
+        icon: material/lightbulb 
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: deep purple
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to light mode
+  features:
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+
+nav:
+  - Home: 'index.md'
+  - Documentation: docs/
+  - Links:
+    - GitHub: https://github.com/edahelsinki/pyslise
+    - PyPI: https://pypi.org/project/slise/
+    - Original paper: https://rdcu.be/bVbda
+    - Robust regression paper: https://rdcu.be/cFRHD
+    - Examples: https://github.com/edahelsinki/pyslise/tree/master/examples
+
+plugins:
+  # - offline 
+  - search
+  - mkdocstrings
+  - include-markdown
+  - gen-files:
+      scripts:
+        - docs/gen_pages.py 
+  - literate-nav:
+      nav_file: SUMMARY.md

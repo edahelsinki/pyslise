@@ -1,4 +1,6 @@
-# This script contains functions for initialising alpha and beta
+"""
+    This script contains functions for initialising alpha and beta in SLISE.
+"""
 
 from math import log
 from typing import Optional, Tuple, Union
@@ -16,7 +18,7 @@ def fast_lstsq(
     weight: Optional[np.ndarray] = None,
     max_iterations: int = 300,
 ) -> np.ndarray:
-    """A fast version of least squares that falls back to optimisation if the input size gest too large.
+    """A fast version of least squares that falls back to optimisation if the input size is too large.
 
     Args:
         x (np.ndarray): Data matrix.
@@ -41,7 +43,7 @@ def initialise_lasso(
     max_iterations: int = 300,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """Initialise alpha and beta to be equivalent to LASSO.
+    """Initialise `alpha` and `beta` to be equivalent to LASSO.
 
     Args:
         X (np.ndarray): Data matrix.
@@ -68,7 +70,7 @@ def initialise_ols(
     min_beta_step: float = 1e-8,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """Initialise alpha to OLS and beta to `next_beta`.
+    """Initialise `alpha` to OLS and `beta` to [slise.optimisation.next_beta][].
 
     Args:
         X (np.ndarray): Data matrix.
@@ -85,7 +87,7 @@ def initialise_ols(
         Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     alpha = fast_lstsq(X, Y, weight, max_iterations)
-    epsilon = epsilon ** 2
+    epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
     residuals = (Y - X @ alpha) ** 2
     beta = next_beta(
@@ -105,7 +107,7 @@ def initialise_zeros(
     min_beta_step: float = 1e-8,
     **kwargs
 ) -> Tuple[np.ndarray, float]:
-    """Initialise alpha to 0 and beta to `next_beta`.
+    """Initialise `alpha` to 0 and `beta` to [slise.optimisation.next_beta][].
 
     Args:
         X (np.ndarray): Data matrix.
@@ -120,10 +122,10 @@ def initialise_zeros(
     Returns:
         Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
-    epsilon = epsilon ** 2
+    epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
     beta = next_beta(
-        Y ** 2, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step
+        Y**2, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step
     )
     return np.zeros(X.shape[1]), beta
 
@@ -138,11 +140,11 @@ def initialise_fixed(
     max_approx: float = 1.15,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
-):
-    """Initialise alpha and beta to the given values (or `next_beta` if beta is not given).
+) -> Tuple[np.ndarray, float]:
+    """Initialise `alpha` and `beta` to the given values (or [slise.optimisation.next_beta][] if `beta` is not given).
 
     Args:
-        init (Union[np.ndarray, Tuple[np.ndarray, float]]): The fixed alpha, and optional beta.
+        init (Union[np.ndarray, Tuple[np.ndarray, float]]): The fixed `alpha`, and optional `beta`.
         X (np.ndarray): Data matrix.
         Y (np.ndarray): Response vector.
         epsilon (float, optional): The error tolerance. Defaults to 0.
@@ -153,16 +155,21 @@ def initialise_fixed(
         min_beta_step (float, optional): Minimum beta. Defaults to 1e-8.
 
     Returns:
-        [type]: [description]
+        Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     if isinstance(init, tuple):
         alpha, beta = init
     else:
-        epsilon = epsilon ** 2
+        epsilon = epsilon**2
         beta_max = min(beta_max, beta_max_init) / epsilon
         alpha = init
         beta = next_beta(
-            (X @ alpha - Y) ** 2, epsilon, 0, weight, beta_max, log(max_approx),
+            (X @ alpha - Y) ** 2,
+            epsilon,
+            0,
+            weight,
+            beta_max,
+            log(max_approx),
         )
     return alpha, beta
 
@@ -199,7 +206,7 @@ def initialise_candidates(
     **kwargs
 ) -> Tuple[np.ndarray, float]:
     """Generate a number (num_init) of candidates, using PCA to shrink the random subsets.
-        Then select the best one to be alpha and beta to be the corresponding `next_beta`
+        Then select the best one to be `alpha` and `beta` to be the corresponding [slise.optimisation.next_beta][].
 
     Args:
         X (np.ndarray): Data matrix.
@@ -218,14 +225,14 @@ def initialise_candidates(
         Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     # Prepare parameters
-    epsilon = epsilon ** 2
+    epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
     max_approx = log(max_approx)
     if weight is not None:
         weight = weight / np.sum(weight)
     # Initial model (zeros)
     alpha = np.zeros(X.shape[1])
-    residuals = Y ** 2
+    residuals = Y**2
     beta = next_beta(residuals, epsilon, 0, weight, beta_max, max_approx, min_beta_step)
     loss = loss_residuals(alpha, residuals, epsilon, beta, 0, 0, weight)
     # Find the candidate with the best loss for the next_beta
@@ -273,7 +280,7 @@ def initialise_candidates2(
     **kwargs
 ) -> Tuple[np.ndarray, float]:
     """Generate a number (num_init) of candidates, using LASSO to shrink the random subsets.
-        Then select the best one to be alpha and beta to be the corresponding `next_beta`
+        Then select the best one to be `alpha` and `beta` to be the corresponding [slise.optimisation.next_beta][].
 
     Args:
         X (np.ndarray): Data matrix.
@@ -291,14 +298,14 @@ def initialise_candidates2(
         Tuple[np.ndarray, float]: `(alpha, beta)`.
     """
     # Prepare parameters
-    epsilon = epsilon ** 2
+    epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
     max_approx = log(max_approx)
     if weight is not None:
         weight = weight / np.sum(weight)
     # Initial model (zeros)
     alpha = np.zeros(X.shape[1])
-    residuals = Y ** 2
+    residuals = Y**2
     beta = next_beta(residuals, epsilon, 0, weight, beta_max, max_approx, min_beta_step)
     loss = loss_residuals(alpha, residuals, epsilon, beta, 0, 0, weight)
     # Find the candidate with the best loss for the next_beta

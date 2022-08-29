@@ -1,4 +1,4 @@
-![PySLISE Banner Image](examples/pyslise_banner.png)
+![PySLISE Banner Image](docs/pyslise_banner.webp)
 # SLISE - Sparse Linear Subset Explanations
 
 Python implementation of the SLISE algorithm. The SLISE algorithm can be used for both robust regression and to explain outcomes from black box models.
@@ -54,11 +54,11 @@ The (original) **R** implementation can be found [here](https://github.com/edahe
 
 Here are two quick examples of SLISE in action. For more detailed examples, with descriptions on how to create and interpret them, see the [examples](https://github.com/edahelsinki/pyslise/tree/master/examples) directory.
 
-> ![Example of Robust Regression](examples/ex1.png)  
+> ![Example of Robust Regression](docs/ex1.webp)  
 > SLISE is a robust regression algorithm, which means that it is able to handle outliers. This is in contrast to, e.g., ordinary least-squares regression, which gives skewed results when outliers are present.
 
 &nbsp;
-> ![Example of Explanation](examples/ex2.png)  
+> ![Example of Explanation](docs/ex2.webp)  
 > SLISE can also be used to explain outcomes from black box models by locally approximating the complex models with a simpler linear model.
 
 ## Dependencies
