@@ -83,39 +83,6 @@ def add_constant_columns(
         return X2
 
 
-def unscale_model(
-    model: np.ndarray,
-    x_center: np.ndarray,
-    x_scale: np.ndarray,
-    y_center: float = 0.0,
-    y_scale: float = 1.0,
-    columns: Optional[np.ndarray] = None,
-) -> np.ndarray:
-    """Scale a linear model such that it matches unnormalised data.
-
-    Args:
-        model (np.ndarray): The model for normalised data.
-        x_center (np.ndarray): The center used for normalising X.
-        x_scale (np.ndarray): The scale used for normalising X.
-        y_center (float, optional): The scale used for normalising y. Defaults to 0.0.
-        y_scale (float, optional): The center used for normalising y. Defaults to 1.0.
-        columns (Optional[np.ndarray], optional): Mask of removed columns (see remove_constant_columns). Defaults to None.
-
-    Returns:
-        np.ndarray: The unscaled model.
-    """
-    if len(model) == len(x_center):
-        model = np.concatenate((np.zeros(1, x_center.dtype), model))
-    else:
-        model = model.copy()
-    model[0] = (model[0] - np.sum(model[1:] * x_center / x_scale)) * y_scale + y_center
-    model[1:] = model[1:] / x_scale * y_scale
-    if columns is not None:
-        return add_constant_columns(model, columns, True)
-    else:
-        return model
-
-
 def normalise_robust(
     x: np.ndarray, epsilon: Optional[float] = None
 ) -> Tuple[np.ndarray, Union[float, np.ndarray], Union[float, np.ndarray]]:
@@ -183,6 +150,39 @@ def scale_same(
                 return y
             x = x[:, constant_colums]
         return (x - center[None, :]) / scale[None, :]
+
+
+def unscale_model(
+    model: np.ndarray,
+    x_center: np.ndarray,
+    x_scale: np.ndarray,
+    y_center: float = 0.0,
+    y_scale: float = 1.0,
+    columns: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Scale a linear model such that it matches unnormalised data.
+
+    Args:
+        model (np.ndarray): The model for normalised data.
+        x_center (np.ndarray): The center used for normalising X.
+        x_scale (np.ndarray): The scale used for normalising X.
+        y_center (float, optional): The scale used for normalising y. Defaults to 0.0.
+        y_scale (float, optional): The center used for normalising y. Defaults to 1.0.
+        columns (Optional[np.ndarray], optional): Mask of removed columns (see remove_constant_columns). Defaults to None.
+
+    Returns:
+        np.ndarray: The unscaled model.
+    """
+    if len(model) == len(x_center):
+        model = np.concatenate((np.zeros(1, x_center.dtype), model))
+    else:
+        model = model.copy()
+    model[0] = (model[0] - np.sum(model[1:] * x_center / x_scale)) * y_scale + y_center
+    model[1:] = model[1:] / x_scale * y_scale
+    if columns is not None:
+        return add_constant_columns(model, columns, True)
+    else:
+        return model
 
 
 class DataScaling(NamedTuple):
