@@ -3,5 +3,3 @@ mkdocs
 mkdocs-material
 mkdocs-include-markdown-plugin
 mkdocstrings[python]
-mkdocs-gen-files
-mkdocs-literate-nav

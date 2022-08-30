@@ -484,48 +484,6 @@ def _debug_log(
     )
 
 
-def set_threads(num: int = -1) -> int:
-    """Set the number of numba threads.
-
-    Args:
-        num (int, optional): The number of threads. Defaults to -1.
-
-    Returns:
-        int: The old number of theads (or -1 if unchanged).
-    """
-    if num > 0:
-        old = get_num_threads()
-        if old != num:
-            set_num_threads(num)
-        return old
-    return -1
-
-
-@jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def _dummy_numba(
-    x: np.ndarray,
-) -> np.ndarray:
-    """
-    A dummy function to check the numba compilation (see check_threading_layer).
-    """
-    return x * x
-
-
-def check_threading_layer():
-    """
-    Check which numba threading_layer is active, and warn if it is "workqueue".
-    """
-    _dummy_numba(np.ones(1))
-    try:
-        if threading_layer() == "workqueue":
-            warn(
-                'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
-                SliseWarning,
-            )
-    except ValueError as e:
-        warn(f"Numba: {e}", SliseWarning)
-
-
 @np.errstate(over="ignore")
 def graduated_optimisation(
     alpha: np.ndarray,
@@ -584,3 +542,45 @@ def graduated_optimisation(
         if w:
             print("Warnings from intermediate steps:", w)
     return alpha
+
+
+def set_threads(num: int = -1) -> int:
+    """Set the number of numba threads.
+
+    Args:
+        num (int, optional): The number of threads. Defaults to -1.
+
+    Returns:
+        int: The old number of theads (or -1 if unchanged).
+    """
+    if num > 0:
+        old = get_num_threads()
+        if old != num:
+            set_num_threads(num)
+        return old
+    return -1
+
+
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
+def _dummy_numba(
+    x: np.ndarray,
+) -> np.ndarray:
+    """
+    A dummy function to check the numba compilation (see check_threading_layer).
+    """
+    return x * x
+
+
+def check_threading_layer():
+    """
+    Check which numba threading_layer is active, and warn if it is "workqueue".
+    """
+    _dummy_numba(np.ones(1))
+    try:
+        if threading_layer() == "workqueue":
+            warn(
+                'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
+                SliseWarning,
+            )
+    except ValueError as e:
+        warn(f"Numba: {e}", SliseWarning)

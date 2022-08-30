@@ -31,7 +31,14 @@ theme:
 
 nav:
   - Home: 'index.md'
-  - Documentation: docs/
+  - Documentation:
+    - slise: docs/slise.md
+    - slise.slise: docs/slise.slise.md
+    - slise.data: docs/slise.data.md
+    - slise.initialisation: docs/slise.initialisation.md
+    - slise.optimisation: docs/slise.optimisation.md
+    - slise.plot: docs/slise.plot.md
+    - slise.utils: docs/slise.utils.md
   - Links:
     - GitHub: https://github.com/edahelsinki/pyslise
     - PyPI: https://pypi.org/project/slise/
@@ -42,10 +49,10 @@ nav:
 plugins:
   # - offline 
   - search
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+              members_order: source
+              show_root_heading: True
   - include-markdown
-  - gen-files:
-      scripts:
-        - docs/gen_pages.py 
-  - literate-nav:
-      nav_file: SUMMARY.md
