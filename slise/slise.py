@@ -869,18 +869,18 @@ class SliseExplainer:
         res = mat_mul_inter(X, self.coefficients) - Y
         return res**2 < self.scaled_epsilon**2
 
-    def get_impact(
+    def get_terms(
         self, normalised: bool = False, x: Union[None, np.ndarray] = None
     ) -> np.ndarray:
-        """Get the "impact" of different variables on the outcome.
-            The impact is the (normalised) model times the (normalised) item.
+        """Get the "terms" of different variables on the outcome.
+            The terms are the (normalised) coefficients times the (normalised) values.
 
         Args:
-            normalised (bool, optional): Return the normalised impact (if normalisation is used). Defaults to False.
-            x (Union[None, np.ndarray], optional): The item to calculate the impact for (uses the explained item if None). Defaults to None.
+            normalised (bool, optional): Return the normalised terms (if normalisation is used). Defaults to False.
+            x (Union[None, np.ndarray], optional): The item to calculate the terms for (uses the explained item if None). Defaults to None.
 
         Returns:
-            np.ndarray: The impact vector.
+            np.ndarray: The terms vector.
         """
         if x is None:
             x = self._x
@@ -889,6 +889,8 @@ class SliseExplainer:
             return add_intercept_column(x) * self.coefficients
         else:
             return add_intercept_column(x) * self.coefficients
+
+    get_impact = get_terms
 
     def print(
         self,
@@ -917,10 +919,10 @@ class SliseExplainer:
             num_var,
             unscaled=self._x,
             unscaled_y=self._y,
-            impact=self.get_impact(False),
+            terms=self.get_terms(False),
             scaled=None if self._scale is None else self._scale.scale_x(self._x, False),
             alpha=self.normalised(),
-            scaled_impact=None if self._scale is None else self.get_impact(True),
+            scaled_terms=None if self._scale is None else self.get_terms(True),
             classes=classes,
             unscaled_preds=self._Y,
             logit=self._logit,
@@ -1005,12 +1007,8 @@ class SliseExplainer:
     ) -> SliseExplainer:
         """Plot the current explanation with density distributions for the dataset and a barplot for the model.
 
-        The barbplot contains both the approximating linear model (where the
-        weights can be loosely interpreted as the importance of the different
-        variables and their sign) and the "impact" which is the (scaled) model
-        time the (scaled) item values (which demonstrates how the explained
-        item interacts with the approximating linear model, since a negative
-        weight times a negative value actually supports a positive prediction).
+        The barplot contains both the approximating linear model (where the weights can be loosely interpreted as the importance of the different variables and their sign) and the "terms", which is the (scaled) model time the (scaled) item values.
+        The terms demonstrates how the explained item interacts with the approximating linear model, since a negative weight times a negative value actually supports a positive prediction.
 
         Args:
             title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
@@ -1026,8 +1024,8 @@ class SliseExplainer:
             self.normalised(),
             self._x,
             self._y,
-            self.get_impact(False),
-            self.get_impact(True) if self._normalise else None,
+            self.get_terms(False),
+            self.get_terms(True) if self._normalise else None,
             title,
             variables,
             decimals,

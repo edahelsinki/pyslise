@@ -162,10 +162,10 @@ def print_slise(
     num_var: int = 10,
     unscaled: Optional[np.ndarray] = None,
     unscaled_y: Union[None, float] = None,
-    impact: Optional[np.ndarray] = None,
+    terms: Optional[np.ndarray] = None,
     scaled: Optional[np.ndarray] = None,
     alpha: Optional[np.ndarray] = None,
-    scaled_impact: Optional[np.ndarray] = None,
+    scaled_terms: Optional[np.ndarray] = None,
     classes: Optional[List[str]] = None,
     unscaled_preds: Optional[np.ndarray] = None,
     logit: bool = False,
@@ -184,10 +184,10 @@ def print_slise(
         num_var (int, optional): Exclude zero weights if there are too many variables. Defaults to 10.
         unscaled (Optional[np.ndarray], optional): Unscaled x (explained item). Defaults to None.
         unscaled_y (Union[None, float], optional): Unscaled y (explained outcome). Defaults to None.
-        impact (Optional[np.ndarray], optional): Unscaled impact (coefficients * x). Defaults to None.
+        terms (Optional[np.ndarray], optional): Unscaled terms (coefficients * x). Defaults to None.
         scaled (Optional[np.ndarray], optional): Scaled x (explained item). Defaults to None.
         alpha (Optional[np.ndarray], optional): Scaled model. Defaults to None.
-        scaled_impact (Optional[np.ndarray], optional): Scaled impact (alpha * scaled_x). Defaults to None.
+        scaled_terms (Optional[np.ndarray], optional): Scaled terms (alpha * scaled_x). Defaults to None.
         classes (Optional[List[str]], optional): Class names (if applicable). Defaults to None.
         unscaled_preds (Optional[np.ndarray], optional): Unscaled resonse (Y-vector). Defaults to None.
         logit (bool, optional): A logit transformation has been applied. Defaults to False.
@@ -201,14 +201,14 @@ def print_slise(
         rows["Model Weights:"] = ["%%.%df" % decimals % a for a in coefficients]
     else:
         rows["Coefficients:"] = ["%%.%df" % decimals % a for a in coefficients]
-    if impact is not None:
-        rows["Prediction Impact:"] = ["%%.%df" % decimals % a for a in impact]
+    if terms is not None:
+        rows["Prediction Term:"] = ["%%.%df" % decimals % a for a in terms]
     if scaled is not None:
         rows["Normalised Item:"] = [""] + ["%%.%df" % decimals % a for a in scaled]
     if alpha is not None:
         rows["Normalised Weights:"] = ["%%.%df" % decimals % a for a in alpha]
-    if scaled_impact is not None:
-        rows["Normalised Impact:"] = ["%%.%df" % decimals % a for a in scaled_impact]
+    if scaled_terms is not None:
+        rows["Normalised Term:"] = ["%%.%df" % decimals % a for a in scaled_terms]
     col_len = [
         max(8, *vs) + 1
         for vs in zip(*(tuple(len(v) for v in vs) for vs in rows.values()))
@@ -336,8 +336,8 @@ def plot_dist(
     alpha: Optional[np.ndarray] = None,
     x: Optional[np.ndarray] = None,
     y: Optional[float] = None,
-    impact: Optional[np.ndarray] = None,
-    norm_impact: Optional[np.ndarray] = None,
+    terms: Optional[np.ndarray] = None,
+    norm_terms: Optional[np.ndarray] = None,
     title: str = "SLISE Explanation",
     variables: Optional[List[str]] = None,
     decimals: int = 3,
@@ -353,8 +353,8 @@ def plot_dist(
         alpha (Optional[np.ndarray]): Scaled model. Defaults to None.
         x (Optional[np.ndarray], optional): The explained item (if it is an explanation). Defaults to None.
         y (Optional[float], optional): The explained outcome (if it is an explanation). Defaults to None.
-        impact (Optional[np.ndarray], optional): Impact vector (unscaled x*alpha), if available. Defaults to None.
-        norm_impact (Optional[np.ndarray], optional): Impact vector (scaled x*alpha), if available. Defaults to None.
+        terms (Optional[np.ndarray], optional): Term vector (unscaled x*alpha), if available. Defaults to None.
+        norm_terms (Optional[np.ndarray], optional): Term vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
         variables (Optional[List[str]], optional): Names for the (columns/) variables. Defaults to None.
         decimals (int, optional): Number of decimals when writing numbers. Defaults to 3.
@@ -374,10 +374,10 @@ def plot_dist(
     order = get_explanation_order(np.abs(alpha), True)
     model = model[order]
     alpha = alpha[order]
-    if impact is not None:
-        impact = impact[order]
-    if norm_impact is not None:
-        norm_impact = norm_impact[order]
+    if terms is not None:
+        terms = terms[order]
+    if norm_terms is not None:
+        norm_terms = norm_terms[order]
     variables = [variables[i] for i in order]
     subsize = subset.mean()
 
@@ -450,12 +450,12 @@ def plot_dist(
     axbig.set_yticklabels(variables)
     axbig.set_ylim(bottom=ticks[0] - 0.45, top=ticks[-1] + 0.45)
     axbig.invert_yaxis()
-    if impact is None and noalpha:
+    if terms is None and noalpha:
         column_color = [SLISE_ORANGE if v < 0 else SLISE_PURPLE for v in alpha]
         axbig.barh(ticks, alpha, color=column_color)
         for y, v in zip(ticks, model):
             text(0, y, v)
-    elif impact is None and not noalpha:
+    elif terms is None and not noalpha:
         axbig.barh(
             ticks - 0.2,
             model / np.max(np.abs(model)),
@@ -475,7 +475,7 @@ def plot_dist(
             text(0, y, a)
         axbig.set_xticks([])
         axbig.legend()
-    elif norm_impact is None:
+    elif norm_terms is None:
         axbig.barh(
             ticks[1:] - 0.2,
             model[1:] / np.max(np.abs(model)),
@@ -491,12 +491,12 @@ def plot_dist(
         )
         axbig.barh(
             ticks[1:] + 0.2,
-            impact[1:] / np.max(np.abs(impact[1:])),
+            terms[1:] / np.max(np.abs(terms[1:])),
             height=0.35,
             color=SLISE_ORANGE,
-            label="Prediction Impact",
+            label="Prediction Term",
         )
-        for y, a, m in zip(ticks, impact, model):
+        for y, a, m in zip(ticks, terms, model):
             if y == ticks[0]:
                 text(0, y, m)
                 continue
@@ -533,19 +533,19 @@ def plot_dist(
         )
         axbig.barh(
             ticks[1:] + 0.11,
-            impact[1:] / np.max(np.abs(impact[1:])),
+            terms[1:] / np.max(np.abs(terms[1:])),
             height=0.2,
             color=SLISE_ORANGE,
-            label="Prediction Impact",
+            label="Prediction Term",
         )
         axbig.barh(
             ticks[1:] + 0.33,
-            norm_impact[1:] / np.max(np.abs(norm_impact[1:])),
+            norm_terms[1:] / np.max(np.abs(norm_terms[1:])),
             height=0.2,
             color=SLISE_DARKORANGE,
-            label="Normalised Impact",
+            label="Normalised Term",
         )
-        for y, i1, i2, m1, m2 in zip(ticks, impact, norm_impact, model, alpha):
+        for y, i1, i2, m1, m2 in zip(ticks, terms, norm_terms, model, alpha):
             if y == ticks[0]:
                 text(0, y - 0.11, m1)
                 text(0, y + 0.11, m2)
