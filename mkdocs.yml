@@ -15,7 +15,7 @@ theme:
       primary: deep purple
       accent: deep orange
       toggle:
-        icon: material/lightbulb 
+        icon: material/lightbulb
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
@@ -30,29 +30,30 @@ theme:
     - navigation.indexes
 
 nav:
-  - Home: 'index.md'
+  - Home: "index.md"
   - Documentation:
-    - slise: docs/slise.md
-    - slise.slise: docs/slise.slise.md
-    - slise.data: docs/slise.data.md
-    - slise.initialisation: docs/slise.initialisation.md
-    - slise.optimisation: docs/slise.optimisation.md
-    - slise.plot: docs/slise.plot.md
-    - slise.utils: docs/slise.utils.md
+      - slise: docs/slise.md
+      - slise.slise: docs/slise.slise.md
+      - slise.data: docs/slise.data.md
+      - slise.initialisation: docs/slise.initialisation.md
+      - slise.optimisation: docs/slise.optimisation.md
+      - slise.plot: docs/slise.plot.md
+      - slise.utils: docs/slise.utils.md
   - Links:
-    - GitHub: https://github.com/edahelsinki/pyslise
-    - PyPI: https://pypi.org/project/slise/
-    - Original paper: https://rdcu.be/bVbda
-    - Robust regression paper: https://rdcu.be/cFRHD
-    - Examples: https://github.com/edahelsinki/pyslise/tree/master/examples
+      - GitHub: https://github.com/edahelsinki/pyslise
+      - PyPI: https://pypi.org/project/slise/
+      - Original conference paper: https://rdcu.be/bVbda
+      - Robust regression paper: https://rdcu.be/cFRHD
+      - Local Explantions paper: https://doi.org/10.3389/fcomp.2023.1143904
+      - Examples: https://github.com/edahelsinki/pyslise/tree/master/examples
 
 plugins:
-  # - offline 
+  # - offline
   - search
   - mkdocstrings:
       handlers:
         python:
           options:
-              members_order: source
-              show_root_heading: True
+            members_order: source
+            show_root_heading: True
   - include-markdown
