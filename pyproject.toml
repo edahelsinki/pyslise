@@ -1,3 +1,44 @@
+[project]
+name = "slise"
+version = "2.2.0"
+authors = [{ name = "Anton Björklund", email = "anton.bjorklund@helsinki.fi" }]
+description = "The SLISE algorithm for robust regression and explanations of black box models"
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = [
+    "Robust regression",
+    "Sparse Linear Regression",
+    "Explainable Artificial Intelligence",
+    "Local Explanations",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+requires-python = "3.6"
+dependencies = [
+    "numpy >= 1.20",
+    "scipy >= 1.6",
+    "numba >= 0.53",
+    "matplotlib >= 3.3",
+    "PyLBFGS >= 0.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "black[jupyter]", "pylint", "tbb", "icc_rt", "IPython"]
+tbb = ["tbb"]
+
+[project.urls]
+homepage = "https://edahelsinki.fi/pyslise"
+documentation = "https://edahelsinki.fi/pyslise/docs/slise/"
+repository = "https://github.com/edahelsinki/pyslise.git"
+
 [build-system]
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["slise"]

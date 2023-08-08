@@ -1,6 +1,0 @@
-pytest
-black[jupyter]
-pylint
-tbb
-icc_rt
-IPython
