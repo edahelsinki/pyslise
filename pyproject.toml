@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
-requires-python = "3.6"
+requires-python = ">=3.6"
 dependencies = [
     "numpy >= 1.20",
     "scipy >= 1.6",
