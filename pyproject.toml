@@ -18,8 +18,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
-requires-python = ">=3.6"
+requires-python = ">=3.6,<3.11" # Python>=3.11 is not supported due to PyLBFGS not being updated to cython>=3.0
 dependencies = [
+    "cython < 3.0",      # PyLBFGS is not updated to support cython>=3.0
     "numpy >= 1.20",
     "scipy >= 1.6",
     "numba >= 0.53",
