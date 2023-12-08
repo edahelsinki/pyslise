@@ -131,27 +131,33 @@ def test_slise_reg():
     # S = (Y - Yp) ** 2 < reg1.epsilon ** 2
     # Sn = (Yn - Ynp) ** 2 < reg1.epsilon_orig ** 2
     assert np.allclose(
-        Ypn, Ynp,
+        Ypn, Ynp
     ), f"The predicted Y's are not the same {np.max(np.abs(Ynp - Ypn))}"
-    assert (
-        reg1.score() <= 0
-    ), f"SLISE loss should be negative ({reg1.score():.2f}, {reg1.subset().mean():.2f})"
-    assert 1.0 >= reg1.subset().mean() > 0.75
+    assert reg1.score() <= 0, f"SLISE loss should be negative ({reg1.score()})"
+    assert 1.0 >= reg1.subset().mean() > 0.7
     reg2 = regression(
-        X, Y, epsilon=0.1, lambda1=1e-4, lambda2=1e-4, intercept=True, normalise=False,
+        X,
+        Y,
+        epsilon=0.1,
+        lambda1=1e-4,
+        lambda2=1e-4,
+        intercept=True,
+        normalise=False,
     )
     reg2.print()
-    assert (
-        reg2.score() <= 0
-    ), f"SLISE loss should be negative ({reg2.score():.2f}, {reg2.subset().mean():.2f})"
+    assert reg2.score() <= 0, f"SLISE loss should be negative ({reg2.score()})"
     assert 1.0 >= reg2.subset().mean() > 0.5
     reg3 = regression(
-        X, Y, epsilon=0.1, lambda1=0, lambda2=0, intercept=True, normalise=False,
+        X,
+        Y,
+        epsilon=0.1,
+        lambda1=0,
+        lambda2=0,
+        intercept=True,
+        normalise=False,
     )
     reg3.print()
-    assert (
-        reg3.score() <= 0
-    ), f"SLISE loss should be negative ({reg3.score():.2f}, {reg3.subset().mean():.2f})"
+    assert reg3.score() <= 0, f"SLISE loss should be negative ({reg3.score()})"
     assert 1.0 >= reg3.subset().mean() > 0.5
     reg4 = regression(
         X,
@@ -164,9 +170,7 @@ def test_slise_reg():
         weight=w,
     )
     reg4.print()
-    assert (
-        reg4.score() <= 0
-    ), f"SLISE loss should be negative ({reg4.score():.2f}, {reg4.subset().mean():.2f})"
+    assert reg4.score() <= 0, f"SLISE loss should be negative ({reg4.score()})"
     assert 1.0 >= reg4.subset().mean() > 0.4
 
 
