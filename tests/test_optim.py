@@ -250,9 +250,8 @@ def test_weights():
         regularised_regression(X, Y, 1e-4, 1e-4, weight=w2),
     )
     assert np.allclose(
-        regularised_regression(X2, Y2, 1e-4, 1e-4, weight=w1),
-        regularised_regression(X, Y, 1e-4, 1e-4, weight=w3),
-        atol=1e-4,
+        regularised_regression(X2, Y2, 1e-4, 1e-4, weight=w1, max_iterations=300),
+        regularised_regression(X, Y, 1e-4, 1e-4, weight=w3, max_iterations=300),
     )
 
 

@@ -310,8 +310,10 @@ def plot_2d(
     else:
         ax.plot(x_limits, y_limits, "-", color=SLISE_ORANGE, label="Model")
     formula = ""
-    if isinstance(model, float) or len(model) == 1:
-        formula = f"{float(model):.{decimals}f} * {label_x}"
+    if isinstance(model, float):
+        formula = f"{model:.{decimals}f} * {label_x}"
+    elif len(model.flat) == 1:
+        formula = f"{model.flat[0]:.{decimals}f} * {label_x}"
     elif np.abs(model[0]) > 1e-8:
         sign = "-" if model[1] < 0.0 else "+"
         formula = f"{model[0]:.{decimals}f} {sign} {abs(model[1]):.{decimals}f} $\\cdot$ {label_x}"
