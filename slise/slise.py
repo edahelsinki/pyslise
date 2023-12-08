@@ -268,6 +268,9 @@ class SliseRegression:
         if len(X.shape) == 1:
             X.shape = X.shape + (1,)
         assert X.shape[0] == Y.shape[0], "X and Y must have the same number of items!"
+        if len(Y.shape) > 1:
+            Y = Y.ravel()
+            assert X.shape[0] == Y.shape[0], "Y cannot have multiple columns!"
         self._X = X
         self._Y = Y
         if weight is None:
@@ -624,6 +627,9 @@ class SliseExplainer:
         if len(X.shape) == 1:
             X.shape = X.shape + (1,)
         assert X.shape[0] == Y.shape[0], "X and Y must have the same number of items"
+        if len(Y.shape) > 1:
+            Y = Y.ravel()
+            assert X.shape[0] == Y.shape[0], "Y cannot have multiple columns!"
         self._logit = logit
         self._normalise = normalise
         self._X = X
