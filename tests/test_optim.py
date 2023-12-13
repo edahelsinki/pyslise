@@ -6,6 +6,7 @@ from slise.optimisation import (
     graduated_optimisation,
     log_approximation_ratio,
     loss_numba,
+    loss_numbaw,
     loss_sharp,
     loss_smooth,
     matching_epsilon,
@@ -61,10 +62,10 @@ def test_loss():
     # With weight
     assert loss_smooth(alpha, X, Y, 0.1, weight=w) <= 0
     assert loss_sharp(alpha, X, Y, 0.1, weight=w) <= 0
-    assert loss_numba(alpha, X, Y, 0.1, lambda2=0, beta=0, weight=w)[0] <= 0
+    assert loss_numbaw(alpha, X, Y, 0.1, lambda2=0, beta=0, weight=w)[0] <= 0
     assert loss_smooth(alpha, X, Y, 10, weight=w) < 0
     assert loss_sharp(alpha, X, Y, 10, weight=w) < 0
-    assert loss_numba(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)[0] < 0
+    assert loss_numbaw(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)[0] < 0
     assert np.allclose(
         loss_smooth(alpha, X, Y, 0.1, beta=1000000, weight=w),
         loss_sharp(alpha, X, Y, 0.1, weight=w),
@@ -78,10 +79,10 @@ def test_loss():
         loss_sharp(alpha, X, Y, 0.1, lambda2=0.5, weight=w),
     )
     assert loss_smooth(alpha, X, Y, 0.1, beta=20, weight=w, lambda2=0.0) == approx(
-        loss_numba(alpha, X, Y, 0.1, lambda2=0.0, weight=w, beta=20)[0], 1e-8
+        loss_numbaw(alpha, X, Y, 0.1, lambda2=0.0, weight=w, beta=20)[0], 1e-8
     )
     assert loss_smooth(alpha, X, Y, 0.1, beta=20, weight=w, lambda2=0.5) == approx(
-        loss_numba(alpha, X, Y, 0.1, lambda2=0.5, weight=w, beta=20)[0], 1e-8
+        loss_numbaw(alpha, X, Y, 0.1, lambda2=0.5, weight=w, beta=20)[0], 1e-8
     )
 
 
@@ -96,9 +97,9 @@ def test_grad_numerically():
         )
         assert np.allclose(grad, grad2, atol=1e-4)
         w = np.random.uniform(size=20)
-        _, grad = loss_numba(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)
+        _, grad = loss_numbaw(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)
         grad2 = numeric_grad(
-            alpha, lambda x: loss_numba(x, X, Y, 10, lambda2=0, beta=0, weight=w)[0]
+            alpha, lambda x: loss_numbaw(x, X, Y, 10, lambda2=0, beta=0, weight=w)[0]
         )
         assert np.allclose(grad, grad2, atol=1e-4)
 

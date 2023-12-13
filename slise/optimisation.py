@@ -8,7 +8,7 @@ from warnings import catch_warnings, warn
 
 import numpy as np
 from lbfgs import LBFGSError, fmin_lbfgs
-from numba import jit, get_num_threads, set_num_threads, threading_layer
+from numba import jit, get_num_threads, set_num_threads, threading_layer, float64
 from scipy.optimize import brentq
 
 from slise.utils import (
@@ -47,16 +47,16 @@ def loss_smooth(
         float: Loss value.
     """
     epsilon *= epsilon
-    distances = ((X @ alpha) - Y) ** 2
-    subset = sigmoid(beta * (epsilon - distances))
+    residual2 = ((X @ alpha) - Y) ** 2
+    subset = sigmoid(beta * (epsilon - residual2))
     loss = 0.0
     if weight is None:
-        residuals = np.minimum(0, distances - epsilon * len(Y))
-        loss += np.sum(subset * residuals) / len(Y)
+        residual2 = np.minimum(0, residual2 - epsilon * len(Y))
+        loss += np.sum(subset * residual2) / len(Y)
     else:
         sumw = np.sum(weight)
-        residuals = np.minimum(0, distances - epsilon * sumw)
-        loss += np.sum(subset * residuals * weight) / sumw
+        residual2 = np.minimum(0, residual2 - epsilon * sumw)
+        loss += np.sum(subset * residual2 * weight) / sumw
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
     if lambda2 > 0:
@@ -98,12 +98,12 @@ def loss_residuals(
     """
     subset = 1 / (1 + np.exp(-beta * (epsilon2 - residuals2)))  # Sigmoid
     if weight is None:
-        residuals = np.minimum(0, residuals2 - epsilon2 * len(residuals2))
-        loss = np.sum(subset * residuals) / len(residuals2)
+        residual2 = np.minimum(0, residuals2 - epsilon2 * len(residuals2))
+        loss = np.sum(subset * residual2) / len(residuals2)
     else:
         sumw = np.sum(weight)
-        residuals = np.minimum(0, residuals2 - epsilon2 * sumw)
-        loss = np.sum(subset * residuals * weight) / sumw
+        residual2 = np.minimum(0, residuals2 - epsilon2 * sumw)
+        loss = np.sum(subset * residual2 * weight) / sumw
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
     if lambda2 > 0:
@@ -135,13 +135,13 @@ def loss_sharp(
         float: Loss value.
     """
     epsilon *= epsilon
-    distances = (Y - mat_mul_inter(X, alpha)) ** 2
+    residual2 = (Y - mat_mul_inter(X, alpha)) ** 2
     if weight is None:
-        loss = np.sum(distances[distances <= epsilon] - (epsilon * len(Y))) / len(Y)
+        loss = np.sum(residual2[residual2 <= epsilon] - (epsilon * len(Y))) / len(Y)
     else:
         sumw = np.sum(weight)
-        mask = distances <= epsilon
-        loss = np.sum((distances[mask] - (epsilon * sumw)) * weight[mask]) / sumw
+        mask = residual2 <= epsilon
+        loss = np.sum((residual2[mask] - (epsilon * sumw)) * weight[mask]) / sumw
     if lambda1 > 0:
         loss += lambda1 * np.sum(np.abs(alpha))
     if lambda2 > 0:
@@ -164,9 +164,9 @@ def loss_numba(
     epsilon: float,
     beta: float,
     lambda2: float,
-    weight: Optional[np.ndarray] = None,
 ) -> Tuple[float, np.ndarray]:
     """Smoothed version of the SLISE loss ([slise.optimisation.loss_smooth][]), that also calculates the gradient.
+    For a variant with weights see ([slise.optimisation.loss_numbaw][]).
     _This function is sped up with numba._
 
     Args:
@@ -176,31 +176,89 @@ def loss_numba(
         epsilon (float): Error tolerance.
         beta (float): Sigmoid steepness.
         lambda2 (float): Ridge/L2 regularisation coefficient.
-        weight (Optional[np.ndarray], optional): Weight vector for the data items. Defaults to None.
 
     Returns:
         Tuple[float, np.ndarray]: Loss value and gradient vector.
     """
     epsilon *= epsilon
-    distances = (X @ alpha) - Y
-    distances2 = distances**2
+    residuals = (X @ alpha) - Y
+    residual2 = residuals**2
+    n = residuals.dtype.type(len(Y))
     # Loss
-    subset = 1 / (1 + np.exp(-beta * (epsilon - distances2)))  # Sigmoid
-    n = len(Y) if weight is None else np.sum(weight)
-    residuals = np.minimum(0, distances2 - (epsilon * n))
-    if weight is None:
-        loss = np.sum(subset * residuals) / n
-    else:
-        loss = np.sum(subset * residuals * weight) / n
+    subset = 1 / (1 + np.exp(-beta * (epsilon - residual2)))  # Sigmoid
+    residual2 = np.minimum(0, residual2 - (epsilon * n))
+    loss = np.sum(subset * residual2) / n
     # Gradient
-    k1 = 2.0 / n
-    k2 = (-2.0 * beta / n) * (subset - subset**2)
-    distances[residuals == 0] = 0.0
-    if weight is None:
-        grad = ((subset * k1) + (residuals * k2)) * distances
-    else:
-        grad = ((subset * k1) + (residuals * k2)) * (distances * weight)
-    grad = np.expand_dims(grad, 0) @ X
+    grad = (
+        np.expand_dims(
+            subset
+            * residuals
+            * (2.0 / n - residual2 * (2.0 * beta / n) * (1.0 - subset))
+            * (residual2 < 0.0).astype(X.dtype),
+            0,
+        )
+        @ X
+    )
+    # Lambda
+    if lambda2 > 0:
+        loss = loss + lambda2 * np.sum(alpha * alpha)
+        grad = grad + (lambda2 * 2) * alpha
+    return loss, grad
+
+
+@jit(
+    nopython=True,
+    fastmath=True,
+    parallel=True,
+    cache=True,
+    nogil=True,
+    boundscheck=False,
+)
+def loss_numbaw(
+    alpha: np.ndarray,
+    X: np.ndarray,
+    Y: np.ndarray,
+    epsilon: float,
+    beta: float,
+    lambda2: float,
+    weight: np.ndarray,
+) -> Tuple[float, np.ndarray]:
+    """Smoothed version of the SLISE loss ([slise.optimisation.loss_smooth][]), that also calculates the gradient.
+    For a variant without weights see ([slise.optimisation.loss_numba][]).
+    _This function is sped up with numba._
+
+    Args:
+        alpha (np.ndarray): Linear model coefficients.
+        X (np.ndarray): Data matrix.
+        Y (np.ndarray): Response vector.
+        epsilon (float): Error tolerance.
+        beta (float): Sigmoid steepness.
+        lambda2 (float): Ridge/L2 regularisation coefficient.
+        weight (Optional[np.ndarray]): Weight vector for the data items.
+
+    Returns:
+        Tuple[float, np.ndarray]: Loss value and gradient vector.
+    """
+    epsilon *= epsilon
+    residuals = (X @ alpha) - Y
+    residual2 = residuals**2
+    n = np.sum(weight)
+    # Loss
+    subset = 1 / (1 + np.exp(-beta * (epsilon - residual2)))  # Sigmoid
+    residual2 = np.minimum(0, residual2 - (epsilon * n))
+    loss = np.sum(subset * residual2 * weight) / n
+    # Gradient
+    grad = (
+        np.expand_dims(
+            subset
+            * residuals
+            * weight
+            * (2.0 / n - residual2 * (2.0 * beta / n) * (1.0 - subset))
+            * (residual2 < 0.0).astype(X.dtype),
+            0,
+        )
+        @ X
+    )
     # Lambda
     if lambda2 > 0:
         loss = loss + lambda2 * np.sum(alpha * alpha)
@@ -340,12 +398,11 @@ def optimise_loss(
     Returns:
         np.ndarray: The coefficients of the linear model.
     """
-    return owlqn(
-        lambda alpha: loss_numba(alpha, X, Y, epsilon, beta, lambda2, weight),
-        alpha,
-        lambda1,
-        max_iterations,
-    )
+    if weight is None:
+        lf = lambda alpha: loss_numba(alpha, X, Y, epsilon, beta, lambda2)
+    else:
+        lf = lambda alpha: loss_numbaw(alpha, X, Y, epsilon, beta, lambda2, weight)
+    return owlqn(lf, alpha, lambda1, max_iterations)
 
 
 def log_approximation_ratio(
@@ -548,7 +605,7 @@ def set_threads(num: int = -1) -> int:
     """Set the number of numba threads.
 
     Args:
-        num (int, optional): The number of threads. Defaults to -1.
+        num (int, optional): The number of threads (or -1 to keep the old value). Defaults to -1.
 
     Returns:
         int: The old number of theads (or -1 if unchanged).
@@ -579,7 +636,8 @@ def check_threading_layer():
     try:
         if threading_layer() == "workqueue":
             warn(
-                'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow! See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.',
+                'Using `numba.threading_layer()=="workqueue"` can be devastatingly slow!'
+                " See https://numba.pydata.org/numba-doc/latest/user/threading-layer.html for alternatives.",
                 SliseWarning,
             )
     except ValueError as e:
