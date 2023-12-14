@@ -5,7 +5,7 @@ from slise.optimisation import (
     check_threading_layer,
     graduated_optimisation,
     log_approximation_ratio,
-    loss_numba,
+    loss_grad,
     loss_sharp,
     loss_smooth,
     matching_epsilon,
@@ -37,10 +37,10 @@ def test_loss():
     alpha = np.random.normal(size=5)
     assert loss_smooth(alpha, X, Y, 0.1) <= 0
     assert loss_sharp(alpha, X, Y, 0.1) <= 0
-    assert loss_numba(alpha, X, Y, 0.1, lambda2=0, beta=0)[0] <= 0
+    assert loss_grad(alpha, X, Y, 0.1, lambda2=0, beta=0)[0] <= 0
     assert loss_smooth(alpha, X, Y, 10) < 0
     assert loss_sharp(alpha, X, Y, 10) < 0
-    assert loss_numba(alpha, X, Y, 10, lambda2=0, beta=0)[0] < 0
+    assert loss_grad(alpha, X, Y, 10, lambda2=0, beta=0)[0] < 0
     assert np.allclose(
         loss_smooth(alpha, X, Y, 0.1, beta=1000000), loss_sharp(alpha, X, Y, 0.1)
     )
@@ -53,18 +53,18 @@ def test_loss():
         loss_sharp(alpha, X, Y, 0.1, lambda2=0.5),
     )
     assert loss_smooth(alpha, X, Y, 0.1, beta=20, lambda1=0.0, lambda2=0.0) == approx(
-        loss_numba(alpha, X, Y, 0.1, lambda2=0.0, beta=20)[0], 1e-8
+        loss_grad(alpha, X, Y, 0.1, lambda2=0.0, beta=20)[0], 1e-8
     )
     assert loss_smooth(alpha, X, Y, 0.1, beta=20, lambda1=0.0, lambda2=0.5) == approx(
-        loss_numba(alpha, X, Y, 0.1, lambda2=0.5, beta=20)[0], 1e-8
+        loss_grad(alpha, X, Y, 0.1, lambda2=0.5, beta=20)[0], 1e-8
     )
     # With weight
     assert loss_smooth(alpha, X, Y, 0.1, weight=w) <= 0
     assert loss_sharp(alpha, X, Y, 0.1, weight=w) <= 0
-    assert loss_numba(alpha, X, Y, 0.1, lambda2=0, beta=0, weight=w)[0] <= 0
+    assert loss_grad(alpha, X, Y, 0.1, lambda2=0, beta=0, weight=w)[0] <= 0
     assert loss_smooth(alpha, X, Y, 10, weight=w) < 0
     assert loss_sharp(alpha, X, Y, 10, weight=w) < 0
-    assert loss_numba(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)[0] < 0
+    assert loss_grad(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)[0] < 0
     assert np.allclose(
         loss_smooth(alpha, X, Y, 0.1, beta=1000000, weight=w),
         loss_sharp(alpha, X, Y, 0.1, weight=w),
@@ -78,10 +78,10 @@ def test_loss():
         loss_sharp(alpha, X, Y, 0.1, lambda2=0.5, weight=w),
     )
     assert loss_smooth(alpha, X, Y, 0.1, beta=20, weight=w, lambda2=0.0) == approx(
-        loss_numba(alpha, X, Y, 0.1, lambda2=0.0, weight=w, beta=20)[0], 1e-8
+        loss_grad(alpha, X, Y, 0.1, lambda2=0.0, weight=w, beta=20)[0], 1e-8
     )
     assert loss_smooth(alpha, X, Y, 0.1, beta=20, weight=w, lambda2=0.5) == approx(
-        loss_numba(alpha, X, Y, 0.1, lambda2=0.5, weight=w, beta=20)[0], 1e-8
+        loss_grad(alpha, X, Y, 0.1, lambda2=0.5, weight=w, beta=20)[0], 1e-8
     )
 
 
@@ -90,15 +90,15 @@ def test_grad_numerically():
     for _ in range(3):
         X, Y = data_create(20, 5)
         alpha = np.random.normal(size=5)
-        _, grad = loss_numba(alpha, X, Y, 10, lambda2=0, beta=0)
+        _, grad = loss_grad(alpha, X, Y, 10, lambda2=0, beta=0)
         grad2 = numeric_grad(
-            alpha, lambda x: loss_numba(x, X, Y, 10, lambda2=0, beta=0)[0]
+            alpha, lambda x: loss_grad(x, X, Y, 10, lambda2=0, beta=0)[0]
         )
         assert np.allclose(grad, grad2, atol=1e-4)
         w = np.random.uniform(size=20)
-        _, grad = loss_numba(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)
+        _, grad = loss_grad(alpha, X, Y, 10, lambda2=0, beta=0, weight=w)
         grad2 = numeric_grad(
-            alpha, lambda x: loss_numba(x, X, Y, 10, lambda2=0, beta=0, weight=w)[0]
+            alpha, lambda x: loss_grad(x, X, Y, 10, lambda2=0, beta=0, weight=w)[0]
         )
         assert np.allclose(grad, grad2, atol=1e-4)
 

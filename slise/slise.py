@@ -50,7 +50,7 @@ def regression(
     max_approx: float = 1.15,
     max_iterations: int = 300,
     debug: bool = False,
-    num_threads: int = -1,
+    num_threads: int = 1,
 ) -> SliseRegression:
     """Use SLISE for robust regression
 
@@ -78,7 +78,7 @@ def regression(
         max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
         debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
-        num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
+        num_threads (int, optional): The number of numba threads. Set to -1 to use numba defaults. Values >1 sometimes cause unexpectedly large overhead on some CPUs. Defaults to 1.
 
     Returns:
         SliseRegression: Object containing the regression result.
@@ -117,7 +117,7 @@ def explain(
     max_approx: float = 1.15,
     max_iterations: int = 300,
     debug: bool = False,
-    num_threads: int = -1,
+    num_threads: int = 1,
 ) -> SliseExplainer:
     """Use SLISE for explaining outcomes from black box models.
 
@@ -151,7 +151,7 @@ def explain(
         max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
         max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
         debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
-        num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
+        num_threads (int, optional): The number of numba threads. Set to -1 to use numba defaults. Values >1 sometimes cause unexpectedly large overhead on some CPUs. Defaults to 1.
 
     Returns:
         SliseExplainer: Object containing the explanation.
@@ -194,7 +194,7 @@ class SliseRegression:
         max_approx: float = 1.15,
         max_iterations: int = 300,
         debug: bool = False,
-        num_threads: int = -1,
+        num_threads: int = 1,
     ):
         """Use SLISE for robust regression.
 
@@ -218,7 +218,7 @@ class SliseRegression:
             max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
-            num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
+            num_threads (int, optional): The number of numba threads. Set to -1 to use numba defaults. Values >1 sometimes cause unexpectedly large overhead on some CPUs. Defaults to 1.
         """
         assert epsilon > 0.0, "`epsilon` must be positive!"
         assert lambda1 >= 0.0, "`lambda1` must not be negative!"
@@ -293,26 +293,28 @@ class SliseRegression:
             X = add_intercept_column(X)
         # Initialisation
         threads = set_threads(self.num_threads)
-        if init is None:
-            alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
-        else:
-            alpha, beta = initialise_fixed(init, X, Y, self.epsilon, self._weight)
-        # Optimisation
-        alpha = graduated_optimisation(
-            alpha=alpha,
-            X=X,
-            Y=Y,
-            epsilon=self.epsilon,
-            beta=beta,
-            lambda1=self.lambda1,
-            lambda2=self.lambda2,
-            weight=self._weight,
-            beta_max=self.beta_max,
-            max_approx=self.max_approx,
-            max_iterations=self.max_iterations,
-            debug=self.debug,
-        )
-        set_threads(threads)
+        try:
+            if init is None:
+                alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
+            else:
+                alpha, beta = initialise_fixed(init, X, Y, self.epsilon, self._weight)
+            # Optimisation
+            alpha = graduated_optimisation(
+                alpha=alpha,
+                X=X,
+                Y=Y,
+                epsilon=self.epsilon,
+                beta=beta,
+                lambda1=self.lambda1,
+                lambda2=self.lambda2,
+                weight=self._weight,
+                beta_max=self.beta_max,
+                max_approx=self.max_approx,
+                max_iterations=self.max_iterations,
+                debug=self.debug,
+            )
+        finally:
+            set_threads(threads)
         self._alpha = alpha
         if self._normalise:
             alpha2 = self._scale.unscale_model(alpha)
@@ -575,7 +577,7 @@ class SliseExplainer:
         max_approx: float = 1.15,
         max_iterations: int = 300,
         debug: bool = False,
-        num_threads: int = -1,
+        num_threads: int = 1,
     ):
         """Use SLISE for explaining outcomes from black box models.
 
@@ -606,7 +608,7 @@ class SliseExplainer:
             max_approx (float, optional): Approximation ratio when selecting the next beta. Defaults to 1.15.
             max_iterations (int, optional): Maximum number of OWL-QN iterations. Defaults to 300.
             debug (bool, optional): Print debug statements each graduated optimisation step. Defaults to False.
-            num_threads (int, optional): The number of threads to use for the optimisation. Defaults to -1.
+            num_threads (int, optional): The number of numba threads. Set to -1 to use numba defaults. Values >1 sometimes cause unexpectedly large overhead on some CPUs. Defaults to 1.
         """
         assert epsilon > 0.0, "`epsilon` must be positive!"
         assert lambda1 >= 0.0, "`lambda1` must not be negative!"
@@ -705,25 +707,27 @@ class SliseExplainer:
         X = self._X2 - x[None, :]
         Y = self._Y2 - y
         threads = set_threads(self.num_threads)
-        if init is None:
-            alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
-        else:
-            alpha, beta = initialise_fixed(init, X, Y, self.epsilon, self._weight)
-        alpha = graduated_optimisation(
-            alpha=alpha,
-            X=X,
-            Y=Y,
-            epsilon=self.epsilon,
-            beta=beta,
-            lambda1=self.lambda1,
-            lambda2=self.lambda2,
-            weight=self._weight,
-            beta_max=self.beta_max,
-            max_approx=self.max_approx,
-            max_iterations=self.max_iterations,
-            debug=self.debug,
-        )
-        set_threads(threads)
+        try:
+            if init is None:
+                alpha, beta = self.init_fn(X, Y, self.epsilon, self._weight)
+            else:
+                alpha, beta = initialise_fixed(init, X, Y, self.epsilon, self._weight)
+            alpha = graduated_optimisation(
+                alpha=alpha,
+                X=X,
+                Y=Y,
+                epsilon=self.epsilon,
+                beta=beta,
+                lambda1=self.lambda1,
+                lambda2=self.lambda2,
+                weight=self._weight,
+                beta_max=self.beta_max,
+                max_approx=self.max_approx,
+                max_iterations=self.max_iterations,
+                debug=self.debug,
+            )
+        finally:
+            set_threads(threads)
         alpha = np.concatenate(
             (y - np.sum(alpha * x, dtype=x.dtype, keepdims=True), alpha)
         )

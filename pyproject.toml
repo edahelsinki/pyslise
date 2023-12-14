@@ -1,6 +1,6 @@
 [project]
 name = "slise"
-version = "2.2.1"
+version = "2.2.2"
 authors = [{ name = "Anton Björklund", email = "anton.bjorklund@helsinki.fi" }]
 description = "The SLISE algorithm for robust regression and explanations of black box models"
 readme = "README.md"
@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "black[jupyter]", "pylint", "tbb", "icc_rt", "IPython"]
+dev = ["pytest", "black[jupyter]", "pylint", "icc_rt", "IPython"]
 tbb = ["tbb"]
 
 [project.urls]

@@ -32,16 +32,16 @@ def fast_lstsq(
     if weight is None or x.shape[1] <= max_iterations * 20:
         return np.linalg.lstsq(x, y, rcond=None)[0]
     else:
-        return regularised_regression(x, y, 0, 0, weight, max_iterations)
+        return regularised_regression(x, y, 0.0, 0.0, weight, max_iterations)
 
 
 def initialise_lasso(
     X: np.ndarray,
     Y: np.ndarray,
-    epsilon: float = 0,
+    epsilon: float = 0.0,
     weight: Optional[np.ndarray] = None,
     max_iterations: int = 300,
-    **kwargs
+    **kwargs,
 ) -> Tuple[np.ndarray, float]:
     """Initialise `alpha` and `beta` to be equivalent to LASSO.
 
@@ -63,12 +63,12 @@ def initialise_ols(
     Y: np.ndarray,
     epsilon: float,
     weight: Optional[np.ndarray] = None,
-    beta_max: float = 20,
+    beta_max: float = 20.0,
     max_approx: float = 1.15,
     max_iterations: int = 300,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
-    **kwargs
+    **kwargs,
 ) -> Tuple[np.ndarray, float]:
     """Initialise `alpha` to OLS and `beta` to [slise.optimisation.next_beta][].
 
@@ -89,10 +89,8 @@ def initialise_ols(
     alpha = fast_lstsq(X, Y, weight, max_iterations)
     epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
-    residuals = (Y - X @ alpha) ** 2
-    beta = next_beta(
-        residuals, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step
-    )
+    r2 = (Y - X @ alpha) ** 2
+    beta = next_beta(r2, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step)
     return alpha, beta
 
 
@@ -101,11 +99,11 @@ def initialise_zeros(
     Y: np.ndarray,
     epsilon: float,
     weight: Optional[np.ndarray] = None,
-    beta_max: float = 20,
+    beta_max: float = 20.0,
     max_approx: float = 1.15,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
-    **kwargs
+    **kwargs,
 ) -> Tuple[np.ndarray, float]:
     """Initialise `alpha` to 0 and `beta` to [slise.optimisation.next_beta][].
 
@@ -136,7 +134,7 @@ def initialise_fixed(
     Y: np.ndarray,
     epsilon: float,
     weight: Optional[np.ndarray] = None,
-    beta_max: float = 20,
+    beta_max: float = 20.0,
     max_approx: float = 1.15,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
@@ -163,14 +161,8 @@ def initialise_fixed(
         epsilon = epsilon**2
         beta_max = min(beta_max, beta_max_init) / epsilon
         alpha = init
-        beta = next_beta(
-            (X @ alpha - Y) ** 2,
-            epsilon,
-            0,
-            weight,
-            beta_max,
-            log(max_approx),
-        )
+        r2 = (X @ alpha - Y) ** 2
+        beta = next_beta(r2, epsilon, 0, weight, beta_max, log(max_approx))
     return alpha, beta
 
 
@@ -196,14 +188,14 @@ def initialise_candidates(
     Y: np.ndarray,
     epsilon: float,
     weight: Optional[np.ndarray] = None,
-    beta_max: float = 20,
+    beta_max: float = 20.0,
     max_approx: float = 1.15,
     pca_treshold: int = 10,
     num_init: Optional[int] = None,
     max_iterations: int = 300,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
-    **kwargs
+    **kwargs,
 ) -> Tuple[np.ndarray, float]:
     """Generate a number (num_init) of candidates, using PCA to shrink the random subsets.
         Then select the best one to be `alpha` and `beta` to be the corresponding [slise.optimisation.next_beta][].
@@ -236,19 +228,19 @@ def initialise_candidates(
     alpha = np.zeros(X.shape[1])
     residuals = Y**2
     beta = next_beta(residuals, epsilon, 0, weight, beta_max, max_approx, min_beta_step)
-    loss = loss_residuals(alpha, residuals, epsilon, beta, 0, 0, weight)
+    loss = loss_residuals(alpha, residuals, epsilon, beta, 0.0, 0.0, weight)
     # Find the candidate with the best loss for the next_beta
     for i in range(num_init):
         try:
             model = __create_candidate(X, Y, weight, pca_treshold, max_iterations)
-            residuals2 = (Y - X @ model) ** 2
-            loss2 = loss_residuals(model, residuals2, epsilon, beta, 0, 0, weight)
+            r2 = (Y - X @ model) ** 2
+            loss2 = loss_residuals(model, r2, epsilon, beta, 0.0, 0.0, weight)
             if loss2 < loss:
                 alpha = model
                 beta = next_beta(
-                    residuals2, epsilon, 0, weight, beta_max, max_approx, min_beta_step
+                    r2, epsilon, 0.0, weight, beta_max, max_approx, min_beta_step
                 )
-                loss = loss_residuals(model, residuals2, epsilon, beta, 0, 0, weight)
+                loss = loss_residuals(model, r2, epsilon, beta, 0.0, 0.0, weight)
         except np.linalg.LinAlgError:
             pass
     return alpha, beta
@@ -264,7 +256,7 @@ def __create_candidate2(
     X = X[sel, :]
     Y = Y[sel]
     with catch_warnings(record=False):
-        reg = regularised_regression(X, Y, 1e-8, 0, max_iterations)
+        reg = regularised_regression(X, Y, 1e-8, 0.0, max_iterations=max_iterations)
     return reg
 
 
@@ -273,13 +265,13 @@ def initialise_candidates2(
     Y: np.ndarray,
     epsilon: float,
     weight: Optional[np.ndarray] = None,
-    beta_max: float = 20,
+    beta_max: float = 20.0,
     max_approx: float = 1.15,
     num_init: Optional[int] = None,
     max_iterations: int = 300,
     beta_max_init: float = 2.5,
     min_beta_step: float = 1e-8,
-    **kwargs
+    **kwargs,
 ) -> Tuple[np.ndarray, float]:
     """Generate a number (num_init) of candidates, using LASSO to shrink the random subsets.
         Then select the best one to be `alpha` and `beta` to be the corresponding [slise.optimisation.next_beta][].
@@ -309,21 +301,21 @@ def initialise_candidates2(
         weight = weight / np.sum(weight)
     # Initial model (zeros)
     alpha = np.zeros(X.shape[1])
-    residuals = Y**2
-    beta = next_beta(residuals, epsilon, 0, weight, beta_max, max_approx, min_beta_step)
-    loss = loss_residuals(alpha, residuals, epsilon, beta, 0, 0, weight)
+    r2 = Y**2
+    beta = next_beta(r2, epsilon, 0.0, weight, beta_max, max_approx, min_beta_step)
+    loss = loss_residuals(alpha, r2, epsilon, beta, 0.0, 0.0, weight)
     # Find the candidate with the best loss for the next_beta
     for i in range(num_init):
         try:
             model = __create_candidate2(X, Y, weight, max_iterations)
-            residuals2 = (Y - X @ model) ** 2
-            loss2 = loss_residuals(model, residuals2, epsilon, beta, 0, 0, weight)
+            r2 = (Y - X @ model) ** 2
+            loss2 = loss_residuals(model, r2, epsilon, beta, 0.0, 0.0, weight)
             if loss2 < loss:
                 alpha = model
                 beta = next_beta(
-                    residuals2, epsilon, 0, weight, beta_max, max_approx, min_beta_step
+                    r2, epsilon, 0.0, weight, beta_max, max_approx, min_beta_step
                 )
-                loss = loss_residuals(model, residuals2, epsilon, beta, 0, 0, weight)
+                loss = loss_residuals(model, r2, epsilon, beta, 0.0, 0.0, weight)
         except np.linalg.LinAlgError:
             pass
     return alpha, beta
