@@ -52,10 +52,10 @@ Alternatively you can download the repo and run `python -m build` to build a whe
 
 ### Numba
 
-SLISE uses [Numba](https://numba.pydata.org/) to speed up the calculations. You might want to install the following optional libraries to get the most out of Numba:
+SLISE uses [Numba](https://numba.pydata.org/) to speed up the calculations. You might want to install the optional libraries to get the most out of Numba:
 
 ```sh
-pip install tbb icc_rt
+pip install "slise[tbb]"
 ```
 
 ## Other implementations
