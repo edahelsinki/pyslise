@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "black[jupyter]", "pylint", "IPython"]
+dev = ["pytest", "pytest-cov", "black[jupyter]", "pylint", "IPython", "ruff"]
 tbb = ["tbb"]
 
 [project.urls]

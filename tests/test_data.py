@@ -15,7 +15,7 @@ from slise.data import (
 )
 from slise.utils import mat_mul_inter
 
-from .utils import *
+from .utils import data_create2, data_create
 
 
 def test_scaling():
@@ -68,4 +68,3 @@ def test_pca():
     assert np.allclose(X @ mod, X2 @ pca_rotate_model(mod, v))
     assert np.allclose(X @ pca_invert_model(mod, v), X2 @ mod)
     X4, v = pca_simple(X.T, 4)
-

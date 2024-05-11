@@ -27,6 +27,26 @@ def test_plot2d():
     plt.close("all")
 
 
+def test_print():
+    X, Y, mod = data_create2(40, 5)
+    reg = regression(X, Y, 0.1, lambda1=1e-4, lambda2=1e-4, intercept=True)
+    reg.print()
+    reg.print(variables=[str(i) for i in range(5)], decimals=2, num_var=4)
+    reg = regression(X, Y, 0.1, lambda1=1e-4, lambda2=1e-4, intercept=False)
+    reg.print()
+    reg.print(variables=[str(i) for i in range(5)], decimals=2, num_var=4)
+    exp = explain(X, Y, 0.1, 5, lambda1=1e-4, lambda2=1e-4)
+    exp.print()
+    exp.print(classes=["asd", "bds"], variables=[str(i) for i in range(5)], num_var=4)
+    exp.print(classes="bds", decimals=2, num_var=4)
+    Y = Y - Y.min() + 0.01
+    Y /= Y.max() + 0.01
+    exp = explain(X, Y, 1.0, 5, lambda1=1e-4, lambda2=1e-4, normalise=True, logit=True)
+    exp.print()
+    exp.print(classes=["asd", "bds"], variables=[str(i) for i in range(5)], num_var=4)
+    exp.print(classes="bds", decimals=2, num_var=4)
+
+
 def test_dist():
     try:
         X, Y, mod = data_create2(40, 5)

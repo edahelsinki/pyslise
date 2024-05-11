@@ -17,7 +17,7 @@ from slise.initialisation import (
 from slise.optimisation import loss_smooth
 from slise.utils import mat_mul_inter
 
-from .utils import *
+from .utils import data_create, data_create2
 
 
 def test_initialise_simple():
@@ -123,9 +123,8 @@ def test_slise_reg():
     reg1 = regression(
         X, Y, epsilon=0.1, lambda1=1e-4, lambda2=1e-4, intercept=True, normalise=True
     )
-    reg1.print()
     Yp = mat_mul_inter(X, reg1.coefficients)
-    Yn = reg1._scale.scale_y(Y)
+    # Yn = reg1._scale.scale_y(Y)
     Ynp = mat_mul_inter(reg1._scale.scale_x(X), reg1._alpha)
     Ypn = reg1._scale.scale_y(Yp)
     # S = (Y - Yp) ** 2 < reg1.epsilon ** 2
@@ -144,7 +143,6 @@ def test_slise_reg():
         intercept=True,
         normalise=False,
     )
-    reg2.print()
     assert reg2.score() <= 0, f"SLISE loss should be negative ({reg2.score()})"
     assert 1.0 >= reg2.subset().mean() > 0.5
     reg3 = regression(
@@ -156,7 +154,6 @@ def test_slise_reg():
         intercept=True,
         normalise=False,
     )
-    reg3.print()
     assert reg3.score() <= 0, f"SLISE loss should be negative ({reg3.score()})"
     assert 1.0 >= reg3.subset().mean() > 0.5
     reg4 = regression(
@@ -169,7 +166,6 @@ def test_slise_reg():
         normalise=False,
         weight=w,
     )
-    reg4.print()
     assert reg4.score() <= 0, f"SLISE loss should be negative ({reg4.score()})"
     assert 1.0 >= reg4.subset().mean() > 0.4
 
@@ -183,12 +179,10 @@ def test_slise_exp():
     x = np.random.normal(size=5)
     y = np.random.normal()
     reg = explain(X, Y, 0.1, x, y, lambda1=1e-4, lambda2=1e-4, normalise=True)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert y == approx(reg.predict(x))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, 17, lambda1=0.01, lambda2=0.01, normalise=True)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert Y[17] == approx(reg.predict(X[17]))
     assert 1.0 >= reg.subset().mean() > 0.0
@@ -197,27 +191,22 @@ def test_slise_exp():
     assert y == approx(reg.predict(x))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, x, y, lambda1=0, lambda2=0, normalise=False)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert y == approx(reg.predict(x))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, 18, lambda1=0.01, lambda2=0.01, normalise=False)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert Y[18] == approx(reg.predict(X[18]))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, 19, lambda1=0, lambda2=0, normalise=False)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert Y[19] == approx(reg.predict(X[19]))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y, 0.1, 19, lambda1=0.01, lambda2=0.01, weight=w, normalise=False)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert Y[19] == approx(reg.predict(X[19]))
     assert 1.0 >= reg.subset().mean() > 0.0
     reg = explain(X, Y2, 0.5, 20, weight=w, normalise=True, logit=True)
-    reg.print()
     assert reg.score() <= 0, f"Slise loss should usually be <=0 ({reg.score():.2f})"
     assert Y2[20] == approx(reg.predict(X[20]))
     assert 1.0 >= reg.subset().mean() > 0.0
@@ -235,7 +224,7 @@ def test_normalised():
         reg.coefficients, reg._scale.unscale_model(reg.normalised(False))
     )
     threads = numba.get_num_threads()
-    reg1 = regression(
+    regression(
         X,
         Y,
         epsilon=0.1,
