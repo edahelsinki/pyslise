@@ -1,9 +1,9 @@
 """
-    This script contains functions for plotting SLISE solutions.
+This script contains functions for plotting SLISE solutions.
 """
 
 from collections import OrderedDict
-from typing import List, Tuple, Union, Optional
+from typing import List, Sequence, Tuple, Union, Optional
 from warnings import warn
 
 import numpy as np
@@ -121,7 +121,11 @@ def extended_limits(
 
 
 def get_explanation_order(
-    alpha: np.ndarray, intercept: bool = True, min: int = 5, th=1e-6
+    alpha: np.ndarray,
+    intercept: bool = True,
+    min: int = 5,
+    max: int = -1,
+    th: float = 1e-6,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get the order in which to show the variables in the plots.
 
@@ -129,6 +133,7 @@ def get_explanation_order(
         alpha (np.ndarray): Linear model.
         intercept (bool, optional): Does the model include an intercept. Defaults to True.
         min (int, optional): If the number of variables is larger than this, hide the zeroes. Defaults to 5.
+        max (int, optional): If `max > 0`, select the top variables. Defaults to -1.
         th ([type], optional): Threshold for zero. Defaults to 1e-6.
 
     Returns:
@@ -136,17 +141,17 @@ def get_explanation_order(
     """
     if intercept:
         order = np.argsort(alpha[1:]) + 1
-        if len(order) > min:
-            order = order[np.nonzero(alpha[order])]
-            if len(order) > min:
-                order = order[np.abs(alpha[order]) > np.max(np.abs(alpha)) * th]
-        order = np.concatenate((order, np.zeros(1, order.dtype)))
     else:
         order = np.argsort(alpha)
+    if len(order) > min:
+        order = order[np.nonzero(alpha[order])]
         if len(order) > min:
-            order = order[np.nonzero(alpha[order])]
-            if len(order) > min:
-                order = order[np.abs(alpha[order]) > np.max(np.abs(alpha)) * th]
+            order = order[np.abs(alpha[order]) > np.max(np.abs(alpha)) * th]
+    if max > 0 and len(order) > max:
+        nth = -np.partition(-np.abs(alpha), max - 1)[max - 1]
+        order = order[np.abs(alpha[order]) >= nth]
+    if intercept:
+        order = np.concatenate((order, np.zeros(1, order.dtype)))
     return np.flip(order)
 
 
@@ -214,8 +219,8 @@ def print_slise(
         for vs in zip(*(tuple(len(v) for v in vs) for vs in rows.values()))
     ]
     if len(coefficients) > num_var:
-        col_len = [l if c != 0 else 0 for l, c in zip(col_len, coefficients)]
-    lab_len = max(len(l) for l in rows)
+        col_len = [cl if c != 0 else 0 for cl, c in zip(col_len, coefficients)]
+    lab_len = max(len(r) for r in rows)
     if title:
         print(title)
     if unscaled_y is not None:
@@ -342,6 +347,7 @@ def plot_dist(
     norm_terms: Optional[np.ndarray] = None,
     title: str = "SLISE Explanation",
     variables: Optional[List[str]] = None,
+    order: Union[None, int, Sequence[int]] = None,
     decimals: int = 3,
     fig: Optional[Figure] = None,
 ):
@@ -358,6 +364,7 @@ def plot_dist(
         terms (Optional[np.ndarray], optional): Term vector (unscaled x*alpha), if available. Defaults to None.
         norm_terms (Optional[np.ndarray], optional): Term vector (scaled x*alpha), if available. Defaults to None.
         title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
+        order (Union[None, int, Sequence[int]], optional): Select variables (None: all, int: largest, selected). Defaults to all.
         variables (Optional[List[str]], optional): Names for the (columns/) variables. Defaults to None.
         decimals (int, optional): Number of decimals when writing numbers. Defaults to 3.
         fig (Optional[Figure], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
@@ -369,11 +376,18 @@ def plot_dist(
         alpha = model
     else:
         noalpha = False
+    order_offset = 0
     if len(model) == X.shape[1]:
         model = np.concatenate((np.zeros(1, model.dtype), model))
         alpha = np.concatenate((np.zeros(1, model.dtype), alpha))
+        order_offset = 1
         variables[0] = ""
-    order = get_explanation_order(np.abs(alpha), True)
+    if order is None:
+        order = get_explanation_order(np.abs(alpha), True)
+    elif isinstance(order, int):
+        order = get_explanation_order(np.abs(alpha), True, max=order)
+    else:
+        order = [0] + [i + order_offset for i in order if i + order_offset != 0]
     model = model[order]
     alpha = alpha[order]
     if terms is not None:
@@ -401,7 +415,7 @@ def plot_dist(
         if np.sum(subset) > 1:
             kde2 = gaussian_kde(X[subset], 0.2)
         else:
-            kde2 = lambda x: x * 0
+            kde2 = lambda x: x * 0  # noqa: E731
         lim = extended_limits(X, 0.1, 100)
         ax.plot(lim, kde1(lim), color="black", label="Dataset")
         ax.plot(
@@ -424,8 +438,8 @@ def plot_dist(
         fill_density(axs[0, 0], Y, y, "Prediction")
     axs[0, 0].legend()
     axs[0, 0].set_title("Dataset Distribution")
-    for i, k, n in zip(range(1, len(order)), order[1:] - 1, variables[1:]):
-        fill_density(axs[i, 0], X[:, k], x[k] if x is not None else None, n)
+    for i, k, n in zip(range(1, len(order)), order[1:], variables[1:]):
+        fill_density(axs[i, 0], X[:, k - 1], x[k - 1] if x is not None else None, n)
 
     # Bar plots
     def text(x, y, v):
