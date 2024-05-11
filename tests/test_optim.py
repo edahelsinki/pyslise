@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from pytest import approx
 from slise.optimisation import (
     check_threading_layer,
@@ -15,7 +14,7 @@ from slise.optimisation import (
 )
 from slise.utils import log_sigmoid, log_sum_exp, log_sum_special, sigmoid, sparsity
 
-from .utils import *
+from .utils import data_create, data_create2, numeric_grad
 
 
 def test_utils():
@@ -139,7 +138,7 @@ def test_gradopt():
     print("Testing graduated optimisation")
     X, Y = data_create(20, 5)
     alpha = np.random.normal(size=5)
-    alpha2 = graduated_optimisation(alpha, X, Y, 0.1, beta=100)
+    alpha2 = graduated_optimisation(alpha, X, Y, 0.1, beta=100, debug=True)
     assert loss_smooth(alpha, X, Y, 0.1, beta=100) >= loss_smooth(
         alpha2, X, Y, 0.1, beta=100
     )
@@ -252,7 +251,7 @@ def test_weights():
     assert np.allclose(
         regularised_regression(X2, Y2, 1e-4, 1e-4, weight=w1),
         regularised_regression(X, Y, 1e-4, 1e-4, weight=w3),
-        atol=1e-5
+        atol=1e-5,
     )
 
 

@@ -1,5 +1,5 @@
 """
-    This script contains functions for initialising alpha and beta in SLISE.
+This script contains functions for initialising alpha and beta in SLISE.
 """
 
 from math import log
@@ -122,9 +122,7 @@ def initialise_zeros(
     """
     epsilon = epsilon**2
     beta_max = min(beta_max, beta_max_init) / epsilon
-    beta = next_beta(
-        Y**2, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step
-    )
+    beta = next_beta(Y**2, epsilon, 0, weight, beta_max, log(max_approx), min_beta_step)
     return np.zeros(X.shape[1]), beta
 
 

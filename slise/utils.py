@@ -1,5 +1,5 @@
 """
-    This script contains some utility functions.
+This script contains some utility functions.
 """
 
 from typing import Union

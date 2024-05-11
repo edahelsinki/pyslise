@@ -1,14 +1,14 @@
 """
-    This script contains the main SLISE functions, and classes.
+This script contains the main SLISE functions, and classes.
 
-    The library can both be used "sk-learn" style with `SliseRegression(...).fit(X, y)`
-    and `SliseExplanation(...).explain(index)`, or in a more functional style with
-    `regression(...)` and `explain(...)`.
+The library can both be used "sk-learn" style with `SliseRegression(...).fit(X, y)`
+and `SliseExplanation(...).explain(index)`, or in a more functional style with
+`regression(...)` and `explain(...)`.
 """
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -511,6 +511,7 @@ class SliseRegression:
         self,
         title: str = "SLISE Regression",
         variables: list = None,
+        order: Union[None, int, Sequence[int]] = None,
         decimals: int = 3,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
@@ -519,23 +520,25 @@ class SliseRegression:
         Args:
             title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
             variables (list, optional): Names for the variables. Defaults to None.
+            order (Union[None, int, Sequence[int]], optional): Select variables (None: all, int: largest, selected). Defaults to all.
             decimals (int, optional): Number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
-            self._X,
-            self._Y,
-            self.coefficients,
-            self.subset(),
-            self.normalised(),
-            None,
-            None,
-            None,
-            None,
-            title,
-            variables,
-            decimals,
-            fig,
+            X=self._X,
+            Y=self._Y,
+            model=self.coefficients,
+            subset=self.subset(),
+            alpha=self.normalised(),
+            x=None,
+            y=None,
+            terms=None,
+            norm_terms=None,
+            title=title,
+            variables=variables,
+            order=order,
+            decimals=decimals,
+            fig=fig,
         )
 
     def plot_subset(
@@ -1012,6 +1015,7 @@ class SliseExplainer:
         self,
         title: str = "SLISE Explanation",
         variables: list = None,
+        order: Union[None, int, Sequence[int]] = None,
         decimals: int = 3,
         fig: Union[Figure, None] = None,
     ) -> SliseExplainer:
@@ -1023,23 +1027,25 @@ class SliseExplainer:
         Args:
             title (str, optional): Title of the plot. Defaults to "SLISE Explanation".
             variables (list, optional): Names for the variables. Defaults to None.
+            order (Union[None, int, Sequence[int]], optional): Select variables (None: all, int: largest, selected). Defaults to all.
             decimals (int, optional): Number of decimals to write. Defaults to 3.
             fig (Union[Figure, None], optional): Pyplot figure to plot on, if None then a new plot is created and shown. Defaults to None.
         """
         plot_dist(
-            self._X,
-            self._Y,
-            self.coefficients,
-            self.subset(),
-            self.normalised(),
-            self._x,
-            self._y,
-            self.get_terms(False),
-            self.get_terms(True) if self._normalise else None,
-            title,
-            variables,
-            decimals,
-            fig,
+            X=self._X,
+            Y=self._Y,
+            model=self.coefficients,
+            subset=self.subset(),
+            alpha=self.normalised(),
+            x=self._x,
+            y=self._y,
+            terms=self.get_terms(False),
+            norm_terms=self.get_terms(True) if self._normalise else None,
+            title=title,
+            variables=variables,
+            order=order,
+            decimals=decimals,
+            fig=fig,
         )
 
     def plot_subset(

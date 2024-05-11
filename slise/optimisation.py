@@ -1,5 +1,5 @@
 """
-    This script contains the loss functions and optimisation functions for SLISE.
+This script contains the loss functions and optimisation functions for SLISE.
 """
 
 from math import log
@@ -502,11 +502,11 @@ def regularised_regression(
     lambda2 = float(lambda2)
     assert X.shape[0] == len(Y), f"Different lengths {X.shape[0]} != {len(Y)}"
     if weight is None:
-        lf = lambda alpha: _ridge_numba(alpha, X, Y, lambda2)
+        lf = lambda alpha: _ridge_numba(alpha, X, Y, lambda2)  # noqa: E731
     else:
         weight = np.ascontiguousarray(weight, dtype=np.float64)
         assert Y.shape == weight.shape, f"Different shapes {Y.shape} != {weight.shape}"
-        lf = lambda alpha: _ridge_numbaw(alpha, X, Y, lambda2, weight)
+        lf = lambda alpha: _ridge_numbaw(alpha, X, Y, lambda2, weight)  # noqa: E731
     return owlqn(lf, np.zeros(X.shape[1], dtype=np.float64), lambda1, max_iterations)
 
 
@@ -547,11 +547,11 @@ def optimise_loss(
     epsilon = float(epsilon)
     beta = float(beta)
     if weight is None:
-        lf = lambda alpha: _loss_grad(alpha, X, Y, epsilon, beta, lambda2)
+        lf = lambda alpha: _loss_grad(alpha, X, Y, epsilon, beta, lambda2)  # noqa: E731
     else:
         weight = np.ascontiguousarray(weight, dtype=np.float64)
         assert Y.shape == weight.shape, f"Different shapes {Y.shape} != {weight.shape}"
-        lf = lambda alpha: _loss_gradw(alpha, X, Y, epsilon, beta, lambda2, weight)
+        lf = lambda alpha: _loss_gradw(alpha, X, Y, epsilon, beta, lambda2, weight)  # noqa: E731
     return owlqn(lf, alpha, lambda1, max_iterations)
 
 
@@ -576,8 +576,8 @@ def log_approximation_ratio(
     """
     if beta1 >= beta2:
         return 0
-    log_f = lambda r, beta: log_sigmoid(beta * (epsilon2 - r))
-    dlog_g = lambda r: -beta1 * dlog_sigmoid(
+    log_f = lambda r, beta: log_sigmoid(beta * (epsilon2 - r))  # noqa: E731
+    dlog_g = lambda r: -beta1 * dlog_sigmoid(  # noqa: E731
         beta1 * (epsilon2 - r)
     ) + beta2 * dlog_sigmoid(beta2 * (epsilon2 - r))
     if dlog_g(0) < 0:
@@ -628,7 +628,7 @@ def next_beta(
     if log_approx <= log_max_approx:
         return beta_max
     else:
-        f = (
+        f = (  # noqa: E731
             lambda b: log_approximation_ratio(residuals2, epsilon2, beta, b, weight)
             - log_max_approx
         )
@@ -681,9 +681,7 @@ def _debug_log(
     """
     residuals = (X @ alpha - Y) ** 2
     loss = loss_sharp(alpha, X, Y, epsilon, lambda1, lambda2, weight)
-    bloss = loss_residuals(
-        alpha, residuals, epsilon**2, beta, lambda1, lambda2, weight
-    )
+    bloss = loss_residuals(alpha, residuals, epsilon**2, beta, lambda1, lambda2, weight)
     epss = matching_epsilon(residuals, epsilon**2, beta, weight)
     beta = beta * epsilon**2
     print(

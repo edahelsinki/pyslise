@@ -25,7 +25,6 @@ def data_create2(
 
 def numeric_grad(x: np.ndarray, fn, eps=1e-6) -> np.ndarray:
     grad = x * 0
-    val0 = fn(x)
     for i, _ in enumerate(grad):
         x1 = x.copy()
         x1[i] += eps

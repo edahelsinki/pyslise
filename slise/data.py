@@ -1,5 +1,5 @@
 """
-    This script contains functions for modifying data, mainly normalisation and PCA.
+This script contains functions for modifying data, mainly normalisation and PCA.
 """
 
 from typing import NamedTuple, Tuple, Union, Optional
